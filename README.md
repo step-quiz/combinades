@@ -16,6 +16,15 @@ en una pestanya on ja tens l'eina oberta. El `.tex` porta l'adreça escrita a la
 
 Per refer aquest full, obre l'eina i posa al final de l'adreça del navegador el tros que comença per `#`.
 
+**Parèntesis.** Amb «parèntesis» marcat, cada exercici en porta com a molt 3, i el 3 és improbable. Compten tots
+els que es veuen menys els d'un sol nombre: `(−3)` i `(½)²` no compten, i `(−(2+3))` en té dos.
+- *Gradual:* de cada 10 exercicis, 4 sense parèntesis, 3 amb 1 i 3 amb 2, en aquest ordre.
+- *Immediata:* tots en porten, 6 amb 1 i 4 amb 2, barrejats.
+- En un full de cada 7 (15 %), un dels de 2 en porta 3 (a «gradual», l'últim).
+
+És el *generador 2* (`g=2` a l'adreça). Els enllaços d'abans, sense `g`, es continuen fent amb el generador 1 i
+donen exactament el mateix full que quan els vas desar.
+
 ## La carpeta de fulls
 
 Es prepara un sol cop. A la columna de configuració, l'apartat **Entorn** baixa els tres fitxers:
@@ -50,7 +59,7 @@ més petita (només aquella): abans es partia en dues línies.
 ## Proves
 
 ```
-node tests/prova.js       # la lògica: uns 11.500 exercicis, cap dependència (uns 6 s)
+node tests/prova.js       # la lògica: uns 24.000 exercicis, cap dependència (uns 20 s)
 node tests/compila.js     # compila fulls de debò amb el main.tex (cal pdflatex)
 node tests/navegador.js   # l'eina en un navegador de debò (cal Playwright)
 ```
@@ -62,9 +71,10 @@ Comprova els conjunts (ℕ/ℤ/ℚ, intermedis i resultat), «força que aparegu
 (també la resta i l'oposat), que la previsualització digui el mateix que el TeX i que cada parèntesi sigui més gran
 que els que té a dins. Ho fa per a totes les combinacions d'opcions possibles, també les graduals.
 
-**Empremtes.** `tests/empremtes.json` fixa quins exercicis surten per a cada combinació d'opcions. Si un canvi al
-codi canvia els exercicis, els fulls desats a l'adreça ja no tornarien a sortir iguals, i la prova ho diu. Si el
-canvi és a propòsit (una versió nova del generador), refés-les amb `node tests/prova.js --actualitza-empremtes`.
+**Empremtes.** `tests/empremtes.json` fixa quins exercicis surten per a cada combinació d'opcions i cada generador.
+Si un canvi al codi canvia els exercicis, els fulls desats a l'adreça ja no tornarien a sortir iguals, i la prova ho
+diu. Per canviar els exercicis cal un generador nou (`todo.md`, §6.3); les empremtes del generador nou, mentre encara
+no s'ha publicat, es refan amb `node tests/prova.js --actualitza-empremtes` (les dels antics, no es deixen tocar).
 
 `tests/navegador.js` necessita Playwright: `npm install --no-save playwright` i `npx playwright install chromium`.
 No deixa cap fitxer a l'arbre.

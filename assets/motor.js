@@ -22,12 +22,21 @@ var Motor = (function () {
 
   const VERSIO = 'v0.2';
 
+  /* La versió del GENERADOR va a l'adreça (g=…), perquè un full desat surti
+     sempre amb el generador amb què es va fer. Les adreces sense g són de la
+     v0.1: g=1. Els fulls nous es fan amb l'última, GENERADOR.
+       g=1  el de la v0.1.
+       g=2  amb «parèntesis», el nombre de parèntesis de cada exercici segueix
+            el pla de `parentesis()`: com a màxim 3, i el 3 és improbable. */
+  const GENERADOR = 2;
+
   const CFG = {
     OPERAND: [2, 9],    // els naturals de l'enunciat
     EXP: [2, 3],        // els exponents
     FRAC_DEN: [2, 6],   // els denominadors de les fraccions (ℚ)
     MAX: 200,           // cap valor, ni intermedi, té numerador o denominador més gran (en valor absolut)
-    INTENTS: 2000       // intents per exercici abans de rendir-se
+    INTENTS: 2000,      // intents per exercici abans de rendir-se
+    INTENTS_EXACTES: 20000   // amb un nombre exacte de parèntesis (g ≥ 2): calen més intents
   };
 
   /* Espai entre operacions: el \vspace del .tex i el marge de la impressió. */
@@ -229,7 +238,11 @@ var Motor = (function () {
       (PREC[fill.op] < PREC[pare.op] || (PREC[fill.op] === PREC[pare.op] && costat === 'r'));
   }
 
-  const nousComptadors = () => ({ grups: 0, pow: 0, neg: 0, ops: {} });
+  /* grups: els parèntesis d'agrupació (els que demana l'arbre). parentesis:
+     tots els que es veuen menys els que envolten un sol nombre o una sola
+     fracció, (−3) i (2/3)²: també compta el de fora de (−(2+3)). És el que un
+     professor diria «quants parèntesis té» (generador 2). */
+  const nousComptadors = () => ({ grups: 0, parentesis: 0, pow: 0, neg: 0, ops: {} });
 
   /** Escriu l'arbre amb l'emissor E i compta a `c` el que hi surt.
       `alPrincipi`: el node és el primer símbol de l'expressió o d'un grup.
@@ -241,24 +254,29 @@ var Motor = (function () {
       case 'neg': {
         c.neg++;
         let dins;
-        if (node.a.t === 'bin') { c.grups++; dins = E.parentesi(escriu(node.a, E, c, true)); }
+        if (node.a.t === 'bin') { c.grups++; c.parentesis++; dins = E.parentesi(escriu(node.a, E, c, true)); }
         else dins = escriu(node.a, E, c, false);
         const s = E.oposat(dins);
-        return alPrincipi ? s : E.parentesi(s);
+        if (alPrincipi) return s;
+        if (node.a.t === 'bin') c.parentesis++;            // (−(2+3)) en té dos; (−3), cap
+        return E.parentesi(s);
       }
       case 'pow': {
         c.pow++;
         const b = node.a;
         let base;
         if (b.t === 'num') base = E.nombre(b.v);
-        else if (b.t === 'bin') { c.grups++; base = E.parentesi(escriu(b, E, c, true)); }
-        else base = E.parentesi(escriu(b, E, c, true));       // (−3)², (2/3)²
+        else if (b.t === 'bin') { c.grups++; c.parentesis++; base = E.parentesi(escriu(b, E, c, true)); }
+        else {                                                 // (−3)², (2/3)², (−(2+3))²
+          if (b.t === 'neg' && b.a.t === 'bin') c.parentesis++;
+          base = E.parentesi(escriu(b, E, c, true));
+        }
         return E.potencia(base, node.k);
       }
       case 'bin': {
         c.ops[node.op] = (c.ops[node.op] || 0) + 1;
         const costat = (fill, quin) => {
-          if (calParentesi(fill, node, quin)) { c.grups++; return E.parentesi(escriu(fill, E, c, true)); }
+          if (calParentesi(fill, node, quin)) { c.grups++; c.parentesis++; return E.parentesi(escriu(fill, E, c, true)); }
           return escriu(fill, E, c, quin === 'l' ? alPrincipi : false);
         };
         const l = costat(node.l, 'l');
@@ -353,7 +371,7 @@ var Motor = (function () {
     if (p.div && !c.ops[':']) return null;
     if (p.pot && !c.pow) return null;
     if (p.opo && !c.neg) return null;
-    if (p.par ? c.grups < 1 : c.grups > 0) return null;
+    if (p.parentesis !== undefined ? c.parentesis !== p.parentesis : p.par ? c.grups < 1 : c.grups > 0) return null;
     if (p.forca) {
       if (ci !== 'N' && !intermedis.some(v => testimoni(ci, v))) return null;
       if (cf !== 'N' && !testimoni(cf, final)) return null;
@@ -362,9 +380,10 @@ var Motor = (function () {
     return { tex, html: escriu(arbre, HTML, nousComptadors(), true), valor: final, arbre };
   }
 
-  /** Un exercici amb les opcions p, o null si cap dels CFG.INTENTS no és bo. */
+  /** Un exercici amb les opcions p, o null si cap dels intents no és bo. */
   function genera(p, rg, anteriors) {
-    for (let intent = 0; intent < CFG.INTENTS; intent++) {
+    const intents = p.parentesis !== undefined ? CFG.INTENTS_EXACTES : CFG.INTENTS;
+    for (let intent = 0; intent < intents; intent++) {
       // De 3 a 5 operacions (de 4 a 6 amb divisions), sempre amb ·, + i − (i :).
       const div = p.div ? 1 : 0;
       const quantes = rg.entre(3 + div, 5 + div);
@@ -410,10 +429,46 @@ var Motor = (function () {
     return q;
   }
 
+  /* ------------------------------------------- quants parèntesis (g ≥ 2)
+     Quants parèntesis porta l'exercici i (parelles, comptades com a
+     `nousComptadors`: els de (−3) no compten), segons el pla del professor:
+       - gradual: de cada 10, 4 sense, 3 amb 1 i 3 amb 2, en ordre creixent;
+       - immediata: tots en tenen, 6 de cada 10 amb 1 i 4 amb 2, barrejats;
+       - en un full de cada 7 (15 %), l'últim «2» del pla en porta 3.
+     Mai n'hi ha més de 3, i el 3 és improbable. El pla es fa per quantils, de
+     manera que surt igual amb qualsevol n: l'exercici j cau a (j+½)/n. Només
+     depèn de la llavor mestra, de n i de i: ↻ canvia l'exercici, però no
+     quants parèntesis té. */
+  function parentesis(p, mestra, i) {
+    const n = Math.max(1, p.n || 1), pla = [];
+    for (let j = 0; j < n; j++) {
+      const u = 5 * (2 * j + 1);              // (j+½)/n < x  ⇔  u < 10·x·n
+      if (!p.grad) pla.push(u < 6 * n ? 1 : 2);
+      else if (u >= 7 * n) pla.push(2);
+      else pla.push(u < 4 * n && j < n - 2 ? 0 : 1);   // els 2 últims porten tots els extres
+    }
+    if (pla[n - 1] === 2 && atzar(`${mestra}:par3`).seguent() < .15) pla[n - 1] = 3;
+    if (!p.grad) atzar(`${mestra}:parOrdre`).barreja(pla);
+    return pla[Math.min(i, n - 1)];
+  }
+
+  /** Les opcions de l'exercici i: les del full, amb la progressió gradual i,
+      amb g ≥ 2, el nombre exacte de parèntesis (q.parentesis). */
+  function opcions(p, mestra, i) {
+    const q = Object.assign({}, gradual(p, mestra, i));
+    if (p.g >= 2 && p.par) {
+      q.parentesis = parentesis(p, mestra, i);
+      q.par = q.parentesis ? 1 : 0;
+      // ℚ només final no té cap exercici possible sense parèntesis: com a mínim 1.
+      if (!valida(q).ok) { q.par = 1; q.parentesis = Math.max(1, q.parentesis); }
+    }
+    return q;
+  }
+
   /** L'exercici i del full de llavor `mestra`, després de r ↻. `anteriors`:
       el TeX dels exercicis que ja són al full, perquè no es repeteixin. */
   function exercici(p, mestra, i, r, anteriors) {
-    const q = gradual(p, mestra, i);
+    const q = opcions(p, mestra, i);
     const x = genera(q, atzar(`${mestra}:${i}:${r}`), anteriors || new Set());
     if (!x) return { error: 'No he pogut generar aquest exercici amb aquestes opcions.', params: q };
     x.params = q;
@@ -439,7 +494,7 @@ var Motor = (function () {
     return s + '\\end{enumerate}\n';
   }
 
-  const M = { VERSIO, ESPAIS, SIMBOLS, EXTRES, valida, exercici, fitxerTex };
+  const M = { VERSIO, GENERADOR, ESPAIS, SIMBOLS, EXTRES, valida, opcions, exercici, fitxerTex };
   if (typeof module !== 'undefined') module.exports = M;
   return M;
 })();

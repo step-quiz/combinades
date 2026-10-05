@@ -64,18 +64,31 @@ const llegeixBaixada = async (pag, selector) => {
   comprova('surt un full de 5 exercicis', e.cartes === 5, e.cartes);
   comprova('el segell diu la versió del motor', await pag.textContent('#segell') === Motor.VERSIO);
   comprova("l'adreça guarda el full, amb les comes llegibles", /seed=[a-z0-9]+/.test(e.hash) && /&r=0,0,0,0,0$/.test(e.hash), e.hash);
+  comprova('un full nou es fa amb l\'últim generador', e.hash.includes(`&g=${Motor.GENERADOR}&`), e.hash);
   comprova('el .tex porta l\'adreça per refer el full', e.codi.includes('% per refer aquest full: index.html' + e.hash), e.codi.split('\n')[2]);
 
   console.log('Adreça');
   const enllac = '#n=4&esp=gran&sim=mitja&set=Z&int=1&fin=1&div=1&opo=1&pot=1&par=1&forca=1&fit=7&vs=0&grad=0&seed=prova1&r=0,2,0,1';
   await pag.goto(EINA + enllac);
   e = await estat();
-  comprova("un enllaç obert a la mateixa pestanya es carrega (hashchange)", e.cartes === 4 && e.hash === enllac, `${e.cartes} ${e.hash}`);
+  comprova("un enllaç obert a la mateixa pestanya es carrega (hashchange)", e.cartes === 4 && /seed=prova1&g=1&r=0,2,0,1$/.test(e.hash), `${e.cartes} ${e.hash}`);
   const esperat = [0, 1, 2, 3].map(i => Motor.exercici({ n: 4, esp: 'gran', sim: 'mitja', set: 'Z', int: 1, fin: 1, div: 1, opo: 1, pot: 1, par: 1, forca: 1, vs: 0, grad: 0 }, 'prova1', i, [0, 2, 0, 1][i]));
-  comprova("el full és el de l'enllaç (els mateixos exercicis que el motor)",
+  comprova("un enllaç de la v0.1 (sense g) torna el mateix full, amb el generador 1",
     e.codi.includes(esperat.map(x => x.tex).join('$\n\\par\\vspace{5cm}\n\\item $\\displaystyle ')), e.codi.slice(0, 300));
   await pag.reload();
   comprova('recarregar la pàgina dona el mateix full', JSON.stringify((await estat()).formules) === JSON.stringify(e.formules));
+  await pag.click('#tot');
+  comprova('«Genera-ho tot» fa un full nou amb l\'últim generador', (await estat()).hash.includes(`&g=${Motor.GENERADOR}&`));
+  const p2 = { n: 10, esp: 'mitja', sim: 'petit', set: 'Z', int: 1, fin: 1, div: 1, opo: 1, pot: 1, par: 1, forca: 1, vs: 0, grad: 1, g: 2 };
+  await pag.goto(EINA + '#n=10&set=Z&div=1&opo=1&pot=1&par=1&grad=1&seed=prova2&g=2');
+  e = await estat();
+  const esperat2 = [], ant2 = new Set();
+  for (let i = 0; i < 10; i++) { const x = Motor.exercici(p2, 'prova2', i, 0, ant2); ant2.add(x.tex); esperat2.push(x); }
+  comprova('un enllaç amb g=2 dona el full del generador 2', esperat2.every(x => e.codi.includes(x.tex)), e.codi.slice(0, 300));
+  const etiquetes = await pag.evaluate(() => [...document.querySelectorAll('.ext')].map(x => x.textContent));
+  comprova('a «gradual», l\'etiqueta diu quants parèntesis porta l\'exercici',
+    etiquetes.every((t, i) => esperat2[i].params.parentesis > 1 ? t.includes('( )×' + esperat2[i].params.parentesis) : esperat2[i].params.parentesis ? /\( \)(?!×)/.test(t) : !t.includes('( )')),
+    etiquetes.join(' | '));
   await pag.goto(EINA + '#n=99&esp=constructor&sim=toString&set=X&div=hola&seed=../x&r=a,b');
   e = await estat();
   comprova('una adreça mal formada no trenca res (valors per defecte)',

@@ -2,10 +2,10 @@
    app.js — La interfície: llegeix els controls, pinta el full i respon als
    clics. Tota la lògica dels exercicis és a motor.js; aquí només hi ha DOM.
 
-   L'estat és S (el que diuen els controls), més la llavor del full (seed) i
-   quants cops s'ha premut ↻ a cada exercici (R). Tot plegat va a l'adreça
-   (#n=5&…&seed=…&r=0,1,0): l'enllaç desat torna a donar el mateix full, i el
-   .tex el porta escrit al principi. Els controls (sense la llavor) es desen
+   L'estat és S (el que diuen els controls), més la llavor del full (seed), la
+   versió del generador amb què s'ha fet (g) i quants cops s'ha premut ↻ a cada
+   exercici (R). Tot plegat va a l'adreça (#n=5&…&seed=…&g=2&r=0,1,0): l'enllaç
+   desat torna a donar el mateix full, i el .tex el porta escrit al principi. Els controls (sense la llavor) es desen
    també al navegador: la pròxima vegada l'eina s'obre com la vas deixar.
    =========================================================================== */
 (function () {
@@ -19,7 +19,7 @@
   const novaLlavor = () => Math.random().toString(36).slice(2, 8);
   const teClau = (obj, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(obj, k);
 
-  let S = Object.assign({}, PER_DEFECTE), seed = novaLlavor(), R = [], EX = [];
+  let S = Object.assign({}, PER_DEFECTE), seed = novaLlavor(), g = Motor.GENERADOR, R = [], EX = [];
 
   /* ------------------------------------------------- llegir i desar l'estat
      Una adreça pot arribar retallada, editada a mà o d'una versió anterior:
@@ -39,13 +39,17 @@
     S.set = ['N', 'Z', 'Q'].includes(q.set) ? q.set : PER_DEFECTE.set;
     CASELLES.forEach(k => { S[k] = q[k] === undefined ? PER_DEFECTE[k] : (+q[k] ? 1 : 0); });
     S.grad = +q.grad ? 1 : 0;
-    if (q.seed && /^[a-z0-9]{1,12}$/.test(q.seed)) seed = q.seed;
+    if (q.seed && /^[a-z0-9]{1,12}$/.test(q.seed)) {
+      seed = q.seed;
+      // Un full desat es refà amb el seu generador. Sense g, és de la v0.1: g=1.
+      g = Math.min(Motor.GENERADOR, enter(q.g, 1, 99, 1));
+    }
     R = (q.r ? String(q.r).split(',') : []).map(x => parseInt(x, 10) || 0);
   }
 
   /** L'adreça d'aquest full (#…). Les comes de r, sense codificar: es llegeix millor. */
   function adreca() {
-    const q = Object.assign({}, S, { seed, r: R.join(',') });
+    const q = Object.assign({}, S, { seed, g, r: R.join(',') });
     return '#' + new URLSearchParams(q).toString().replace(/%2C/g, ',');
   }
 
@@ -118,16 +122,18 @@
     $('opo').parentNode.title = S.set === 'N' ? "L'oposat necessita ℤ o ℚ" : '';
 
     // El full
-    const v = Motor.valida(S);
+    const P = Object.assign({}, S, { g });          // les opcions per al motor
+    const v = Motor.valida(P);
     let h = '';
     EX = [];
     if (!v.ok) h = `<p class="err">${v.motiu}</p>`;
     else {
       const anteriors = new Set();
       for (let i = 0; i < S.n; i++) {
-        const e = Motor.exercici(S, seed, i, R[i], anteriors);
+        const e = Motor.exercici(P, seed, i, R[i], anteriors);
+        const nom = k => k === 'par' && e.params.parentesis > 1 ? `${NOM_EXTRE.par}×${e.params.parentesis}` : NOM_EXTRE[k];
         const extres = S.grad && e.params
-          ? `<span class="ext">${Motor.EXTRES.filter(k => e.params[k]).map(k => NOM_EXTRE[k]).join(' · ') || 'sense extres'}</span>`
+          ? `<span class="ext">${Motor.EXTRES.filter(k => e.params[k]).map(nom).join(' · ') || 'sense extres'}</span>`
           : '';
         h += `<div class="carta"><div class="cap"><span class="num">${i + 1}</span>`
           + `<button data-r="${i}" title="Un altre" aria-label="Un altre exercici ${i + 1}">↻</button>${extres}<small>${seed}:${i}:${R[i]}</small></div>`
@@ -143,7 +149,7 @@
 
     // El .tex i la barra de baix
     const ok = v.ok && EX.length === S.n;
-    $('codi').textContent = ok ? Motor.fitxerTex(EX, S, { num: S.fit, seed, adreca: adreca() }) : '';
+    $('codi').textContent = ok ? Motor.fitxerTex(EX, P, { num: S.fit, seed, adreca: adreca() }) : '';
     $('baixa').textContent = `Baixa ex${S.fit}.tex`;
     $('baixa').disabled = $('copia').disabled = $('pdf').disabled = !ok;
     $('recompte').textContent = `${S.n} operacions · espai ${S.esp} · símbols ${S.sim} · ${S.set}${S.grad ? ' · gradual' : ''}`;
@@ -160,7 +166,7 @@
     else if (b.dataset.sim) S.sim = b.dataset.sim;
     else if (b.dataset.grad !== undefined) S.grad = +b.dataset.grad;
     else if (b.dataset.r !== undefined) R[+b.dataset.r]++;
-    else if (b.id === 'tot') { seed = novaLlavor(); R = []; }
+    else if (b.id === 'tot') { seed = novaLlavor(); g = Motor.GENERADOR; R = []; }
     else if (b.id === 'pdf') { window.print(); return; }
     else if (b.id === 'copia') { copia(b); return; }
     else if (b.id === 'baixa') { baixa(`ex${S.fit}.tex`, $('codi').textContent); S.fit = Math.min(99, S.fit + 1); }

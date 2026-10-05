@@ -8,8 +8,10 @@
    tests/navegador.js (Playwright) i la compilació, a tests/compila.js (pdflatex).
 
    Les EMPREMTES (tests/empremtes.json) fixen quins exercicis surten per a cada
-   combinació d'opcions. Si canvien, els fulls desats a l'adreça (#…) ja no
-   tornaran a sortir iguals. Si ho has fet A PROPÒSIT, refés-les:
+   combinació d'opcions i cada versió del generador (g). Si canvien, els fulls
+   desats a l'adreça (#…) ja no tornaran a sortir iguals. Les d'un generador
+   antic no es poden refer mai (cal un generador nou: todo.md §6.3); les de
+   l'últim, només mentre encara no s'ha publicat:
 
        node tests/prova.js --actualitza-empremtes
    =========================================================================== */
@@ -43,7 +45,10 @@ function llegeix(tex) {
   if (tk.join('') !== net) throw new Error('símbols desconeguts');
   let i = 0;
   const passos = [];   // cada valor, com a motor.js: fulles, oposats, potències i operacions
-  const compte = { oposats: 0, potencies: 0, grups: 0, '+': 0, '-': 0, '*': 0, ':': 0 };
+  // grups: d'agrupació (contenen una operació). parells: tots els que es veuen menys els d'un sol
+  // nombre o fracció, (−3) i (2/3)²; (−(2+3)) en té dos. És el «quants parèntesis» del generador 2.
+  const compte = { oposats: 0, potencies: 0, grups: 0, parells: 0, '+': 0, '-': 0, '*': 0, ':': 0 };
+  let tipus;           // el de l'últim àtom llegit: 'fulla' (nombre o fracció), 'parentesi' o 'potencia'
   const oberts = [];   // els parèntesis oberts, de fora a dins
   const pas = (v) => (passos.push(v), v);
   const eat = (t) => { if (tk[i] !== t) throw new Error(`esperava ${t}, hi ha ${tk[i]}`); i++; };
@@ -68,6 +73,7 @@ function llegeix(tex) {
     if (ctx.alcada && ctx.alcada <= ctx.alcadaDins) throw new Error('un \\left( no és més alt que els de dins');
     if (e.ops) compte.grups++;                                        // d'agrupació
     else if (!e.unari && !(ctx.fraccio && tk[i] === '^')) throw new Error('parèntesi sobrer');   // de notació: (−3), (2/3)²
+    if (!e.sol) compte.parells++;
     return e.v;
   }
   function atom() {
@@ -76,20 +82,22 @@ function llegeix(tex) {
       i++; eat('{'); const p = num(); eat('}'); eat('{'); const q = num(); eat('}');
       v = pas(Q(p, q));
       oberts.forEach((c) => { c.fraccio = true; });
-    } else if (tk[i] in MIDA) v = parentesi();
-    else v = pas(Q(num(), 1n));
-    if (tk[i] === '^') { i++; eat('{'); const k = num(); eat('}'); compte.potencies++; v = pas(Q(v[0] ** k, v[1] ** k)); }
+      tipus = 'fulla';
+    } else if (tk[i] in MIDA) { v = parentesi(); tipus = 'parentesi'; }
+    else { v = pas(Q(num(), 1n)); tipus = 'fulla'; }
+    if (tk[i] === '^') { i++; eat('{'); const k = num(); eat('}'); compte.potencies++; v = pas(Q(v[0] ** k, v[1] ** k)); tipus = 'potencia'; }
     return v;
   }
   function term(neg) {
     let v = atom(), ops = 0;
+    const fulla = tipus === 'fulla';
     if (neg) v = pas(Q(-v[0], v[1]));
     while (tk[i] === '\\cdot' || tk[i] === ':') {
       const op = tk[i++] === ':' ? ':' : '*'; compte[op]++; ops++;
       const w = atom();
       v = pas(op === ':' ? Q(v[0] * w[1], v[1] * w[0]) : Q(v[0] * w[0], v[1] * w[1]));
     }
-    return { v, ops };
+    return { v, ops, fulla };
   }
   function expr() {   // l'únic oposat sense parèntesi: al principi d'un grup
     let unari = false;
@@ -106,7 +114,7 @@ function llegeix(tex) {
       ops += w.ops;
       v = pas(Q(op === '+' ? v[0] * w.v[1] + w.v[0] * v[1] : v[0] * w.v[1] - w.v[0] * v[1], v[1] * w.v[1]));
     }
-    return { v, ops, unari };
+    return { v, ops, unari, sol: !ops && t.fulla };   // sol: un sol nombre o fracció, amb signe o sense
   }
   const e = expr();
   if (i !== tk.length) throw new Error('text sobrant');
@@ -154,7 +162,10 @@ function revisa(etq, p, e) {
   if (q.div && !compte[':']) falla(`${etq}: falta : a ${e.tex}`);
   if (q.pot && !compte.potencies) falla(`${etq}: falta potència a ${e.tex}`);
   if (q.opo && !compte.oposats) falla(`${etq}: falta oposat a ${e.tex}`);
-  if (q.par ? compte.grups < 1 : compte.grups > 0) falla(`${etq}: grups=${compte.grups} a ${e.tex}`);
+  if (q.parentesis !== undefined) {
+    if (compte.parells !== q.parentesis) falla(`${etq}: ${compte.parells} parèntesis i n'hi havien de ser ${q.parentesis} a ${e.tex}`);
+  } else if (q.par ? compte.grups < 1 : compte.grups > 0) falla(`${etq}: grups=${compte.grups} a ${e.tex}`);
+  if (p.g >= 2 && compte.parells > 3) falla(`${etq}: més de 3 parèntesis a ${e.tex}`);
   // El TeX té exactament les operacions de l'arbre, i la previsualització diu el mateix
   const t = recompteArbre(e.arbre);
   if (t.neg !== compte.oposats || t.pow !== compte.potencies || ['+', '-', '*', ':'].some((o) => t[o] !== compte[o]))
@@ -164,29 +175,36 @@ function revisa(etq, p, e) {
 }
 
 const base = { n: 5, esp: 'mitja', sim: 'petit', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1 };
-const etiqueta = (p) => `${p.set} int=${p.int} fin=${p.fin} div=${p.div} pot=${p.pot} par=${p.par} opo=${p.opo} forca=${p.forca} grad=${p.grad || 0}`;
+const etiqueta = (p) => `${p.set} int=${p.int} fin=${p.fin} div=${p.div} pot=${p.pot} par=${p.par} opo=${p.opo} forca=${p.forca} grad=${p.grad || 0}` +
+  (p.g >= 2 ? ` g=${p.g}` : '');
 
-/* ── 1. Cada combinació, 100 exercicis seguits (immediata, força) ─────────── */
+/* ── 1. Cada combinació, 100 exercicis (immediata, força), amb cada generador.
+   g=1: 100 exercicis seguits d'un sol full. g=2: el nombre de parèntesis depèn
+   del lloc que ocupa l'exercici al full, o sigui que són 10 fulls de 10. ─── */
 let combos = 0, total = 0;
-for (const set of ['N', 'Z', 'Q'])
-  for (const [int, fin] of set === 'N' ? [[1, 1]] : [[1, 0], [0, 1], [1, 1]])
-    for (let m = 0; m < 16; m++) {
-      const p = { ...base, set, int, fin, div: m & 1, pot: (m >> 1) & 1, par: (m >> 2) & 1, opo: (m >> 3) & 1 };
-      if (!Motor.valida(p).ok) continue;
-      combos++;
-      const etq = etiqueta(p), ant = new Set(), full = [];
-      let mal = 0;
-      for (let i = 0; i < 100; i++) {
-        const e = Motor.exercici(p, 'prova' + m, i, 0, ant); total++;
-        if (e.error) { mal++; continue; }
-        ant.add(e.tex); full.push({ i, e });
-        revisa(etq, p, e);
+for (const g of [1, 2])
+  for (const set of ['N', 'Z', 'Q'])
+    for (const [int, fin] of set === 'N' ? [[1, 1]] : [[1, 0], [0, 1], [1, 1]])
+      for (let m = 0; m < 16; m++) {
+        const p = { ...base, n: g === 1 ? 5 : 10, g, set, int, fin, div: m & 1, pot: (m >> 1) & 1, par: (m >> 2) & 1, opo: (m >> 3) & 1 };
+        if (!Motor.valida(p).ok) continue;
+        combos++;
+        const etq = etiqueta(p);
+        let mal = 0;
+        for (let s = 0; s < (g === 1 ? 1 : 10); s++) {
+          const llavor = 'prova' + m + (g === 1 ? '' : '-' + s), ant = new Set(), full = [];
+          for (let i = 0; i < (g === 1 ? 100 : 10); i++) {
+            const e = Motor.exercici(p, llavor, i, 0, ant); total++;
+            if (e.error) { mal++; continue; }
+            ant.add(e.tex); full.push({ i, e });
+            revisa(etq, p, e);
+          }
+          const a2 = new Set();                                                   // determinisme
+          full.forEach(({ i, e }) => { const x = Motor.exercici(p, llavor, i, 0, a2); a2.add(x.tex); if (x.tex !== e.tex) falla(`${etq}: no determinista (${i})`); });
+          if (new Set(full.map(({ e }) => e.tex)).size !== full.length) falla(`${etq}: repetits`);
+        }
+        if (mal > 1) falla(`${etq}: ${mal}/100 sense generar (< 99 %)`);          // taxa d'èxit
       }
-      if (mal > 1) falla(`${etq}: ${mal}/100 sense generar (< 99 %)`);          // taxa d'èxit
-      const a2 = new Set();                                                     // determinisme
-      full.forEach(({ i, e }) => { const x = Motor.exercici(p, 'prova' + m, i, 0, a2); a2.add(x.tex); if (x.tex !== e.tex) falla(`${etq}: no determinista (${i})`); });
-      if (new Set(full.map(({ e }) => e.tex)).size !== full.length) falla(`${etq}: repetits`);
-    }
 
 /* ── 2. TOTES les combinacions (també sense força i graduals): un full de 10
    cadascuna, que es revisa sencer i en dona l'empremta ───────────────────── */
@@ -195,32 +213,39 @@ const canonic = (x) => (Array.isArray(x) ? '[' + x.map(canonic).join(',') + ']'
   : JSON.stringify(x));
 const empremtes = {};
 let combosTotes = 0;
-for (const set of ['N', 'Z', 'Q'])
-  for (const [int, fin] of set === 'N' ? [[1, 1]] : [[1, 0], [0, 1], [1, 1]])
-    for (let m = 0; m < 64; m++) {
-      const p = { ...base, n: 10, set, int, fin, div: m & 1, pot: (m >> 1) & 1, par: (m >> 2) & 1, opo: (m >> 3) & 1, forca: (m >> 4) & 1, grad: (m >> 5) & 1 };
-      if (!Motor.valida(p).ok) continue;
-      combosTotes++;
-      const etq = etiqueta(p), ant = new Set(), h = crypto.createHash('sha256');
-      for (let i = 0; i < p.n; i++) {
-        const e = Motor.exercici(p, 'empremta', i, 0, ant); total++;
-        if (e.error) { falla(`${etq}: l'exercici ${i + 1} no surt`); h.update('error|'); continue; }
-        ant.add(e.tex); h.update(canonic(e.arbre) + '|');
-        revisa(etq, p, e);
+for (let g = 1; g <= Motor.GENERADOR; g++)
+  for (const set of ['N', 'Z', 'Q'])
+    for (const [int, fin] of set === 'N' ? [[1, 1]] : [[1, 0], [0, 1], [1, 1]])
+      for (let m = 0; m < 64; m++) {
+        const p = { ...base, n: 10, g, set, int, fin, div: m & 1, pot: (m >> 1) & 1, par: (m >> 2) & 1, opo: (m >> 3) & 1, forca: (m >> 4) & 1, grad: (m >> 5) & 1 };
+        if (!Motor.valida(p).ok) continue;
+        combosTotes++;
+        const etq = etiqueta(p), ant = new Set(), h = crypto.createHash('sha256');
+        for (let i = 0; i < p.n; i++) {
+          const e = Motor.exercici(p, 'empremta', i, 0, ant); total++;
+          if (e.error) { falla(`${etq}: l'exercici ${i + 1} no surt`); h.update('error|'); continue; }
+          ant.add(e.tex); h.update(canonic(e.arbre) + '|');
+          revisa(etq, p, e);
+        }
+        empremtes[etq] = h.digest('hex').slice(0, 16);
       }
-      empremtes[etq] = h.digest('hex').slice(0, 16);
-    }
 const fitxerEmpremtes = path.join(__dirname, 'empremtes.json');
+let desades = {};
+try { desades = JSON.parse(fs.readFileSync(fitxerEmpremtes, 'utf8')); } catch (e) { /* encara no n'hi ha */ }
+const canviades = Object.keys(empremtes).filter((k) => desades[k] !== empremtes[k]);
+const delUltim = (k) => (Motor.GENERADOR >= 2 ? k.endsWith(' g=' + Motor.GENERADOR) : !/ g=\d+$/.test(k));
 if (process.argv.includes('--actualitza-empremtes')) {
-  fs.writeFileSync(fitxerEmpremtes, JSON.stringify(empremtes, null, 1) + '\n');
-  console.log(`tests/empremtes.json refet (${Object.keys(empremtes).length} combinacions)`);
-} else {
-  let desades = {};
-  try { desades = JSON.parse(fs.readFileSync(fitxerEmpremtes, 'utf8')); } catch (e) { falla('no es pot llegir tests/empremtes.json'); }
-  const canviades = Object.keys(empremtes).filter((k) => desades[k] !== empremtes[k]);
-  if (canviades.length || Object.keys(desades).length !== Object.keys(empremtes).length)
-    falla(`els exercicis han canviat en ${canviades.length} combinacions (p. ex. ${canviades[0]}): els fulls desats ja no sortiran iguals. ` +
-      'Si és a propòsit: node tests/prova.js --actualitza-empremtes');
+  // Les d'un generador antic no es poden refer: són els fulls que ja hi ha desats.
+  const antigues = canviades.filter((k) => !delUltim(k) && desades[k] !== undefined);
+  if (antigues.length) falla(`no es poden refer les empremtes d'un generador antic (${antigues.length}, p. ex. ${antigues[0]}): ` +
+    'són els fulls que ja hi ha desats. Cal un generador nou (todo.md §6.3).');
+  else {
+    fs.writeFileSync(fitxerEmpremtes, JSON.stringify(empremtes, null, 1) + '\n');
+    console.log(`tests/empremtes.json refet (${Object.keys(empremtes).length} combinacions)`);
+  }
+} else if (canviades.length || Object.keys(desades).length !== Object.keys(empremtes).length) {
+  falla(`els exercicis han canviat en ${canviades.length} combinacions (p. ex. ${canviades[0]}): els fulls desats ja no sortirien iguals. ` +
+    'Si és el generador nou, encara sense publicar, i és a propòsit: node tests/prova.js --actualitza-empremtes');
 }
 
 /* ── 3. Determinisme directe i ↻ ──────────────────────────────────────────── */
@@ -299,7 +324,54 @@ for (const k of ['main', 'headers', 'defs']) {
   console.log(`gradual: mitjana d'extres per exercici = ${suma.map((x) => (x / fulls).toFixed(2)).join(' ')}; fulls amb els 4 primers sense extres: ${primersBuits}/${fulls}`);
 }
 
-/* ── 8. valida(): les tres combinacions impossibles ───────────────────────── */
+/* ── 8. Generador 2: quants parèntesis porta cada exercici ─────────────────
+   El pla del professor: com a màxim 3, i el 3 improbable. Gradual: de cada
+   10, 4 sense, 3 amb 1 i 3 amb 2, en ordre creixent; immediata: tots en
+   tenen, 6 amb 1 i 4 amb 2; i en un 15 % dels fulls, un «2» passa a ser 3. */
+{
+  const plaDe = (p, llavor) => Array.from({ length: p.n }, (_, i) => Motor.opcions(p, llavor, i).parentesis);
+  const ordena = (ks) => ks.slice().sort((a, b) => a - b).join(' ');
+  for (const grad of [1, 0]) {
+    const p = { ...base, n: 10, g: 2, set: 'Z', div: 1, pot: 1, par: 1, opo: 1, grad }, nom = grad ? 'gradual' : 'immediata';
+    const esperat = grad ? '0 0 0 0 1 1 1 2 2 ' : '1 1 1 1 1 1 2 2 2 ';
+    let tres = 0;
+    for (let s = 0; s < 2000; s++) {                  // el pla: només sortejos, sense generar exercicis
+      const ks = plaDe(p, 'pla' + s), o = ordena(ks);
+      if (o !== esperat + '2' && o !== esperat + '3') { falla(`g=2 ${nom}: el pla és ${ks.join(' ')}`); break; }
+      if (grad && ks.join(' ') !== o) { falla(`g=2 gradual: no van en ordre creixent: ${ks.join(' ')}`); break; }
+      if (ks.includes(3)) tres++;
+    }
+    const pc = tres / 20;
+    if (pc < 13 || pc > 17) falla(`g=2 ${nom}: ${pc} % dels fulls tenen un exercici amb 3 parèntesis (ha de ser ~15 %)`);
+    console.log(`generador 2, ${nom}: ${pc.toFixed(1)} % dels fulls tenen un exercici amb 3 parèntesis`);
+    for (let s = 0; s < 40; s++) {                    // i els exercicis en tenen exactament els del pla
+      const ant = new Set(), ks = plaDe(p, 'pla' + s);
+      for (let i = 0; i < 10; i++) {
+        const e = Motor.exercici(p, 'pla' + s, i, 0, ant); total++;
+        if (e.error) { falla(`g=2 ${nom}: l'exercici ${i + 1} no surt`); continue; }
+        ant.add(e.tex);
+        const r = revisa(`g=2 ${nom}`, p, e);
+        if (r && r.compte.parells !== ks[i]) falla(`g=2 ${nom}: ${r.compte.parells} parèntesis i el pla en deia ${ks[i]}`);
+        if (Motor.exercici(p, 'pla' + s, i, 3).params.parentesis !== ks[i]) falla(`g=2 ${nom}: ↻ canvia el nombre de parèntesis`);
+      }
+    }
+  }
+  // Qualsevol mida de full: mai més de 3 ni més d'un 3; a «gradual», creixent i els dos últims amb parèntesis
+  for (let n = 1; n <= 10; n++) for (const grad of [0, 1]) for (let s = 0; s < 50; s++) {
+    const ks = plaDe({ ...base, n, g: 2, set: 'Z', par: 1, grad }, 'n' + s);
+    if (Math.max(...ks) > 3 || ks.filter((k) => k === 3).length > 1) { falla(`g=2 n=${n}: ${ks.join(' ')}`); break; }
+    if (grad ? ks.join(' ') !== ordena(ks) || ks.slice(-2).some((k) => !k) : ks.some((k) => !k)) { falla(`g=2 n=${n} grad=${grad}: ${ks.join(' ')}`); break; }
+  }
+  // ℚ només final: sense parèntesis no hi ha exercici possible, o sigui que tots en tenen
+  if (plaDe({ ...base, n: 10, g: 2, set: 'Q', int: 0, fin: 1, div: 1, par: 1, grad: 1 }, 'q').some((k) => !k)) falla('g=2 ℚ només final: un exercici sense parèntesis');
+  // Sense «parèntesis», el generador 2 no en posa cap
+  if (Motor.opcions({ ...base, n: 10, g: 2, set: 'Z', par: 0 }, 'x', 0).parentesis !== undefined) falla('g=2 sense parèntesis: hi ha un pla');
+  // Una adreça sense g (de la v0.1) és el generador 1
+  const v1 = { ...base, n: 10, set: 'Z', div: 1, pot: 1, par: 1, opo: 1 };
+  if ([0, 5, 9].some((i) => Motor.exercici(v1, 'v1', i, 0).tex !== Motor.exercici({ ...v1, g: 1 }, 'v1', i, 0).tex)) falla('sense g no és el generador 1');
+}
+
+/* ── 9. valida(): les tres combinacions impossibles ───────────────────────── */
 if (Motor.valida({ ...base, set: 'N', opo: 1 }).ok) falla('oposat amb ℕ hauria de ser impossible');
 if (Motor.valida({ ...base, set: 'Z', int: 0, fin: 1, opo: 1 }).ok) falla('oposat sense «intermedis» hauria de ser impossible');
 if (Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 0 }).ok) falla('ℚ només final sense parèntesis hauria de ser impossible');

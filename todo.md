@@ -9,13 +9,16 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 ## 1. Estat actual
 
 **Versió:** v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
-**Proves:** `node tests/prova.js` → 82 combinacions × 100 exercicis, més les 328 combinacions possibles (també sense
-«força» i graduals) × 10: 11.480 exercicis, 0 errors. Re-lectura independent del TeX, empremtes dels exercicis
-(`tests/empremtes.json`), testimonis de «força», − binària i oposat, previsualització = TeX, mides dels parèntesis.
+**Generador:** els fulls nous es fan amb el generador 2 (`g=2` a l'adreça): parèntesis segons el pla del
+professor (§5). Les adreces sense `g` (v0.1) es refan amb el generador 1, sense cap canvi.
+**Proves:** `node tests/prova.js` → per a cada generador, 82 combinacions × 100 exercicis i les 328 combinacions
+possibles (també sense «força» i graduals) × 10: 23.760 exercicis, 0 errors. Re-lectura independent del TeX,
+empremtes dels exercicis (`tests/empremtes.json`), testimonis de «força», − binària i oposat, previsualització = TeX,
+mides dels parèntesis i el pla de parèntesis del generador 2 (2.000 fulls).
 **LaTeX:** `node tests/compila.js` compila 40 exercicis de ℕ, de ℤ i de ℚ amb totes les opcions i símbols «gran»:
 sense errors ni «Overfull», i la fórmula més ampla fa el 58 % de la línia. (També compilat pel professor amb el
 seu `capsalera.tex`.)
-**Interfície:** `node tests/navegador.js` (Chromium, 22 comprovacions: adreça, ↻, baixades, impressió, mòbil).
+**Interfície:** `node tests/navegador.js` (Chromium, 26 comprovacions: adreça i generador, ↻, baixades, impressió, mòbil).
 Falta mirar-la a Firefox, a Safari i en un mòbil de debò.
 
 Fet:
@@ -171,7 +174,7 @@ Per a totes les combinacions vàlides i les dues granularitats:
 7. ~~Infraestructura~~ Fet: els workflows `proves.yml` i `unzip-upload.yml` hi són (v0.2), i Cloudflare Pages ja
    publica el repositori (projecte `combinades`; cada pull request en té una vista prèvia).
 8. Ampliacions: «Tot en un» (preàmbul incrustat), «Obre a Overleaf», versió de 2n d'ESO.
-9. Decidir les preguntes de la secció 6.2 (profunditat dels parèntesis i operacions trivials).
+9. ~~Decidir les preguntes de la secció 6.2.~~ Decidit (vegeu §5) i fet: generador 2.
 
 ---
 
@@ -181,8 +184,9 @@ Per a totes les combinacions vàlides i les dues granularitats:
 - **`motor.js` és pur** (sense DOM) i s'exporta a Node. Tota la lògica nova (passos inclosos) hi va i es prova amb Node.
 - **Un sol recorregut, dos emissors** (TeX i HTML): la previsualització i el `.tex` no poden divergir.
 - **Determinisme:** mateix estat → mateix fitxer, byte a byte. Les adreces desades no es poden trencar: els exercicis
-  de cada combinació els vigila `tests/empremtes.json`. Un canvi que els alteri necessita una versió nova del
-  generador a l'adreça (vegeu §6.3); no n'hi ha prou de refer les empremtes.
+  de cada combinació i generador els vigila `tests/empremtes.json`. Un canvi que els alteri necessita un generador
+  nou (§6.3). `--actualitza-empremtes` no deixa tocar les d'un generador antic, i les de l'últim només es poden refer
+  mentre encara no s'ha publicat (fusionat a `main`).
 - `exN.tex` i `exN-sol.tex` només depenen de LaTeX estàndard + `amsmath`.
 - `tex/*.tex` és la font única de l'entorn; `assets/entorn.js` és generat (`python3 eines/entorn.py`).
 - Cap canvi es dona per bo sense `node tests/prova.js` amb 0 errors (i, si toca la interfície o el TeX,
@@ -193,6 +197,15 @@ Per a totes les combinacions vàlides i les dues granularitats:
 
 - El PDF de la web és el d'impressió del navegador, **no** un PDF compilat amb LaTeX.
 - Carpeta d'extracció: `_uploads` (amb «s»), com el workflow d'`exam2bat`.
+- **Parèntesis (generador 2, octubre de 2026).** Com a màxim 3 per exercici, i el 3 improbable. Compten tots els que
+  es veuen menys els d'un sol nombre o fracció: `(−3)` i `(½)²` no compten; `(−(2+3))` en té dos.
+  - *Gradual:* de cada 10, 4 sense, 3 amb 1 i 3 amb 2, en ordre creixent.
+  - *Immediata:* tots en tenen, 6 de cada 10 amb 1 i 4 amb 2, barrejats.
+  - En un 15 % dels **fulls** (no dels exercicis), l'últim «2» del pla en porta 3. A «gradual», és l'últim exercici.
+  - El pla va per posicions, de manera que serveix per a qualsevol n. A «gradual», els 2 últims sempre en porten.
+  - Amb ℚ només al resultat final, tots en porten com a mínim 1: sense parèntesis no hi ha cap exercici possible.
+- **Operacions trivials** (`7+(−7)`, `(3−2)³`, `−(3−3)`…): **es queden**, al professor li agraden. Massa trivial
+  seria un exercici com `4+5+5`, que no pot sortir: sempre hi ha ·, + i − (i : amb divisions), i es prova.
 
 ---
 
@@ -201,7 +214,8 @@ Per a totes les combinacions vàlides i les dues granularitats:
 Revisió completa del codi de la v0.1. Els **exercicis no han canviat**: els 10.356 d'un corpus de referència
 (totes les combinacions, diverses llavors i ↻) tenen el mateix arbre, el mateix valor i les mateixes opcions abans
 i després, i les empremtes calculades amb el codi de la v0.1 coincideixen amb `tests/empremtes.json`. El que ha
-canviat és com s'escriuen els parèntesis al TeX i a l'HTML.
+canviat és com s'escriuen els parèntesis al TeX i a l'HTML. (Els fulls nous, en canvi, es fan amb el generador 2,
+que segueix el pla de parèntesis del §5; els enllaços desats es refan amb el generador amb què es van fer.)
 
 ### 6.1 Errors corregits
 
@@ -228,9 +242,9 @@ També: `motor.js`, `app.js` i `style.css` reescrits llegibles (noms en català,
 l'atzar; l'avaluador ja no s'empassa errors de programació (només descarta els arbres que ha de descartar); el `.tex`
 porta l'adreça que el refà; workflows de GitHub; proves de compilació i de navegador.
 
-### 6.2 Preguntes per al professor (canviarien els exercicis)
+### 6.2 Preguntes per al professor (ja respostes: vegeu §5)
 
-Dades de 16.400 exercicis (totes les combinacions; «força» marcada):
+Dades de 16.400 exercicis del generador 1 (totes les combinacions; «força» marcada):
 
 1. **Quants nivells de parèntesis?** Amb «parèntesis», el 18,6 % dels exercicis en tenen 3 nivells o més (comptant
    els de notació, com `(−3)`), el 4 % en tenen 4 o més i n'hi ha fins a 6. Per a 1r d'ESO, limitar-ho a 2 (o 3)?
@@ -239,10 +253,9 @@ Dades de 16.400 exercicis (totes les combinacions; «força» marcada):
    de 0 o de ±1 (`(3−2)^3`: 4,5 %), multiplicar o dividir per −1 (3,7 %), dividir 0 (1,7 %) o l'oposat de 0 (`−(3−3)`:
    0,6 %). Ja s'eviten multiplicar per 0 o per 1 i dividir per 1. Evitar-ne alguna més?
 
-### 6.3 Com canviar el generador sense trencar els enllaços desats
+### 6.3 Com canviar el generador sense trencar els enllaços desats (fet: generador 2)
 
-Les adreces d'ara no porten cap versió del generador. Quan calgui canviar-lo (p. ex. per les preguntes de 6.2):
-
-1. afegir un paràmetre `g` a l'adreça; si no hi és, val 1 (totes les adreces d'ara);
-2. el codi nou només s'aplica amb `g ≥ 2`, i els fulls nous es desen amb `g=2`;
-3. `tests/empremtes.json` continua vigilant `g=1` sense tocar-lo, i s'hi afegeixen les empremtes de `g=2`.
+1. L'adreça porta `g`, la versió del generador amb què es va fer el full. Si no hi és (adreces de la v0.1), val 1.
+2. El codi nou només s'aplica amb `g ≥ 2` (a `motor.js`, `GENERADOR` és l'última). Els fulls nous i «Genera-ho tot»
+   fan servir l'última, i un enllaç desat continua amb la seva fins que es prem «Genera-ho tot».
+3. `tests/empremtes.json` vigila tots els generadors. Un generador 3 seguiria el mateix camí.

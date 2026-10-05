@@ -38,7 +38,7 @@ const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), 'combinades-'));
 try {
   for (const k of ['main', 'headers', 'defs']) fs.copyFileSync(path.join(arrel, 'tex', k + '.tex'), path.join(carpeta, k + '.tex'));
   for (const set of ['N', 'Z', 'Q']) {
-    const p = { n: 10, esp: 'petit', sim: 'gran', set, int: 1, fin: 1, div: 1, opo: set === 'N' ? 0 : 1, pot: 1, par: 1, forca: 1, vs: 0, grad: 0 };
+    const p = { n: 10, g: Motor.GENERADOR, esp: 'petit', sim: 'gran', set, int: 1, fin: 1, div: 1, opo: set === 'N' ? 0 : 1, pot: 1, par: 1, forca: 1, vs: 0, grad: 0 };
     const exs = [];
     for (let s = 0; s < 4; s++) {
       const ant = new Set();
