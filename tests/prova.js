@@ -57,7 +57,7 @@ function agrupacions(tex) {
 const enConjunt = (l, [n, d]) => l === 'Q' || (d === 1n && (l === 'Z' || n >= 0n));
 
 // ── Combinacions ──
-const base = { n: 5, esp: 'mitja', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1 };
+const base = { n: 5, esp: 'mitja', sim: 'petit', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1 };
 let combos = 0, total = 0;
 for (const set of ['N', 'Z', 'Q'])
   for (const [int, fin] of set === 'N' ? [[1, 1]] : [[1, 0], [0, 1], [1, 1]])
@@ -106,6 +106,13 @@ const cnt = (re) => (f.match(re) || []).length;
 if (cnt(/\\begin\{enumerate\}/g) !== 1 || cnt(/\\end\{enumerate\}/g) !== 1) falla('enumerate desequilibrat');
 if (cnt(/\\item /g) !== 3) falla('nombre d\'\\item incorrecte');
 if (!f.startsWith('% ex7.tex')) falla('capçalera del fitxer');
+
+// espai entre símbols
+for (const sim of ['petit', 'mitja', 'gran']) {
+  const fs_ = Motor.fitxerTex(ex, { ...pd, n: 3, sim }, { num: 1, seed: 'f' });
+  if (!fs_.includes(`\\medmuskip=${Motor.SIMBOLS[sim].med}\\thickmuskip=${Motor.SIMBOLS[sim].thick}`)) falla(`espai entre símbols ${sim}`);
+}
+if (Object.keys(Motor.ESPAIS).join() !== 'petit,mitja,gran') falla('espais entre operacions');
 
 // \vspace* opcional
 const fv = Motor.fitxerTex(ex, { ...pd, n: 3, vs: 1 }, { num: 1, seed: 'f' });

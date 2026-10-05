@@ -1,5 +1,5 @@
 (function(){
-const D={n:5,esp:'mitja',set:'N',int:1,fin:1,div:0,opo:0,pot:0,par:0,forca:1,fit:1,vs:0,grad:0};
+const D={n:5,esp:'mitja',sim:'petit',set:'N',int:1,fin:1,div:0,opo:0,pot:0,par:0,forca:1,fit:1,vs:0,grad:0};
 const B=['int','fin','div','opo','pot','par','forca','vs'],$=id=>document.getElementById(id);
 let S=Object.assign({},D),seed=Math.random().toString(36).slice(2,8),R=[],EX=[];
 function llegeix(){
@@ -8,7 +8,7 @@ function llegeix(){
  if(h.toString()){q={};h.forEach((v,k)=>q[k]=v)}
  const num=(v,a,b,d)=>{v=parseInt(v,10);return v>=a&&v<=b?v:d};
  S.n=num(q.n,1,10,D.n);S.fit=num(q.fit,1,99,D.fit);
- S.esp=Motor.ESPAIS[q.esp]?q.esp:D.esp;S.set=['N','Z','Q'].includes(q.set)?q.set:D.set;
+ S.esp=Motor.ESPAIS[q.esp]?q.esp:D.esp;S.sim=Motor.SIMBOLS[q.sim]?q.sim:D.sim;S.set=['N','Z','Q'].includes(q.set)?q.set:D.set;
  B.forEach(k=>S[k]=q[k]===undefined?D[k]:(+q[k]?1:0));
  S.grad=+q.grad?1:0;
  if(q.seed&&/^[a-z0-9]{1,12}$/.test(q.seed))seed=q.seed;
@@ -27,6 +27,7 @@ function render(){
  while(R.length<S.n)R.push(0);R.length=S.n;
  $('n').value=S.n;$('fit').value=S.fit;
  document.querySelectorAll('[data-esp]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.esp===S.esp));
+ document.querySelectorAll('[data-sim]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.sim===S.sim));
  document.querySelectorAll('[data-grad]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.grad===S.grad));
  document.querySelectorAll('[data-set]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.set===S.set));
  B.forEach(k=>$(k).checked=!!S[k]);
@@ -39,15 +40,16 @@ function render(){
    h+=`<div class="carta"><div class="cap"><span class="num">${i+1}</span><button data-r="${i}" title="Un altre">↻</button>${S.grad&&e.params?`<span class="ext">${(Motor.EXTRES.filter(k=>e.params[k]).map(k=>NOM[k]).join(' · '))||'sense extres'}</span>`:''}<small>${seed}:${i}:${R[i]}</small></div>`
     +(e.error?`<p class="err">${e.error}</p>`:`<div class="math">${e.html}</div>`)+`</div>`;
    if(!e.error){ant.add(e.tex);EX.push(e)}}}
- $('full').innerHTML=h;$('full').style.setProperty('--esp',Motor.ESPAIS[S.esp]);
+ $('full').innerHTML=h;$('full').style.setProperty('--esp',Motor.ESPAIS[S.esp]);$('full').style.setProperty('--sop',Motor.SIMBOLS[S.sim].css);
  const ok=v.ok&&EX.length===S.n;
  $('codi').textContent=ok?Motor.fitxerTex(EX,S,{num:S.fit,seed}):'';
  $('baixa').textContent=`Baixa ex${S.fit}.tex`;$('baixa').disabled=$('copia').disabled=$('pdf').disabled=!ok;
- $('recompte').textContent=`${S.n} operacions · espai ${S.esp} · ${S.set}${S.grad?' · gradual':''}`;
+ $('recompte').textContent=`${S.n} operacions · espai ${S.esp} · símbols ${S.sim} · ${S.set}${S.grad?' · gradual':''}`;
  $('segell').textContent=Motor.VERSIO;desa()}
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
  if(b.dataset.esp)S.esp=b.dataset.esp;
  else if(b.dataset.set)S.set=b.dataset.set;
+ else if(b.dataset.sim)S.sim=b.dataset.sim;
  else if(b.dataset.grad!==undefined)S.grad=+b.dataset.grad;
  else if(b.dataset.r!==undefined)R[+b.dataset.r]++;
  else if(b.id==='tot'){seed=Math.random().toString(36).slice(2,8);R=[]}

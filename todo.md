@@ -29,6 +29,8 @@ s'ha provat amb `node tests/prova.js` (82 combinacions, 8.200 exercicis, 0 error
 
 - Progressió **immediata / gradual** dels extres: amb «gradual», l'exercici *i* inclou cada extre amb probabilitat ((i+1)/(N−1))²; els 2 últims, tots. ↻ no canvia el nivell de l'exercici. Cada targeta mostra quins extres té.
 
+- Espai entre operacions: només petit / mitjà / gran. Nou: **espai entre símbols** petit / mitjà / gran (`\medmuskip` i `\thickmuskip` dins l'`enumerate`; a la web, marge CSS de cada operador). Ara només s'espaien els operadors (+ − · :), no els parèntesis.
+
 ## Decisions que cal confirmar
 - El PDF de la web és el d'impressió del navegador, **no** un PDF compilat amb LaTeX (§7).
 - Carpeta d'extracció: `_uploads` (amb «s») segons el workflow d'`exam2bat`.

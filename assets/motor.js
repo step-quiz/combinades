@@ -2,7 +2,10 @@
 var Motor=(function(){
 const VERSIO='v0.1';
 const CFG={OPERAND:[2,9],EXP:[2,3],FRAC_DEN:[2,6],MAX:200,INTENTS:2000};
-const ESPAIS={minim:'0.5cm',petit:'1.5cm',mitja:'3cm',gran:'5cm',extragran:'8cm'};
+const ESPAIS={petit:'1.5cm',mitja:'3cm',gran:'5cm'};
+// Espai entre els símbols d'una operació. TeX: \medmuskip (+ − ·) i \thickmuskip (:, que és una relació).
+// «petit» = els valors per defecte de TeX. css = marge a cada costat de l'operador a la previsualització.
+const SIMBOLS={petit:{med:'4mu',thick:'5mu',css:'.22em'},mitja:{med:'8mu',thick:'8mu',css:'.45em'},gran:{med:'13mu',thick:'13mu',css:'.75em'}};
 const PREC={'+':1,'-':1,'*':2,':':2};
 // PRNG
 function hash(s){let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19}return h>>>0}
@@ -32,7 +35,7 @@ const TEX={num:v=>''+v,frac:(p,q)=>`\\frac{${p}}{${q}}`,
  pow:(b,k)=>`${b}^{${k}}`,neg:s=>'-'+s};
 const pH=s=>s.includes('class="fr"')?`<span class="pg"><span class="pb">(</span>${s}<span class="pb">)</span></span>`:`(${s})`;
 const HTML={num:v=>''+v,frac:(p,q)=>`<span class="fr"><span>${p}</span><span>${q}</span></span>`,
- op:o=>({'+':' + ','-':' − ','*':' · ',':':' : '})[o],
+ op:o=>`<span class="op">${({'+':'+','-':'−','*':'·',':':':'})[o]}</span>`,
  grp:pH,note:pH,pow:(b,k)=>`${b}<sup>${k}</sup>`,neg:s=>'−'+s};
 function rend(n,E,st,start){switch(n.t){
  case 'num':return E.num(n.v);
@@ -118,10 +121,10 @@ function exercici(p,mestra,i,r,ant){
 function fitxerTex(exs,p,m){
  const conj=p.set==='N'?'N':`${p.set}(${[p.int&&'int',p.fin&&'fin'].filter(Boolean).join(',')})`;
  const opts=['div','pot','par','opo','vs','grad'].filter(k=>p[k]).map(k=>k==='grad'?'gradual':k).join(' ');
- let s=`% ex${m.num}.tex — generat per «Operacions combinades 1r ESO» ${VERSIO}\n% llavor=${m.seed} · n=${p.n} · espai=${p.esp} · conjunt=${conj}${opts?' · '+opts:''}\n`
-  +`\\begin{enumerate}\n\\renewcommand{\\labelenumi}{\\textbf{\\arabic{enumi})}}\n\\setlength{\\itemsep}{0pt}\n`;
+ let s=`% ex${m.num}.tex — generat per «Operacions combinades 1r ESO» ${VERSIO}\n% llavor=${m.seed} · n=${p.n} · espai=${p.esp} · simbols=${p.sim} · conjunt=${conj}${opts?' · '+opts:''}\n`
+  +`\\begin{enumerate}\n\\renewcommand{\\labelenumi}{\\textbf{\\arabic{enumi})}}\n\\setlength{\\itemsep}{0pt}\n\\medmuskip=${SIMBOLS[p.sim].med}\\thickmuskip=${SIMBOLS[p.sim].thick}\n`;
  exs.forEach(e=>{s+=`\\item $\\displaystyle ${e.tex}$\n\\par\\vspace${p.vs?'*':''}{${ESPAIS[p.esp]}}\n`});
  return s+'\\end{enumerate}\n'}
-const M={VERSIO,ESPAIS,EXTRES,valida,exercici,fitxerTex};
+const M={VERSIO,ESPAIS,SIMBOLS,EXTRES,valida,exercici,fitxerTex};
 if(typeof module!=='undefined')module.exports=M;
 return M})();
