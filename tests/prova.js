@@ -1,0 +1,123 @@
+// tests/prova.js — node tests/prova.js  (cap dependència). Surt amb codi ≠ 0 si alguna cosa falla.
+const Motor = require('../assets/motor.js');
+let errors = 0;
+const falla = (m) => { errors++; if (errors <= 20) console.log('FALLA:', m); };
+
+// ── Analitzador INDEPENDENT del text TeX (BigInt), amb precedències habituals ──
+const gcd = (a, b) => (b ? gcd(b, a % b) : a < 0n ? -a : a);
+const Q = (n, d) => { if (d < 0n) { n = -n; d = -d; } const k = gcd(n, d) || 1n; return [n / k, d / k]; };
+function llegeix(tex) {
+  const tk = tex.replace(/\s+/g, '').match(/\\left\(|\\right\)|\\frac|\\cdot|\d+|[-+:()^{}]/g) || [];
+  if (tk.join('').length !== tex.replace(/\s+/g, '').length) throw new Error('símbols desconeguts');
+  let i = 0; const passos = [];
+  const pas = (v) => (passos.push(v), v);
+  const eat = (t) => { if (tk[i] !== t) throw new Error(`esperava ${t}, hi ha ${tk[i]}`); i++; };
+  const num = () => { if (!/^\d+$/.test(tk[i] || '')) throw new Error('esperava número'); return BigInt(tk[i++]); };
+  function atom() {
+    let v;
+    if (tk[i] === '\\frac') { i++; eat('{'); const p = num(); eat('}'); eat('{'); const q = num(); eat('}'); v = Q(p, q); }
+    else if (tk[i] === '(' || tk[i] === '\\left(') { const cl = tk[i] === '(' ? ')' : '\\right)'; i++; v = expr(false); eat(cl); }
+    else v = Q(num(), 1n);
+    if (tk[i - 1] !== ')' && tk[i - 1] !== '\\right)') pas(v);           // fulla (un grup ja s'ha registrat a dins)
+    if (tk[i] === '^') { i++; eat('{'); const k = num(); eat('}'); v = pas(Q(v[0] ** k, v[1] ** k)); }
+    return v;
+  }
+  function term(neg) {
+    let v = atom(); if (neg) v = pas(Q(-v[0], v[1]));
+    while (tk[i] === '\\cdot' || tk[i] === ':') {
+      const op = tk[i++], w = atom();
+      v = pas(op === ':' ? Q(v[0] * w[1], v[1] * w[0]) : Q(v[0] * w[0], v[1] * w[1]));
+    }
+    return v;
+  }
+  function expr(topNivell) {
+    let neg = false; if (tk[i] === '-') { i++; neg = true; }   // l'únic oposat sense parèntesi: al principi
+    let v = term(neg);
+    while (tk[i] === '+' || tk[i] === '-') {
+      const op = tk[i++], w = term(false);
+      v = pas(Q(op === '+' ? v[0] * w[1] + w[0] * v[1] : v[0] * w[1] - w[0] * v[1], v[1] * w[1]));
+    }
+    return v;
+  }
+  const v = expr(true);
+  if (i !== tk.length) throw new Error('text sobrant');
+  v.passos = passos; return v;
+}
+
+// Parèntesis d'agrupació: els que no envolten un sol nombre/fracció amb signe
+function agrupacions(tex) {
+  let s = tex.replace(/\\left\(/g, '(').replace(/\\right\)/g, ')'), g = 0, m;
+  const re = /\(([^()]*)\)/;
+  while ((m = re.exec(s))) {
+    if (!/^-?(\d+|\\frac\{\d+\}\{\d+\})$/.test(m[1])) g++;
+    s = s.replace(re, '0');
+  }
+  return g;
+}
+const enConjunt = (l, [n, d]) => l === 'Q' || (d === 1n && (l === 'Z' || n >= 0n));
+
+// ── Combinacions ──
+const base = { n: 5, esp: 'mitja', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1 };
+let combos = 0, total = 0;
+for (const set of ['N', 'Z', 'Q'])
+  for (const [int, fin] of set === 'N' ? [[1, 1]] : [[1, 0], [0, 1], [1, 1]])
+    for (let m = 0; m < 16; m++) {
+      const p = { ...base, set, int, fin, div: m & 1, pot: (m >> 1) & 1, par: (m >> 2) & 1, opo: (m >> 3) & 1 };
+      if (!Motor.valida(p).ok) continue;
+      combos++;
+      const etq = `${set} int=${int} fin=${fin} div=${p.div} pot=${p.pot} par=${p.par} opo=${p.opo}`;
+      const ant = new Set(); let mal = 0; const full = [];
+      for (let i = 0; i < 100; i++) {
+        const e = Motor.exercici(p, 'prova' + m, i, 0, ant); total++;
+        if (e.error) { mal++; continue; }
+        ant.add(e.tex); full.push({ i, e });
+        try {
+          const v = llegeix(e.tex);                                            // 2. re-lectura independent
+          if (v[0] !== BigInt(e.valor.n) || v[1] !== BigInt(e.valor.d)) falla(`${etq}: valor ${v} ≠ ${e.valor.n}/${e.valor.d} a ${e.tex}`);
+          const lf = set === 'N' || !p.fin ? 'N' : set;                        // 3. conjunt del resultat final
+          if (!enConjunt(lf, v)) falla(`${etq}: resultat fora del conjunt a ${e.tex}`);
+          const li = set === 'N' || !p.int ? 'N' : set, ps = v.passos, ult = ps[ps.length - 1];
+          if (ult[0] !== v[0] || ult[1] !== v[1]) falla(`${etq}: l'últim pas no és el resultat a ${e.tex}`);
+          if (!ps.slice(0, -1).every((x) => enConjunt(li, x))) falla(`${etq}: intermedi fora del conjunt a ${e.tex}`);
+        } catch (x) { falla(`${etq}: no es pot llegir «${e.tex}» (${x.message})`); }
+        if (!e.tex.includes('\\cdot') || !e.tex.includes('+')) falla(`${etq}: falten · o + a ${e.tex}`);   // 4. presència
+        if (p.div && !e.tex.includes(':')) falla(`${etq}: falta : a ${e.tex}`);
+        if (p.pot && !e.tex.includes('^')) falla(`${etq}: falta ^ a ${e.tex}`);
+        if (p.opo && !e.tex.includes('-')) falla(`${etq}: falta oposat a ${e.tex}`);
+        const g = agrupacions(e.tex);
+        if (p.par ? g < 1 : g > 0) falla(`${etq}: agrupacions=${g} a ${e.tex}`);
+      }
+      if (mal > 1) falla(`${etq}: ${mal}/100 sense generar (< 99 %)`);          // 1. taxa d'èxit
+      // 5. determinisme i 6. no repetits
+      const a2 = new Set();
+      full.forEach(({ i, e }) => { const x = Motor.exercici(p, 'prova' + m, i, 0, a2); a2.add(x.tex); if (x.tex !== e.tex) falla(`${etq}: no determinista (${i})`); });
+      if (new Set(full.map(({ e }) => e.tex)).size !== full.length) falla(`${etq}: repetits`);
+    }
+
+// 5b. determinisme directe
+const pd = { ...base, set: 'Z', div: 1, pot: 1, par: 1, opo: 1 };
+if (Motor.exercici(pd, 'x', 0, 0).tex !== Motor.exercici(pd, 'x', 0, 0).tex) falla('no determinista');
+if (Motor.exercici(pd, 'x', 0, 0).tex === Motor.exercici(pd, 'x', 0, 1).tex) falla('↻ no canvia res');
+
+// 7. format del fitxer
+const ex = [0, 1, 2].map((i) => Motor.exercici(pd, 'f', i, 0));
+const f = Motor.fitxerTex(ex, { ...pd, n: 3 }, { num: 7, seed: 'f' });
+const cnt = (re) => (f.match(re) || []).length;
+if (cnt(/\\begin\{enumerate\}/g) !== 1 || cnt(/\\end\{enumerate\}/g) !== 1) falla('enumerate desequilibrat');
+if (cnt(/\\item /g) !== 3) falla('nombre d\'\\item incorrecte');
+if (!f.startsWith('% ex7.tex')) falla('capçalera del fitxer');
+
+// \vspace* opcional
+const fv = Motor.fitxerTex(ex, { ...pd, n: 3, vs: 1 }, { num: 1, seed: 'f' });
+if (!fv.includes('\\vspace*{') || f.includes('\\vspace*{')) falla('opció \\vspace*');
+// previsualització: parèntesis allargats si hi ha fracció
+const pf = { ...base, set: 'Q', int: 1, fin: 1, div: 1, pot: 1, par: 1 };
+let allargats = 0;
+for (let i = 0; i < 200; i++) { const e = Motor.exercici(pf, 'q', i, 0); if (!e.error && e.html.includes('class="pg"')) allargats++; }
+if (!allargats) falla('cap parèntesi allargat a la previsualització');
+
+// valida(): casos impossibles
+if (Motor.valida({ ...base, set: 'N', opo: 1 }).ok) falla('oposat amb ℕ hauria de ser impossible');
+
+console.log(`${combos} combinacions, ${total} exercicis, ${errors} errors`);
+process.exit(errors ? 1 : 0);

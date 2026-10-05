@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Operacions combinades · 1r ESO</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header><h1>Operacions combinades · 1r ESO</h1><span id="segell"></span></header>
+<main>
+<aside>
+  <h2>Configuració</h2>
+  <label class="fila">Operacions <input type="number" id="n" min="1" max="10"></label>
+  <h3>Espai entre operacions</h3>
+  <div class="grup" id="esp">
+    <button data-esp="minim">mínim</button><button data-esp="petit">petit</button><button data-esp="mitja">mitjà</button><button data-esp="gran">gran</button><button data-esp="extragran">extragran</button>
+  </div>
+  <h3>Conjunt</h3>
+  <div class="grup" id="set"><button data-set="N">ℕ</button><button data-set="Z">ℤ</button><button data-set="Q">ℚ</button></div>
+  <div id="onviuen"><label><input type="checkbox" id="int"> intermedis</label> <label><input type="checkbox" id="fin"> resultat final</label></div>
+  <h3>Opcions</h3>
+  <label><input type="checkbox" id="div"> divisions</label>
+  <label><input type="checkbox" id="opo"> oposat d'un nombre</label>
+  <label><input type="checkbox" id="pot"> potències</label>
+  <label><input type="checkbox" id="par"> parèntesis</label>
+  <label><input type="checkbox" id="forca"> força que apareguin</label>
+  <label title="Usa \vspace* al .tex: l'espai no es perd a dalt de pàgina"><input type="checkbox" id="vs"> conserva l'espai a dalt de pàgina</label>
+  <p><button id="tot">Genera-ho tot</button></p>
+</aside>
+<section><h2>Full</h2><div id="full"></div>
+  <details><summary>Veure el codi TeX</summary><pre id="codi"></pre></details>
+  <p class="avis">El PDF és el d'impressió del navegador; per al PDF compilat amb LaTeX, baixa el .tex.</p>
+</section>
+</main>
+<footer>
+  <span id="recompte"></span>
+  <span class="grup"><label>Fitxer núm. <input type="number" id="fit" min="1" max="99"></label>
+  <button id="baixa"></button><button id="copia">Copia el TeX</button><button id="pdf">PDF</button></span>
+</footer>
+<script src="assets/motor.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
