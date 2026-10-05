@@ -123,6 +123,38 @@ for (const k of ['main', 'headers', 'defs']) {
   if (Entorn[k] !== font) falla(`assets/entorn.js no coincideix amb tex/${k}.tex: executa python3 eines/entorn.py`);
 }
 
+// Progressió gradual
+{
+  const pg = { ...base, n: 10, set: 'Z', div: 1, pot: 1, par: 1, opo: 1, grad: 1 };
+  const suma = Array(10).fill(0); let fulls = 0, primersBuits = 0;
+  for (let s = 0; s < 200; s++) {
+    const ant = new Set(); let buits = 0;
+    for (let i = 0; i < 10; i++) {
+      const e = Motor.exercici(pg, 'g' + s, i, 0, ant);
+      if (e.error) { falla(`gradual: exercici ${i} sense generar`); continue; }
+      ant.add(e.tex); suma[i] += e.extres.length;
+      const q = e.params;                                        // presència segons els extres d'aquest exercici
+      if (q.div && !e.tex.includes(':')) falla(`gradual: falta : a ${e.tex}`);
+      if (q.pot && !e.tex.includes('^')) falla(`gradual: falta ^ a ${e.tex}`);
+      if (q.par ? agrupacions(e.tex) < 1 : agrupacions(e.tex) > 0) falla(`gradual: parèntesis a ${e.tex}`);
+      if (i >= 8 && e.extres.length !== 4) falla(`gradual: l'exercici ${i + 1} no té tots els extres`);
+      if (i < 4 && !e.extres.length) buits++;
+      if (Motor.exercici(pg, 'g' + s, i, 3).extres.join() !== e.extres.join()) falla('gradual: ↻ canvia el nivell');
+    }
+    fulls++; if (buits === 4) primersBuits++;
+  }
+  const mitja = (a, b) => suma.slice(a, b).reduce((x, y) => x + y, 0) / (b - a) / fulls;
+  if (!(mitja(0, 4) < mitja(4, 8) && mitja(4, 8) < 4)) falla(`gradual: no creix (${mitja(0, 4)}, ${mitja(4, 8)})`);
+  if (!primersBuits) falla('gradual: els 4 primers no surten mai sense extres');
+  // ℚ només final: div i par no es poden treure mai
+  const pq = { ...base, n: 10, set: 'Q', int: 0, fin: 1, div: 1, par: 1, pot: 1, grad: 1 };
+  for (let i = 0; i < 10; i++) { const e = Motor.exercici(pq, 'q', i, 0); if (e.error || !e.params.div || !e.params.par) falla(`gradual ℚ final: ${i}`); }
+  // immediata = comportament d'abans
+  const pi = { ...pg, grad: 0 };
+  if (Motor.exercici(pi, 'z', 0, 0).extres.length !== 4) falla('immediata: hauria de tenir tots els extres');
+  console.log(`gradual: mitjana d'extres per exercici = ${suma.map((x) => (x / fulls).toFixed(2)).join(' ')}; fulls amb els 4 primers sense extres: ${primersBuits}/${fulls}`);
+}
+
 // valida(): casos impossibles
 if (Motor.valida({ ...base, set: 'N', opo: 1 }).ok) falla('oposat amb ℕ hauria de ser impossible');
 

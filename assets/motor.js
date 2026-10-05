@@ -100,16 +100,28 @@ function valida(p){
  if(p.opo&&!p.int)return{ok:false,motiu:"L'oposat crea intermedis negatius: marca «intermedis»."};
  if(p.set==='Q'&&p.fin&&!p.int&&!(p.div&&p.par))return{ok:false,motiu:'Amb ℚ només al resultat final calen divisions i parèntesis (l\'última operació ha de ser una divisió).'};
  return{ok:true}}
+// Progressió gradual dels extres: l'exercici i (0..n-1) inclou cada extre marcat amb
+// probabilitat ((i+1)/(n-1))^2; els 2 últims, tots. El sorteig depèn de la llavor mestra
+// i de i (no de ↻): «un altre» canvia l'exercici, però no el seu nivell.
+const EXTRES=['div','par','pot','opo'];   // ordre de reparació: div i par primer (ℚ només final)
+function gradual(p,mestra,i){
+ const on=EXTRES.filter(k=>p[k]);if(!p.grad||!on.length)return p;
+ const n=p.n||1,pr=i>=n-2?1:Math.min(1,((i+1)/(n-1))**2);
+ const rg=rng(`${mestra}:${i}:grad`),q=Object.assign({},p);
+ on.forEach(k=>{q[k]=rg.f()<pr?1:0});
+ for(const k of on){if(valida(q).ok)break;q[k]=1}   // si treure un extre fa impossible el conjunt, es torna a posar
+ return q}
 function exercici(p,mestra,i,r,ant){
- const x=genera(p,rng(`${mestra}:${i}:${r}`),ant||new Set());
- return x||{error:"No he pogut generar aquest exercici amb aquestes opcions."}}
+ const q=gradual(p,mestra,i),x=genera(q,rng(`${mestra}:${i}:${r}`),ant||new Set());
+ if(!x)return{error:"No he pogut generar aquest exercici amb aquestes opcions.",params:q};
+ x.params=q;x.extres=EXTRES.filter(k=>q[k]);return x}
 function fitxerTex(exs,p,m){
  const conj=p.set==='N'?'N':`${p.set}(${[p.int&&'int',p.fin&&'fin'].filter(Boolean).join(',')})`;
- const opts=['div','pot','par','opo','vs'].filter(k=>p[k]).join(' ');
+ const opts=['div','pot','par','opo','vs','grad'].filter(k=>p[k]).map(k=>k==='grad'?'gradual':k).join(' ');
  let s=`% ex${m.num}.tex — generat per «Operacions combinades 1r ESO» ${VERSIO}\n% llavor=${m.seed} · n=${p.n} · espai=${p.esp} · conjunt=${conj}${opts?' · '+opts:''}\n`
   +`\\begin{enumerate}\n\\renewcommand{\\labelenumi}{\\textbf{\\arabic{enumi})}}\n\\setlength{\\itemsep}{0pt}\n`;
  exs.forEach(e=>{s+=`\\item $\\displaystyle ${e.tex}$\n\\par\\vspace${p.vs?'*':''}{${ESPAIS[p.esp]}}\n`});
  return s+'\\end{enumerate}\n'}
-const M={VERSIO,ESPAIS,valida,exercici,fitxerTex};
+const M={VERSIO,ESPAIS,EXTRES,valida,exercici,fitxerTex};
 if(typeof module!=='undefined')module.exports=M;
 return M})();

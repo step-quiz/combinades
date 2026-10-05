@@ -25,6 +25,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
 .math sup{font-size:.62em;line-height:0;vertical-align:0;position:relative;top:-.75em;margin-left:.04em}
 .pg{display:inline-flex;align-items:center}.pb{font-size:1.9em;font-weight:200;line-height:.7;margin:0 .03em}
 .entorn{margin-top:20px;border-top:1px solid var(--bd);padding-top:12px}
+.ext{font-size:.68rem;border:1px dashed var(--bd);border-radius:4px;padding:1px 6px}
 .err{color:var(--er)}
 .fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.85em;margin:0 .15em}
 .fr>span:first-child{border-bottom:1px solid;padding:0 .25em}
