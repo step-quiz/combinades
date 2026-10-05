@@ -16,6 +16,9 @@ function desa(){
  const q=Object.assign({},S,{seed,r:R.join(',')}),u=new URLSearchParams(q).toString();
  try{history.replaceState(null,'','#'+u)}catch(e){}
  try{localStorage.setItem('combinades',JSON.stringify(S))}catch(e){}}
+function baixa(nom,txt){
+ const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([txt],{type:'text/plain;charset=utf-8'})),download:nom});
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function render(){
  if(S.set==='N')S.opo=0;
  if(!S.int&&!S.fin)S.int=1;
@@ -49,8 +52,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)r
   const alt=()=>{const t=document.createElement('textarea');t.value=txt;document.body.appendChild(t);t.select();try{document.execCommand('copy');fet()}catch(x){}t.remove()};
   if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(txt).then(fet,alt);else alt();return}
  else if(b.id==='baixa'){
-  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([$('codi').textContent],{type:'text/plain;charset=utf-8'})),download:`ex${S.fit}.tex`});
-  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);S.fit=Math.min(99,S.fit+1)}
+  baixa(`ex${S.fit}.tex`,$('codi').textContent);S.fit=Math.min(99,S.fit+1)}
+ else if(b.dataset.entorn){baixa(b.dataset.entorn+'.tex',Entorn[b.dataset.entorn]);return}
  else return;
  render()});
 document.addEventListener('change',e=>{const t=e.target;

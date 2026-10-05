@@ -1,0 +1,25 @@
+% =====================================================================
+%  main.tex — Carpeta de fulls d'operacions combinades
+%  Compila amb:  pdflatex main.tex
+%  ─────────────────────────────────────────────────────────────────────
+%  Carpeta:
+%    main.tex  headers.tex  defs.tex     (es baixen un sol cop: «Entorn»)
+%    capsalera.tex  logo-institut.png    (opcionals, els poses tu)
+%    ex1.tex  ex2.tex  …                 (els baixes del lloc web)
+% =====================================================================
+
+\documentclass[12pt,a4paper]{article}
+
+\input{headers.tex}
+\input{defs.tex}
+
+% Capçalera del centre (logo, curs, nom...): NO és al projecte. Si hi ha un
+% capsalera.tex a la carpeta, s'incorpora; si no, el full surt sense.
+\IfFileExists{capsalera.tex}{\input{capsalera.tex}}{}
+
+\begin{document}
+\capsaleraexamen
+%\enunciat{Calcula:}
+\input{ex1.tex}
+%\input{ex2.tex}
+\end{document}

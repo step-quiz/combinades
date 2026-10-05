@@ -20,6 +20,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-off
 .cap .num{background:var(--ac);color:var(--on);padding:2px 8px;border-radius:3px;font-weight:600}.cap small{margin-left:auto}
 .math{font-size:1.35rem;padding:10px 0}
 .pg{display:inline-flex;align-items:center}.pb{font-size:1.9em;font-weight:200;line-height:.7;margin:0 .03em}
+.entorn{margin-top:20px;border-top:1px solid var(--bd);padding-top:12px}
 .err{color:var(--er)}
 .fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.85em;margin:0 .15em}
 .fr>span:first-child{border-bottom:1px solid;padding:0 .25em}

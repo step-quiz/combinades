@@ -27,6 +27,11 @@
   <label><input type="checkbox" id="forca"> força que apareguin</label>
   <label title="Usa \vspace* al .tex: l'espai no es perd a dalt de pàgina"><input type="checkbox" id="vs"> conserva l'espai a dalt de pàgina</label>
   <p><button id="tot">Genera-ho tot</button></p>
+  <div class="entorn">
+    <h2>Entorn</h2>
+    <p class="avis">Els fitxers de la carpeta de fulls. Es baixen un sol cop: el teu main.tex fa \input{exN.tex}.</p>
+    <div class="grup"><button data-entorn="main">main.tex</button><button data-entorn="headers">headers.tex</button><button data-entorn="defs">defs.tex</button></div>
+  </div>
 </aside>
 <section><h2>Full</h2><div id="full"></div>
   <details><summary>Veure el codi TeX</summary><pre id="codi"></pre></details>
@@ -38,6 +43,7 @@
   <span class="grup"><label>Fitxer núm. <input type="number" id="fit" min="1" max="99"></label>
   <button id="baixa"></button><button id="copia">Copia el TeX</button><button id="pdf">PDF</button></span>
 </footer>
+<script src="assets/entorn.js"></script>
 <script src="assets/motor.js"></script>
 <script src="assets/app.js"></script>
 </body>

@@ -116,6 +116,13 @@ let allargats = 0;
 for (let i = 0; i < 200; i++) { const e = Motor.exercici(pf, 'q', i, 0); if (!e.error && e.html.includes('class="pg"')) allargats++; }
 if (!allargats) falla('cap parèntesi allargat a la previsualització');
 
+// Entorn: assets/entorn.js ha de ser idèntic a tex/*.tex (paritat, com a exam2bat)
+const fs = require('fs'), path = require('path'), Entorn = require('../assets/entorn.js');
+for (const k of ['main', 'headers', 'defs']) {
+  const font = fs.readFileSync(path.join(__dirname, '..', 'tex', k + '.tex'), 'utf8');
+  if (Entorn[k] !== font) falla(`assets/entorn.js no coincideix amb tex/${k}.tex: executa python3 eines/entorn.py`);
+}
+
 // valida(): casos impossibles
 if (Motor.valida({ ...base, set: 'N', opo: 1 }).ok) falla('oposat amb ℕ hauria de ser impossible');
 

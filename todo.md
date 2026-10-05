@@ -23,6 +23,10 @@ s'ha provat amb `node tests/prova.js` (82 combinacions, 8.200 exercicis, 0 error
 10. **Cloudflare Pages**: connecta el repositori igual que `exam2bat` (sense comanda de build). Cap commit amb `[skip ci]`.
 11. Ampliacions (§11): solucions, pas a pas, «Tot en un», Overleaf, motor TeX en WebAssembly, versió de 2n d'ESO.
 
+## Fet en aquesta versió
+- `tex/main.tex`, `tex/headers.tex`, `tex/defs.tex` (inspirats en `exam2bat`), apartat **Entorn** per baixar-los, i prova de paritat amb `assets/entorn.js`.
+- Compilat de debò un full de 10 exercicis amb totes les opcions (ℚ, divisions, oposats, potències, parèntesis, `\vspace*`): sense errors ni avisos.
+
 ## Decisions que cal confirmar
 - El PDF de la web és el d'impressió del navegador, **no** un PDF compilat amb LaTeX (§7).
 - Carpeta d'extracció: `_uploads` (amb «s») segons el workflow d'`exam2bat`.
