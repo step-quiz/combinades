@@ -8,9 +8,15 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Proves:** `node tests/prova.js` → 82 combinacions, 8.200 exercicis, 0 errors (amb re-lectura independent del TeX).
-**LaTeX:** compilat de debò amb el `main.tex` i el `capsalera.tex` del professor: sense errors.
-**Interfície:** no s'ha provat sistemàticament en navegadors (només l'ha mirat el professor).
+**Versió:** v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
+**Proves:** `node tests/prova.js` → 82 combinacions × 100 exercicis, més les 328 combinacions possibles (també sense
+«força» i graduals) × 10: 11.480 exercicis, 0 errors. Re-lectura independent del TeX, empremtes dels exercicis
+(`tests/empremtes.json`), testimonis de «força», − binària i oposat, previsualització = TeX, mides dels parèntesis.
+**LaTeX:** `node tests/compila.js` compila 40 exercicis de ℕ, de ℤ i de ℚ amb totes les opcions i símbols «gran»:
+sense errors ni «Overfull», i la fórmula més ampla fa el 58 % de la línia. (També compilat pel professor amb el
+seu `capsalera.tex`.)
+**Interfície:** `node tests/navegador.js` (Chromium, 22 comprovacions: adreça, ↻, baixades, impressió, mòbil).
+Falta mirar-la a Firefox, a Safari i en un mòbil de debò.
 
 Fet:
 - Controls: 1–10 operacions; espai entre operacions (petit/mitjà/gran); espai entre símbols (petit/mitjà/gran);
@@ -22,8 +28,11 @@ Fet:
 - Entorn: `tex/main.tex`, `tex/headers.tex`, `tex/defs.tex` (font única) → `assets/entorn.js` (generat amb
   `python3 eines/entorn.py`; la prova en comprova la paritat). `headers.tex` carrega `array`, `tabularx`,
   `xcolor[table]` i `graphicx` perquè ho necessita el `capsalera.tex` del professor (el d'`exam2bat`).
-- Parèntesis d'agrupació sempre `\left(…\right)`, i cada nivell niuat més gran que el de dins (`\vphantom`).
+- Parèntesis: cada un més gran que els que té a dins, tant els d'agrupació com els de notació `(−3)`. Sense fraccions,
+  mides fixes `(`, `\bigl(`, `\Bigl(`, `\biggl(`, `\Biggl(`; amb fraccions, `\left(…\right)` amb una alçada
+  invisible dins de `\mathopen` (vegeu §6.1).
 - Previsualització HTML sense llibreries, amb xifres alineades (`lining-nums`) i potències que no desquadren la línia.
+- El `.tex` porta a la tercera línia l'adreça que el refà (`% per refer aquest full: index.html#…`).
 
 ---
 
@@ -78,7 +87,7 @@ Motor.passos(arbre, opcions) // → [arbre0, arbre1, …, arbreFinal]  (arbre0 =
 Exercici resolt (al full en mode Guiades, o a `exN-sol.tex`):
 
 ```latex
-\item $\displaystyle 3\cdot\left(5-2\right)+4^{2}:8$
+\item $\displaystyle 3\cdot (5-2)+4^{2}:8$
 \begin{align*}
 &= 3\cdot 3+16:8\\
 &= 9+2\\
@@ -125,20 +134,44 @@ Per a totes les combinacions vàlides i les dues granularitats:
 - Potència d'un grup: `(3+1)^2` → `4^2` → `16`.
 - Un sol exercici molt llarg (N = 10, totes les opcions, granularitat «una operació»): ha de cabre o partir bé.
 
+### 2.7 Notes de la revisió (resoldre-les abans de programar)
+
+1. **L'oposat d'un nombre no és una operació.** `−3` (un `neg` damunt d'un `num` o d'una `frac`) s'ha de tractar com
+   un nombre des del principi. Si fos «reductible», el primer pas canviaria `(−3)` per `(−3)`: el mateix text, i la
+   prova 2.5.2 («dos passos seguits no són iguals») fallaria.
+2. **`−` d'un valor positiu tampoc canvia el text.** `−(4+6):2` → `−10:2`: després de reduir el grup, el node és
+   `neg(val 10)`, que s'escriu `−10`, igual que `val(−10)`. Només `−(−3)` → `3` canvia el text. Aquests passos s'han
+   de fondre amb l'anterior (sense línia nova).
+3. **Grups germans.** Amb el focus «el més interior i el de més a l'esquerra», `(2+3)·(4+5)` fa tres passos
+   (`5·(4+5)`, `5·9`, `45`). A l'aula sovint es resolen tots els parèntesis del mateix nivell alhora (`5·9`).
+   Decidir-ho (potser: «per prioritat» → tots alhora; «una operació» → d'un en un).
+4. **Fraccions «tal com surt».** Cal definir-ho per a + i −: comú denominador amb el m.c.m. o amb el producte? I, a
+   1r d'ESO, potser un pas intermedi amb els denominadors ja igualats: `1/2 + 1/3 = 3/6 + 2/6 = 5/6`.
+5. **Mida dels parèntesis a cada línia.** Es recalcula sola: quan un grup de dins es redueix, el de fora es fa
+   més petit a la línia següent. És el que fa `escriu()`; només cal saber-ho.
+6. **On encaixa el tipus nou `val`.** A `escriu()` (motor.js) n'hi ha prou amb un `case 'val'` (com `num` si és ≥ 0;
+   com un oposat, amb la regla de notació, si és negatiu; `\frac` si és fracció). `calParentesi()` serveix igual.
+7. **El valor `−0`.** `−(3−3)` dona `−0` en JavaScript. `String(-0)` és `"0"`, o sigui que s'escriu bé, però una
+   comparació amb `Object.is` el distingiria de `0`. (O s'eviten aquests exercicis: vegeu §6.2.)
+8. Per a la prova 2.5.1, l'analitzador independent de `tests/prova.js` (`llegeix`) ja llegeix el TeX de cada línia
+   i en valida la sintaxi (parelles i mides de parèntesis, el `−` unari).
+
 ---
 
 ## 3. Altres tasques pendents (per ordre d'importància)
 
-1. **Provar la interfície** a Chrome, Firefox i mòbil.
-2. Proves: comprovar també la presència de la `−` binària i els testimonis de «força».
-3. **Combinacions impossibles** (`Motor.valida`): ara n'hi ha 3 (oposat amb ℕ; oposat sense «intermedis»;
-   ℚ només «final» sense divisions i parèntesis). Revisar si en falta cap.
+1. **Provar la interfície** a Firefox, Safari i un mòbil de debò (Chromium ja es prova sol: `tests/navegador.js`).
+2. ~~Proves: comprovar també la presència de la `−` binària i els testimonis de «força».~~ Fet (v0.2).
+3. ~~**Combinacions impossibles** (`Motor.valida`): revisar si en falta cap.~~ Fet (v0.2): no en falta cap. Les 3
+   regles (oposat amb ℕ; oposat sense «intermedis»; ℚ només «final» sense divisions i parèntesis) deixen 328
+   combinacions possibles, i totes generen fulls sencers (`tests/prova.js` les prova totes cada vegada).
 4. **Oposat damunt de potència:** `neg(pow)` està exclòs (evita `−2^2`, ambigu). Decidir si es vol `−(2^3)`.
 5. **Longitud** de cada operació: ara fixa (3–5 operadors binaris, +1 amb divisions). Control opcional.
 6. Espai entre símbols: ara només als operadors; decidir si també als parèntesis.
-7. Infraestructura (no pot arribar per ZIP): workflow `unzip-upload.yml` creat des de la web de GitHub, i
-   Cloudflare Pages connectat com a `exam2bat`.
+7. Infraestructura: els workflows `proves.yml` i `unzip-upload.yml` ja hi són (v0.2). Falta connectar
+   Cloudflare Pages com a `exam2bat`.
 8. Ampliacions: «Tot en un» (preàmbul incrustat), «Obre a Overleaf», versió de 2n d'ESO.
+9. Decidir les preguntes de la secció 6.2 (profunditat dels parèntesis i operacions trivials).
 
 ---
 
@@ -147,13 +180,69 @@ Per a totes les combinacions vàlides i les dues granularitats:
 - **Web estàtica vanilla:** cap llibreria, cap pas de build, scripts clàssics (no mòduls), funciona amb doble clic.
 - **`motor.js` és pur** (sense DOM) i s'exporta a Node. Tota la lògica nova (passos inclosos) hi va i es prova amb Node.
 - **Un sol recorregut, dos emissors** (TeX i HTML): la previsualització i el `.tex` no poden divergir.
-- **Determinisme:** mateix estat → mateix fitxer, byte a byte. Les adreces desades no es poden trencar.
+- **Determinisme:** mateix estat → mateix fitxer, byte a byte. Les adreces desades no es poden trencar: els exercicis
+  de cada combinació els vigila `tests/empremtes.json`. Un canvi que els alteri necessita una versió nova del
+  generador a l'adreça (vegeu §6.3); no n'hi ha prou de refer les empremtes.
 - `exN.tex` i `exN-sol.tex` només depenen de LaTeX estàndard + `amsmath`.
 - `tex/*.tex` és la font única de l'entorn; `assets/entorn.js` és generat (`python3 eines/entorn.py`).
-- Cap canvi es dona per bo sense `node tests/prova.js` amb 0 errors.
+- Cap canvi es dona per bo sense `node tests/prova.js` amb 0 errors (i, si toca la interfície o el TeX,
+  `node tests/navegador.js` i `node tests/compila.js`). A GitHub, les tres passen soles a cada push.
 - Lliurament per ZIP sense carpeta contenidora, a `_uploads/`. **Mai** `[skip ci]`, `[ci skip]` ni `[cf-pages-skip]` als commits.
 
 ## 5. Decisions ja preses (no canviar sense preguntar)
 
 - El PDF de la web és el d'impressió del navegador, **no** un PDF compilat amb LaTeX.
 - Carpeta d'extracció: `_uploads` (amb «s»), com el workflow d'`exam2bat`.
+
+---
+
+## 6. Revisió de la v0.2 (octubre de 2026)
+
+Revisió completa del codi de la v0.1. Els **exercicis no han canviat**: els 10.356 d'un corpus de referència
+(totes les combinacions, diverses llavors i ↻) tenen el mateix arbre, el mateix valor i les mateixes opcions abans
+i després, i les empremtes calculades amb el codi de la v0.1 coincideixen amb `tests/empremtes.json`. El que ha
+canviat és com s'escriuen els parèntesis al TeX i a l'HTML.
+
+### 6.1 Errors corregits
+
+- **TeX: un oposat sortia com una resta.** `\left(\vphantom{\big|}-7:…` es componia «( − 7 : …»: el `\vphantom`
+  és un àtom ordinari i el `−` que el segueix passava a ser binari. Passava en tots els grups niuats que
+  començaven per un negatiu (també amb fraccions).
+- **TeX: espais de més.** `\left(…\right)` és un àtom «interior»: TeX hi deixava un espai fi després d'un `−`
+  («− (4+6)») i entre dos parèntesis seguits («( (6+3)»).
+- **Parèntesis de notació que no creixien.** `(−(2+3))`: el de fora (notació) era de mida normal i el de dins
+  (agrupació) més gran, al revés de la regla. Ara tots dos segueixen la mateixa regla de mida (TeX i HTML).
+- **La impressió mostrava les etiquetes del mode gradual** («sense extres», «÷ · ( ) · xⁿ · −a») al full de l'alumne.
+- **Un enllaç desat obert a la mateixa pestanya no es carregava** (el navegador no recarrega la pàgina si només
+  canvia el `#`), i el clic següent sobreescrivia l'enllaç amb el full d'abans.
+- **Adreces mal formades:** `#esp=constructor` escrivia `\vspace{function Object() { [native code] }}` al `.tex`.
+- **Mòbil:** una fórmula llarga eixamplava tota la pàgina (que es desplaçava de costat), les fórmules es partien
+  en dues línies (amb un `−` sol al final) i la barra de baix tapava el final de la pàgina.
+- **Impressió:** les fórmules més amples (símbols «gran», ℚ) es partien en dues línies (amb l'exponent sol a la
+  línia de sota); ara s'encongeixen una mica, només elles. El número de l'exercici queda alineat amb la fórmula i
+  l'exponent d'un parèntesi alt va a dalt del parèntesi.
+- **Proves:** la de l'oposat no provava res (`e.tex.includes('-')` sempre és cert: la resta és obligatòria); no es
+  comprovaven la − binària ni «força que apareguin»; no es provaven les combinacions sense «força» ni graduals.
+
+També: `motor.js`, `app.js` i `style.css` reescrits llegibles (noms en català, comentaris), sense canviar cap crida a
+l'atzar; l'avaluador ja no s'empassa errors de programació (només descarta els arbres que ha de descartar); el `.tex`
+porta l'adreça que el refà; workflows de GitHub; proves de compilació i de navegador.
+
+### 6.2 Preguntes per al professor (canviarien els exercicis)
+
+Dades de 16.400 exercicis (totes les combinacions; «força» marcada):
+
+1. **Quants nivells de parèntesis?** Amb «parèntesis», el 18,6 % dels exercicis en tenen 3 nivells o més (comptant
+   els de notació, com `(−3)`), el 4 % en tenen 4 o més i n'hi ha fins a 6. Per a 1r d'ESO, limitar-ho a 2 (o 3)?
+2. **Operacions trivials?** El 12,6 % dels exercicis amb parèntesis (i el 4,2 % dels que no en tenen) porten alguna
+   operació sense gaire sentit: una resta que dona 0 (`7+(−7)`, `5−5`: 6,2 %), sumar o restar 0 (4,7 %), una potència
+   de 0 o de ±1 (`(3−2)^3`: 4,5 %), multiplicar o dividir per −1 (3,7 %), dividir 0 (1,7 %) o l'oposat de 0 (`−(3−3)`:
+   0,6 %). Ja s'eviten multiplicar per 0 o per 1 i dividir per 1. Evitar-ne alguna més?
+
+### 6.3 Com canviar el generador sense trencar els enllaços desats
+
+Les adreces d'ara no porten cap versió del generador. Quan calgui canviar-lo (p. ex. per les preguntes de 6.2):
+
+1. afegir un paràmetre `g` a l'adreça; si no hi és, val 1 (totes les adreces d'ara);
+2. el codi nou només s'aplica amb `g ≥ 2`, i els fulls nous es desen amb `g=2`;
+3. `tests/empremtes.json` continua vigilant `g=1` sense tocar-lo, i s'hi afegeixen les empremtes de `g=2`.
