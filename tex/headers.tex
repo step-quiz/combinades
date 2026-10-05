@@ -26,5 +26,10 @@
 \fancyfoot[C]{\small\thepage}
 \renewcommand{\headrulewidth}{0pt}
 
-% ── Altres ───────────────────────────────────────────────────────────
-\usepackage{graphicx}          % imatges (les fa servir la capçalera de la carpeta)
+% ── Taules, colors i imatges ─────────────────────────────────────────
+% Els fa servir el capsalera.tex de la carpeta (el mateix que a exam2bat):
+% \definecolor i \cellcolor, tabularx, columnes m{} i >{...}, el logo.
+\usepackage{array}             % >{...} i m{} a la capçalera
+\usepackage{tabularx}          % taules d'amplada fixa
+\usepackage[table]{xcolor}     % colors i \cellcolor
+\usepackage{graphicx}          % imatges (el logo de la capçalera)
