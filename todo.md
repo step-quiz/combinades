@@ -206,8 +206,8 @@ canviat és com s'escriuen els parèntesis al TeX i a l'HTML.
 ### 6.1 Errors corregits
 
 - **TeX: un oposat sortia com una resta.** `\left(\vphantom{\big|}-7:…` es componia «( − 7 : …»: el `\vphantom`
-  és un àtom ordinari i el `−` que el segueix passava a ser binari. Passava en tots els grups niuats que
-  començaven per un negatiu (també amb fraccions).
+  és un àtom ordinari i el `−` que el segueix passava a ser binari. Passava a tots els grups que tenien
+  parèntesis a dins i començaven per un negatiu (també amb fraccions).
 - **TeX: espais de més.** `\left(…\right)` és un àtom «interior»: TeX hi deixava un espai fi després d'un `−`
   («− (4+6)») i entre dos parèntesis seguits («( (6+3)»).
 - **Parèntesis de notació que no creixien.** `(−(2+3))`: el de fora (notació) era de mida normal i el de dins
@@ -235,7 +235,7 @@ Dades de 16.400 exercicis (totes les combinacions; «força» marcada):
 1. **Quants nivells de parèntesis?** Amb «parèntesis», el 18,6 % dels exercicis en tenen 3 nivells o més (comptant
    els de notació, com `(−3)`), el 4 % en tenen 4 o més i n'hi ha fins a 6. Per a 1r d'ESO, limitar-ho a 2 (o 3)?
 2. **Operacions trivials?** El 12,6 % dels exercicis amb parèntesis (i el 4,2 % dels que no en tenen) porten alguna
-   operació sense gaire sentit: una resta que dona 0 (`7+(−7)`, `5−5`: 6,2 %), sumar o restar 0 (4,7 %), una potència
+   operació sense gaire sentit: una suma o resta que dona 0 (`7+(−7)`, `5−5`: 6,2 %), sumar o restar 0 (4,7 %), una potència
    de 0 o de ±1 (`(3−2)^3`: 4,5 %), multiplicar o dividir per −1 (3,7 %), dividir 0 (1,7 %) o l'oposat de 0 (`−(3−3)`:
    0,6 %). Ja s'eviten multiplicar per 0 o per 1 i dividir per 1. Evitar-ne alguna més?
 
