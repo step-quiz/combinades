@@ -1,0 +1,43 @@
+# Un ZIP pujat a _uploads/ (sense carpeta contenidora) es descomprimeix a
+# l'arrel, s'esborra i se'n fa un commit. És el mateix que a recu i exam2bat.
+# El commit NO porta «[skip ci]»: Cloudflare Pages no el publicaria.
+name: Extract and commit zip uploads
+
+on:
+  push:
+    paths:
+      - '_uploads/**.zip'
+
+permissions:
+  contents: write
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip uploaded files
+        run: |
+          shopt -s nullglob
+          for z in _uploads/*.zip; do
+            echo "Processing $z"
+            unzip -o "$z" -d .
+            rm "$z"
+          done
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Auto-extract uploaded zip"
+          git push
+
+      # Un commit fet per aquest workflow no llança cap altre workflow (és una
+      # regla de GitHub): les proves de la lògica es passen aquí mateix.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Proves
+        run: node tests/prova.js

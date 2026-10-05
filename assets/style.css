@@ -1,43 +1,106 @@
-:root{--bg:#f8fafc;--sf:#fff;--bd:#cbd5e1;--tx:#1e293b;--mu:#64748b;--ac:#7c3aed;--on:#fff;--er:#b45309}
-@media(prefers-color-scheme:dark){:root{--bg:#0f172a;--sf:#1e293b;--bd:#334155;--tx:#e2e8f0;--mu:#94a3b8;--ac:#a78bfa;--on:#1e1b4b;--er:#fbbf24}}
-*{box-sizing:border-box}
-body{margin:0;font-family:'Latin Modern Roman','CMU Serif','STIX Two Text','Cambria','Times New Roman',serif;font-variant-numeric:lining-nums;background:var(--bg);color:var(--tx);padding-bottom:72px}
-header{background:#1e293b;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:10px 20px;padding-top:calc(10px + env(safe-area-inset-top,0px))}
-header h1{font-size:1rem;margin:0}#segell{font:.65rem monospace;opacity:.6}
-main{max-width:1100px;margin:0 auto;padding:20px 16px;display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start}
-@media(max-width:860px){main{grid-template-columns:1fr}}
-h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mu)}h3{font-size:.75rem;color:var(--mu);margin:14px 0 6px}
-aside label{display:block;margin:6px 0}.fila{display:flex;gap:8px;align-items:center}
-#onviuen{margin:6px 0}#onviuen label{display:inline-block;margin-right:10px}
-input[type=number]{width:4rem;padding:6px;border:1px solid var(--bd);border-radius:6px;background:var(--sf);color:var(--tx)}
-button{font:.75rem monospace;min-height:38px;padding:6px 12px;border:1px solid var(--ac);background:none;color:var(--ac);border-radius:5px;cursor:pointer}
-button[aria-pressed=true],#baixa,#tot{background:var(--ac);color:var(--on)}
-button:disabled{opacity:.4;cursor:not-allowed}
-button:focus-visible,input:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
-.grup{display:flex;flex-wrap:wrap;gap:5px}
-.carta{background:var(--sf);border:1px solid var(--bd);border-left:4px solid var(--ac);border-radius:8px;padding:12px 16px;margin-bottom:12px}
-.cap{display:flex;gap:10px;align-items:center;font:.7rem monospace;color:var(--mu)}.cap button{min-height:30px;padding:2px 9px}
-.cap .num{background:var(--ac);color:var(--on);padding:2px 8px;border-radius:3px;font-weight:600}.cap small{margin-left:auto}
-.math{font-size:1.35rem;padding:10px 0;line-height:2;
- font-family:'Latin Modern Math','STIX Two Math','Cambria Math','Latin Modern Roman','Times New Roman',serif;
- font-variant-numeric:lining-nums tabular-nums}
+/* style.css — pantalla (clar i fosc) i impressió. */
+:root {
+  --bg: #f8fafc; --sf: #fff; --bd: #cbd5e1; --tx: #1e293b; --mu: #64748b;
+  --ac: #7c3aed; --on: #fff; --er: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a; --sf: #1e293b; --bd: #334155; --tx: #e2e8f0; --mu: #94a3b8;
+    --ac: #a78bfa; --on: #1e1b4b; --er: #fbbf24;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Latin Modern Roman', 'CMU Serif', 'STIX Two Text', 'Cambria', 'Times New Roman', serif;
+  font-variant-numeric: lining-nums;
+  background: var(--bg);
+  color: var(--tx);
+}
+
+header {
+  background: #1e293b; color: #fff;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 20px; padding-top: calc(10px + env(safe-area-inset-top, 0px));
+}
+header h1 { font-size: 1rem; margin: 0; }
+#segell { font: .65rem monospace; opacity: .6; }
+
+main {
+  max-width: 1100px; margin: 0 auto; padding: 20px 16px;
+  display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 24px; align-items: start;
+}
+/* minmax(0, …): una fórmula llarga no pot eixamplar la columna (i tota la pàgina). */
+@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; color: var(--mu); }
+h3 { font-size: .75rem; color: var(--mu); margin: 14px 0 6px; }
+aside label { display: block; margin: 6px 0; }
+.fila { display: flex; gap: 8px; align-items: center; }
+#onviuen { margin: 6px 0; }
+#onviuen label { display: inline-block; margin-right: 10px; }
+input[type=number] { width: 4rem; padding: 6px; border: 1px solid var(--bd); border-radius: 6px; background: var(--sf); color: var(--tx); }
+
+button {
+  font: .75rem monospace; min-height: 38px; padding: 6px 12px;
+  border: 1px solid var(--ac); background: none; color: var(--ac); border-radius: 5px; cursor: pointer;
+}
+button[aria-pressed=true], #baixa, #tot { background: var(--ac); color: var(--on); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+.grup { display: flex; flex-wrap: wrap; gap: 5px; }
+.entorn { margin-top: 20px; border-top: 1px solid var(--bd); padding-top: 12px; }
+.avis { font-size: .72rem; color: var(--mu); }
+.err { color: var(--er); }
+pre { overflow: auto; background: var(--sf); border: 1px solid var(--bd); padding: 10px; font-size: .75rem; }
+
+/* ── Les targetes del full ── */
+.carta {
+  background: var(--sf); border: 1px solid var(--bd); border-left: 4px solid var(--ac);
+  border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;
+}
+.cap { display: flex; gap: 10px; align-items: center; font: .7rem monospace; color: var(--mu); }
+.cap button { min-height: 30px; padding: 2px 9px; }
+.cap .num { background: var(--ac); color: var(--on); padding: 2px 8px; border-radius: 3px; font-weight: 600; }
+.cap small { margin-left: auto; }
+.ext { font-size: .68rem; border: 1px dashed var(--bd); border-radius: 4px; padding: 1px 6px; }
+
+/* ── Les fórmules ── Una fórmula no es parteix mai en dues línies (un «−»
+   sol al final d'una línia es llegiria com una resta): si no hi cap, la
+   targeta es desplaça de costat. */
+.math {
+  font-size: 1.35rem; padding: 10px 0; line-height: 2;
+  font-family: 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', 'Latin Modern Roman', 'Times New Roman', serif;
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap; overflow-x: auto;
+}
+.math .op { margin: 0 var(--sop, .22em); }
 /* Potència: s'enlaira sense alterar l'alçada de la línia */
-.math sup{font-size:.62em;line-height:0;vertical-align:0;position:relative;top:-.75em;margin-left:.04em}
-.pg{display:inline-flex;align-items:center}.pb{font-size:1.9em;font-weight:200;line-height:.7;margin:0 .03em}
-.entorn{margin-top:20px;border-top:1px solid var(--bd);padding-top:12px}
-.math .op{margin:0 var(--sop,.22em)}
-.ext{font-size:.68rem;border:1px dashed var(--bd);border-radius:4px;padding:1px 6px}
-.err{color:var(--er)}
-.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.85em;margin:0 .15em}
-.fr>span:first-child{border-bottom:1px solid;padding:0 .25em}
-pre{overflow:auto;background:var(--sf);border:1px solid var(--bd);padding:10px;font-size:.75rem}
-.avis{font-size:.72rem;color:var(--mu)}
-footer{position:fixed;left:0;right:0;bottom:0;background:var(--sf);border-top:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));font:.72rem monospace}
-@media print{
- @page{size:A4;margin:2cm 1.8cm}
- header,aside,footer,details,.avis,h2,.cap button,.cap small{display:none!important}
- body{background:#fff;color:#000;padding:0}main{display:block;padding:0}
- .carta{border:0;background:none;padding:0;margin:0;break-inside:avoid;display:flex;gap:.6em}
- .cap{display:block}.cap .num{background:none;color:#000;font:700 1.1rem serif;padding:0}.cap .num::after{content:")"}
- .math{padding:0 0 var(--esp)}
+.math sup { font-size: .62em; line-height: 0; vertical-align: 0; position: relative; top: -.75em; margin-left: .04em; }
+.pg { display: inline-flex; align-items: center; }
+.pb { font-size: 1.9em; font-weight: 200; line-height: .7; margin: 0 .03em; }
+.fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .85em; margin: 0 .15em; }
+.fr > span:first-child { border-bottom: 1px solid; padding: 0 .25em; }
+
+/* ── La barra de baix ── Enganxada a baix de la pantalla mentre hi ha
+   contingut a sota; al final, al seu lloc: no tapa mai res. */
+footer {
+  position: sticky; bottom: 0;
+  background: var(--sf); border-top: 1px solid var(--bd);
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  font: .72rem monospace;
+}
+
+/* ── Impressió: el full de l'alumne i res més ── */
+@media print {
+  @page { size: A4; margin: 2cm 1.8cm; }
+  header, aside, footer, details, .avis, h2, .cap button, .cap small, .ext { display: none !important; }
+  body { background: #fff; color: #000; }
+  main { display: block; padding: 0; }
+  .carta { border: 0; background: none; padding: 0; margin: 0; break-inside: avoid; display: flex; align-items: baseline; gap: .6em; }
+  .cap { display: block; }
+  .cap .num { background: none; color: #000; font: 700 1.1rem serif; padding: 0; }
+  .cap .num::after { content: ")"; }
+  .math { padding: 0 0 var(--esp); overflow: visible; font-size: calc(1.35rem * var(--encaix, 1)); }
 }

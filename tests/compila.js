@@ -1,0 +1,68 @@
+/* ===========================================================================
+   tests/compila.js — Compila fulls de debò amb LaTeX (cal pdflatex):
+
+       node tests/compila.js
+
+   Per a ℕ, ℤ i ℚ, amb totes les opcions i els símbols «gran» (el cas més
+   ample), fa 40 exercicis, els compila amb tex/main.tex com ho faria el
+   professor i comprova que:
+     - compila sense cap error ni cap «Overfull \hbox»;
+     - cap fórmula és més ampla que la línia (LaTeX la partiria en dues).
+   Treballa en una carpeta temporal: no deixa res a l'arbre. Acaba amb codi 1
+   si alguna cosa falla.
+   =========================================================================== */
+'use strict';
+const fs = require('fs'), os = require('os'), path = require('path');
+const { spawnSync } = require('child_process');
+const Motor = require('../assets/motor.js');
+
+if (spawnSync('pdflatex', ['--version']).status !== 0) {
+  console.error('Cal pdflatex (TeX Live o MiKTeX) per compilar els fulls.');
+  process.exit(1);
+}
+const arrel = path.resolve(__dirname, '..');
+let ok = 0, ko = 0;
+function comprova(nom, cond, extra) {
+  if (cond) { ok++; console.log('  ok    ' + nom); }
+  else { ko++; console.log('  FALLA ' + nom + (extra !== undefined ? '  ' + extra : '')); }
+}
+
+/* Compila ex1.tex amb el main.tex del projecte i torna el .log. */
+function compila(carpeta, cos) {
+  fs.writeFileSync(path.join(carpeta, 'ex1.tex'), cos);
+  const r = spawnSync('pdflatex', ['-interaction=nonstopmode', '-halt-on-error', 'main.tex'], { cwd: carpeta, encoding: 'utf8' });
+  return { estat: r.status, log: fs.readFileSync(path.join(carpeta, 'main.log'), 'latin1') };
+}
+
+const carpeta = fs.mkdtempSync(path.join(os.tmpdir(), 'combinades-'));
+try {
+  for (const k of ['main', 'headers', 'defs']) fs.copyFileSync(path.join(arrel, 'tex', k + '.tex'), path.join(carpeta, k + '.tex'));
+  for (const set of ['N', 'Z', 'Q']) {
+    const p = { n: 10, g: Motor.GENERADOR, esp: 'petit', sim: 'gran', set, int: 1, fin: 1, div: 1, opo: set === 'N' ? 0 : 1, pot: 1, par: 1, forca: 1, vs: 0, grad: 0 };
+    const exs = [];
+    for (let s = 0; s < 4; s++) {
+      const ant = new Set();
+      for (let i = 0; i < p.n; i++) { const e = Motor.exercici(p, 'compila' + s, i, 0, ant); ant.add(e.tex); exs.push(e); }
+    }
+    const tex = Motor.fitxerTex(exs, { ...p, n: exs.length }, { num: 1, seed: 'compila', adreca: '#prova' });
+    console.log(`${set}: ${exs.length} exercicis`);
+
+    const r = compila(carpeta, tex);
+    comprova('compila sense errors', r.estat === 0, (r.log.match(/^!.*$/m) || [''])[0]);
+    comprova('cap «Overfull \\hbox»', !/Overfull \\hbox/.test(r.log), (r.log.match(/Overfull \\hbox.*/) || [''])[0]);
+
+    // Amplada de cada fórmula, mesurada amb el mateix espai entre símbols, contra l'amplada de la línia.
+    const mesura = tex.replace(/^\\item \$(\\displaystyle .*)\$$/gm,
+      '\\item \\settowidth{\\dimen0}{$$$1$$}\\typeout{AMPLE=\\the\\dimen0;LINIA=\\the\\linewidth}$$$1$$');
+    const m = compila(carpeta, mesura);
+    const amples = [...m.log.matchAll(/AMPLE=([\d.]+)pt;LINIA=([\d.]+)pt/g)].map(x => [parseFloat(x[1]), parseFloat(x[2])]);
+    const pitjor = amples.reduce((a, x) => (x[0] / x[1] > a[0] / a[1] ? x : a), [0, 1]);
+    comprova('totes les fórmules caben a la línia', amples.length === exs.length && amples.every(([a, l]) => a <= l),
+      `${amples.length} mesures; la més ampla: ${pitjor[0]}pt de ${pitjor[1]}pt`);
+    console.log(`        la més ampla fa el ${Math.round(100 * pitjor[0] / pitjor[1])} % de la línia`);
+  }
+} finally {
+  fs.rmSync(carpeta, { recursive: true, force: true });
+}
+console.log(`\n${ok} correctes, ${ko} errors`);
+process.exit(ko ? 1 : 0);

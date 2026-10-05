@@ -1,0 +1,51 @@
+# Les proves, a cada push i a cada pull request. No escriu res al repositori
+# (cap commit), o sigui que no afecta Cloudflare Pages. Es veuen a la pestanya
+# Actions: verd, tot bé; vermell, clica-hi i surt quina comprovació falla.
+name: Proves
+
+# A main, a cada push (també els commits dels ZIP); a les altres branques,
+# només a través del pull request (així no es passen dues vegades).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  logica:
+    name: Lògica (tests/prova.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tests/prova.js
+
+  latex:
+    name: Compilació amb LaTeX (tests/compila.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Instal·la el TeX Live mínim (amb el català de babel)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends texlive-latex-base texlive-latex-recommended texlive-lang-spanish texlive-fonts-recommended lmodern
+      - run: node tests/compila.js
+
+  navegador:
+    name: Navegador (tests/navegador.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/navegador.js
