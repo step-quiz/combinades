@@ -7,6 +7,7 @@ const falla = (m) => { errors++; if (errors <= 20) console.log('FALLA:', m); };
 const gcd = (a, b) => (b ? gcd(b, a % b) : a < 0n ? -a : a);
 const Q = (n, d) => { if (d < 0n) { n = -n; d = -d; } const k = gcd(n, d) || 1n; return [n / k, d / k]; };
 function llegeix(tex) {
+  tex = tex.replace(/\\vphantom\{(?:[^{}]|\{[^{}]*\})*\}/g, '');   // la mida dels parèntesis no canvia el valor
   const tk = tex.replace(/\s+/g, '').match(/\\left\(|\\right\)|\\frac|\\cdot|\d+|[-+:()^{}]/g) || [];
   if (tk.join('').length !== tex.replace(/\s+/g, '').length) throw new Error('símbols desconeguts');
   let i = 0; const passos = [];
@@ -46,7 +47,7 @@ function llegeix(tex) {
 
 // Parèntesis d'agrupació: els que no envolten un sol nombre/fracció amb signe
 function agrupacions(tex) {
-  let s = tex.replace(/\\left\(/g, '(').replace(/\\right\)/g, ')'), g = 0, m;
+  let s = tex.replace(/\\vphantom\{(?:[^{}]|\{[^{}]*\})*\}/g, '').replace(/\\left\(/g, '(').replace(/\\right\)/g, ')'), g = 0, m;
   const re = /\(([^()]*)\)/;
   while ((m = re.exec(s))) {
     if (!/^-?(\d+|\\frac\{\d+\}\{\d+\})$/.test(m[1])) g++;
@@ -106,6 +107,17 @@ const cnt = (re) => (f.match(re) || []).length;
 if (cnt(/\\begin\{enumerate\}/g) !== 1 || cnt(/\\end\{enumerate\}/g) !== 1) falla('enumerate desequilibrat');
 if (cnt(/\\item /g) !== 3) falla('nombre d\'\\item incorrecte');
 if (!f.startsWith('% ex7.tex')) falla('capçalera del fitxer');
+
+// parèntesis niuats: el de fora, més gran
+{
+  const t1 = Motor.exercici({ ...base, set: 'N', pot: 1, par: 1, div: 1 }, 'niu', 0, 0); // qualsevol
+  let trobat = 0;
+  for (let i = 0; i < 300 && !trobat; i++) {
+    const e = Motor.exercici({ ...base, set: 'N', pot: 1, par: 1, div: 1 }, 'niu', i, 0);
+    if (!e.error && /\\left\(\\vphantom\{\\big\|\}/.test(e.tex)) trobat++;
+  }
+  if (!trobat) falla('cap grup niuat amb \\vphantom{\\big|}');
+}
 
 // espai entre símbols
 for (const sim of ['petit', 'mitja', 'gran']) {

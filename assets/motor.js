@@ -29,14 +29,29 @@ function ev(n,vals){let v;switch(n.t){
   else{if(triv(b))throw 0;v=R(a.n*b.d,a.d*b.n)}}}
  if(Math.abs(v.n)>CFG.MAX||v.d>CFG.MAX)throw 0;vals.push(v);return v}
 // Renderitzat: UN sol recorregut, dos emissors (regla de parèntesis de l'especificació §4.3)
+// Profunditat de parèntesis que ja hi ha a dins d'un grup (compta '(' de \left( i de la notació).
+const prof=s=>{let d=0,mx=0;for(const c of s){if(c==='(')mx=Math.max(mx,++d);else if(c===')')d--}return mx};
+// Un grup d'agrupació és sempre \left(…\right), i un nivell més gran que els parèntesis que conté:
+// un \vphantom invisible obliga \left a créixer (big, Big, bigg, Bigg). Amb fraccions, \left ja creix sol.
+const PH=['','\\big|','\\Big|','\\bigg|','\\Bigg|'];
+// Amb fraccions i parèntesis a dins: una alçada invisible simètrica respecte de l'eix matemàtic
+// (≈0,25em sobre la línia base), de semialçada r = 1,25 + 0,4·h em: cada nivell, clarament més gran.
+const grpTex=s=>{const h=prof(s),f=s.includes('\\frac');let ph='';
+ if(f&&h){const r=1.25+.4*h;ph=`\\vphantom{\\rule[-${(r-.25).toFixed(2)}em]{0pt}{${(2*r).toFixed(2)}em}}`}
+ else if(!f&&h)ph=`\\vphantom{${PH[Math.min(4,h)]}}`;
+ return `\\left(${ph}${s}\\right)`};
 const TEX={num:v=>''+v,frac:(p,q)=>`\\frac{${p}}{${q}}`,
  op:o=>({'+':'+','-':'-','*':'\\cdot ',':':':'})[o],
- grp:s=>`\\left(${s}\\right)`,note:s=>s.includes('\\frac')?`\\left(${s}\\right)`:`(${s})`,
+ grp:grpTex,note:s=>s.includes('\\frac')?`\\left(${s}\\right)`:`(${s})`,
  pow:(b,k)=>`${b}^{${k}}`,neg:s=>'-'+s};
 const pH=s=>s.includes('class="fr"')?`<span class="pg"><span class="pb">(</span>${s}<span class="pb">)</span></span>`:`(${s})`;
+// Previsualització: el mateix criteri que grpTex (cada nivell, un 22 % més gran).
+const gH=s=>{const h=prof(s),f=s.includes('class="fr"');if(!h&&!f)return `(${s})`;
+ const mida=(f?1.9:1)*(1+.22*h),b=`<span class="pb" style="font-size:${mida.toFixed(2)}em">`;
+ return `<span class="pg">${b}(</span>${s}${b})</span></span>`};
 const HTML={num:v=>''+v,frac:(p,q)=>`<span class="fr"><span>${p}</span><span>${q}</span></span>`,
  op:o=>`<span class="op">${({'+':'+','-':'−','*':'·',':':':'})[o]}</span>`,
- grp:pH,note:pH,pow:(b,k)=>`${b}<sup>${k}</sup>`,neg:s=>'−'+s};
+ grp:gH,note:pH,pow:(b,k)=>`${b}<sup>${k}</sup>`,neg:s=>'−'+s};
 function rend(n,E,st,start){switch(n.t){
  case 'num':return E.num(n.v);
  case 'frac':return E.frac(n.p,n.q);

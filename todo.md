@@ -31,6 +31,8 @@ s'ha provat amb `node tests/prova.js` (82 combinacions, 8.200 exercicis, 0 error
 
 - Espai entre operacions: només petit / mitjà / gran. Nou: **espai entre símbols** petit / mitjà / gran (`\medmuskip` i `\thickmuskip` dins l'`enumerate`; a la web, marge CSS de cada operador). Ara només s'espaien els operadors (+ − · :), no els parèntesis.
 
+- Parèntesis niuats: tots els d'agrupació són `\left(…\right)` i cada nivell és més gran que el de dins (un `\vphantom` invisible; amb fraccions, una alçada calculada). La previsualització fa el mateix amb CSS.
+
 ## Decisions que cal confirmar
 - El PDF de la web és el d'impressió del navegador, **no** un PDF compilat amb LaTeX (§7).
 - Carpeta d'extracció: `_uploads` (amb «s») segons el workflow d'`exam2bat`.
