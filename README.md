@@ -71,7 +71,7 @@ No deixa cap fitxer a l'arbre.
 
 ## GitHub: proves automàtiques i pujades per ZIP
 
-- **`.github/workflows/proves.yml`** passa les tres proves a cada push i a cada pull request. No escriu res al
+- **`.github/workflows/proves.yml`** passa les tres proves a cada push a `main` i a cada pull request. No escriu res al
   repositori (cap commit), o sigui que no afecta Cloudflare Pages. Es veu a la pestanya **Actions**: verd, tot bé;
   vermell, clica-hi i surt quina comprovació ha fallat.
 - **`.github/workflows/unzip-upload.yml`**: un ZIP pujat a `_uploads/` (sense carpeta contenidora) es descomprimeix

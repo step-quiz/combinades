@@ -3,8 +3,11 @@
 # Actions: verd, tot bé; vermell, clica-hi i surt quina comprovació falla.
 name: Proves
 
+# A main, a cada push (també els commits dels ZIP); a les altres branques,
+# només a través del pull request (així no es passen dues vegades).
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:

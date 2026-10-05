@@ -168,8 +168,8 @@ Per a totes les combinacions vàlides i les dues granularitats:
 4. **Oposat damunt de potència:** `neg(pow)` està exclòs (evita `−2^2`, ambigu). Decidir si es vol `−(2^3)`.
 5. **Longitud** de cada operació: ara fixa (3–5 operadors binaris, +1 amb divisions). Control opcional.
 6. Espai entre símbols: ara només als operadors; decidir si també als parèntesis.
-7. Infraestructura: els workflows `proves.yml` i `unzip-upload.yml` ja hi són (v0.2). Falta connectar
-   Cloudflare Pages com a `exam2bat`.
+7. ~~Infraestructura~~ Fet: els workflows `proves.yml` i `unzip-upload.yml` hi són (v0.2), i Cloudflare Pages ja
+   publica el repositori (projecte `combinades`; cada pull request en té una vista prèvia).
 8. Ampliacions: «Tot en un» (preàmbul incrustat), «Obre a Overleaf», versió de 2n d'ESO.
 9. Decidir les preguntes de la secció 6.2 (profunditat dels parèntesis i operacions trivials).
 
