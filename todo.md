@@ -8,17 +8,22 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
+**Versió:** v0.3: el solucionari pas a pas (§2), sobre la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
 **Generador:** els fulls nous es fan amb el generador 2 (`g=2` a l'adreça): parèntesis segons el pla del
 professor (§5). Les adreces sense `g` (v0.1) es refan amb el generador 1, sense cap canvi.
 **Proves:** `node tests/prova.js` → per a cada generador, 82 combinacions × 100 exercicis i les 328 combinacions
 possibles (també sense «força» i graduals) × 10: 23.760 exercicis, 0 errors. Re-lectura independent del TeX,
 empremtes dels exercicis (`tests/empremtes.json`), testimonis de «força», − binària i oposat, previsualització = TeX,
-mides dels parèntesis i el pla de parèntesis del generador 2 (2.000 fulls).
-**LaTeX:** `node tests/compila.js` compila 40 exercicis de ℕ, de ℤ i de ℚ amb totes les opcions i símbols «gran»:
-sense errors ni «Overfull», i la fórmula més ampla fa el 58 % de la línia. (També compilat pel professor amb el
-seu `capsalera.tex`.)
-**Interfície:** `node tests/navegador.js` (Chromium, 26 comprovacions: adreça i generador, ↻, baixades, impressió, mòbil).
+mides dels parèntesis i el pla de parèntesis del generador 2 (2.000 fulls). Solucionari: la resolució de 6.560
+exercicis amb les dues granularitats (cada línia, el mateix valor; l'ordre dels passos, comprovat amb les regles
+escrites a la prova pel seu compte; HTML = TeX), els exemples de les decisions del professor i el mode «Cap» igual
+byte a byte que abans (`tests/referencia-cap.tex`).
+**LaTeX:** `node tests/compila.js` compila 40 exercicis de ℕ, de ℤ i de ℚ amb totes les opcions i símbols «gran»,
+en full normal, guiades, solucionari (destacat i «una operació») i «només resultats»: sense errors ni «Overfull».
+La fórmula més ampla fa el 54 % de la línia, i la línia de resolució més ampla, el 59 %. (També compilat pel
+professor amb el seu `capsalera.tex`.)
+**Interfície:** `node tests/navegador.js` (Chromium, 36 comprovacions: adreça i generador, ↻, baixades, impressió, mòbil,
+guiades i solucionari).
 Falta mirar-la a Firefox, a Safari i en un mòbil de debò.
 
 Fet:
@@ -36,10 +41,23 @@ Fet:
   invisible dins de `\mathopen` (vegeu §6.1).
 - Previsualització HTML sense llibreries, amb xifres alineades (`lining-nums`) i potències que no desquadren la línia.
 - El `.tex` porta a la tercera línia l'adreça que el refà (`% per refer aquest full: index.html#…`).
+- Solucionari pas a pas (§2): modes cap · guiades · solucionari, `exN-sol.tex`, «PDF solucions», «Veure els passos».
 
 ---
 
-## 2. PROPERA TASCA: solucionari pas a pas
+## 2. Solucionari pas a pas (fet, v0.3)
+
+**Com ha quedat** (el que segueix és l'especificació d'abans de fer-lo; on no coincideix, mana això):
+- L'ordre és l'**estricte** que va triar el professor (§5): primer els parèntesis, d'un en un; dins del focus,
+  −(−a), potències, · i :, i + i −. Els + i −, **d'una en una**, i abans, **una línia amb la regla dels signes**
+  (`5−(−3)+(−8) = 5+3−8`). Amb fraccions, una línia amb el **comú denominador (m.c.m.)**. L'exemple de §2.3 feia el
+  parèntesi i la potència en una sola línia; amb l'ordre estricte, són dues: `= 3·3+4²:8 = 3·3+16:8`.
+- Les línies van en un **`flalign*`** (amsmath) i no en un `align*`: `align*` les centrava al mig del full, lluny de
+  l'enunciat; així comencen just a sota.
+- «Destaca l'operació»: `{\underbrace{…}_{}}`, entre claus. Un `\underbrace` sol és un operador per a TeX, i el −
+  o el + que el seguia es componia com un signe («−6» en lloc de «− 6»).
+- Codi: `passos()`, `resolucio()` i `fitxerSolucionari()` a `motor.js` (secció «el solucionari»); la interfície, a
+  `app.js` (`carta()`). Les notes de §2.7 estan resoltes.
 
 ### 2.1 Què vol el professor
 
@@ -137,7 +155,12 @@ Per a totes les combinacions vàlides i les dues granularitats:
 - Potència d'un grup: `(3+1)^2` → `4^2` → `16`.
 - Un sol exercici molt llarg (N = 10, totes les opcions, granularitat «una operació»): ha de cabre o partir bé.
 
-### 2.7 Notes de la revisió (resoldre-les abans de programar)
+### 2.7 Notes de la revisió (resoltes a la v0.3)
+
+Com s'ha resolt cada una: 1, −3 és una fulla `val` des del principi (`ambValors`); 2, l'oposat d'un valor positiu
+es fon sense línia (`transforma`); 3, d'un en un (decisió del professor); 4, m.c.m. i una línia amb el comú
+denominador (decisió del professor); 5 i 6, com es deia; 7, un `−0` s'escriu `0` i un resultat 0 és l'enter 0; 8,
+`llegeix` es fa servir per a cada línia de cada resolució.
 
 1. **L'oposat d'un nombre no és una operació.** `−3` (un `neg` damunt d'un `num` o d'una `frac`) s'ha de tractar com
    un nombre des del principi. Si fos «reductible», el primer pas canviaria `(−3)` per `(−3)`: el mateix text, i la
@@ -175,6 +198,8 @@ Per a totes les combinacions vàlides i les dues granularitats:
    publica el repositori (projecte `combinades`; cada pull request en té una vista prèvia).
 8. Ampliacions: «Tot en un» (preàmbul incrustat), «Obre a Overleaf», versió de 2n d'ESO.
 9. ~~Decidir les preguntes de la secció 6.2.~~ Decidit (vegeu §5) i fet: generador 2.
+10. **Provar el solucionari a l'aula** i ajustar-ne els espais: entre exercicis d'`exN-sol.tex` (ara 1,5 cm) i al
+    «PDF solucions» del navegador (amb ℚ, una resolució pot ocupar mitja pàgina).
 
 ---
 
@@ -187,7 +212,8 @@ Per a totes les combinacions vàlides i les dues granularitats:
   de cada combinació i generador els vigila `tests/empremtes.json`. Un canvi que els alteri necessita un generador
   nou (§6.3). `--actualitza-empremtes` no deixa tocar les d'un generador antic, i les de l'últim només es poden refer
   mentre encara no s'ha publicat (fusionat a `main`).
-- `exN.tex` i `exN-sol.tex` només depenen de LaTeX estàndard + `amsmath`.
+- `exN.tex` i `exN-sol.tex` només depenen de LaTeX estàndard + `amsmath`. En mode «Cap», `exN.tex` no canvia
+  (`tests/referencia-cap.tex`, menys el número de versió).
 - `tex/*.tex` és la font única de l'entorn; `assets/entorn.js` és generat (`python3 eines/entorn.py`).
 - Cap canvi es dona per bo sense `node tests/prova.js` amb 0 errors (i, si toca la interfície o el TeX,
   `node tests/navegador.js` i `node tests/compila.js`). A GitHub, les tres passen soles a cada push.
@@ -206,6 +232,13 @@ Per a totes les combinacions vàlides i les dues granularitats:
   - Amb ℚ només al resultat final, tots en porten com a mínim 1: sense parèntesis no hi ha cap exercici possible.
 - **Operacions trivials** (`7+(−7)`, `(3−2)³`, `−(3−3)`…): **es queden**, al professor li agraden. Massa trivial
   seria un exercici com `4+5+5`, que no pot sortir: sempre hi ha ·, + i − (i : amb divisions), i es prova.
+- **Solucionari (octubre de 2026):**
+  - *Ordre estricte:* primer els parèntesis, d'un en un (el més interior i, si n'hi ha diversos, el de més a
+    l'esquerra); quan ja no n'hi ha, les potències, després · i :, i després + i −. `(2+3)·(4+5) = 5·(4+5) = 5·9`.
+  - *Sumes i restes seguides:* d'una en una, d'esquerra a dreta. `−3+5−8+4 = 2−8+4 = −6+4 = −2`.
+  - *Regla dels signes:* amb una línia que la mostra. `5−(−3)+(−8) = 5+3−8 = 8−8 = 0`.
+  - *Fraccions:* amb una línia de comú denominador (m.c.m.) i, si cal, una de simplificar.
+    `1/6+1/3 = 1/6+2/6 = 3/6 = 1/2`.
 
 ---
 
