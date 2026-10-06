@@ -73,7 +73,7 @@
     try { localStorage.setItem(MEMORIA, JSON.stringify(S)); } catch (e) { /* sense memòria */ }
   }
 
-  /* ---------------------------------------------- baixar i copiar el .tex */
+  /* ------------------------------------------------------- baixar el .tex */
   function baixa(nom, text) {
     const a = Object.assign(document.createElement('a'), {
       href: URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' })),
@@ -85,41 +85,7 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
-  function copia(boto) {
-    const text = $('codi').textContent;
-    const fet = () => { boto.textContent = 'Copiat ✓'; setTimeout(() => { boto.textContent = 'Copia el TeX'; }, 1500); };
-    const ambTextarea = () => {          // sense l'API del porta-retalls (p. ex. alguns file://)
-      const t = document.createElement('textarea');
-      t.value = text;
-      document.body.appendChild(t);
-      t.select();
-      try { document.execCommand('copy'); fet(); } catch (x) { /* res */ }
-      t.remove();
-    };
-    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(fet, ambTextarea);
-    else ambTextarea();
-  }
-
   /* ---------------------------------------------------------------- pintar */
-
-  /* A paper hi caben unes AMPLE_PAPER px de fórmula: l'A4 menys els marges de
-     @page (174 mm ≈ 658 px) i menys el número de l'exercici, amb marge. Una
-     fórmula més ampla (passa amb «símbols gran» i ℚ) s'encongeix a la
-     impressió, només ella i només el que cal: abans es partia en dues línies.
-     La mida de la lletra és la mateixa a la pantalla i al paper, o sigui que
-     l'amplada es pot mesurar aquí. */
-  const AMPLE_PAPER = 600;
-  function encaixaAlPaper(full) {
-    // La resolució del «PDF solucions» no es veu a la pantalla: per mesurar-la, es mostra un moment.
-    document.body.classList.add('mesura');
-    full.querySelectorAll('.math, .linia, table.centrat').forEach(m => {
-      const r = document.createRange();
-      r.selectNodeContents(m);
-      const ample = r.getBoundingClientRect().width;
-      if (ample > AMPLE_PAPER) m.style.setProperty('--encaix', (AMPLE_PAPER / ample).toFixed(3));
-    });
-    document.body.classList.remove('mesura');
-  }
 
   const marca = (atribut, valor) => document.querySelectorAll(`[data-${atribut}]`)
     .forEach(b => b.setAttribute('aria-pressed', String(b.dataset[atribut] === String(valor))));
@@ -131,31 +97,26 @@
   /** Les línies «= …» d'una resolució (sense l'enunciat). */
   const linies = r => r.html.slice(1).map(l => `<div class="linia">= ${l}</div>`).join('');
 
-  /** Una targeta del full: l'enunciat i, segons el mode, la resolució. */
+  /** Una targeta del full: l'enunciat i, segons el mode, la resolució. A «guiades», els
+      exercicis triats surten resolts; al solucionari, tots (com a exN-sol.tex). */
   function carta(e, i) {
-    const guiades = S.sol === 'guiades', resolt = guiades && RES.includes(i);
-    // «Centrat»: la resolució és una taula que comença amb l'enunciat (també la del «PDF solucions»,
-    // si no és «només els resultats»: llavors, a la impressió, la taula substitueix l'enunciat)
-    const taula = S.cen && !(S.sol === 'solucionari' && S.nomes);
+    const guiades = S.sol === 'guiades', solucionari = S.sol === 'solucionari', triat = guiades && RES.includes(i);
+    const resolt = triat || solucionari;
     const nom = k => k === 'par' && e.params.parentesis > 1 ? `${NOM_EXTRE.par}×${e.params.parentesis}` : NOM_EXTRE[k];
     const extres = S.grad && e.params
       ? `<span class="ext">${Motor.EXTRES.filter(k => e.params[k]).map(nom).join(' · ') || 'sense extres'}</span>` : '';
-    let h = `<div class="carta${resolt ? ' resolt' : ''}${taula ? ' centrat' : ''}"><div class="cap"><span class="num">${i + 1}</span>`
+    let h = `<div class="carta${resolt ? ' resolt' : ''}"><div class="cap"><span class="num">${i + 1}</span>`
       + `<button data-r="${i}" title="Un altre" aria-label="Un altre exercici ${i + 1}">↻</button>${extres}`
-      + (guiades ? `<label class="res"><input type="checkbox" data-res="${i}"${resolt ? ' checked' : ''}> resolt</label>` : '')
+      + (guiades ? `<label class="res"><input type="checkbox" data-res="${i}"${triat ? ' checked' : ''}> resolt</label>` : '')
       + `<small>${seed}:${i}:${R[i]}</small></div>`;
     if (e.error) return h + `<p class="err">${e.error}</p></div>`;
     const op = solucions(), r = Motor.resolucio(e.arbre, op);
+    // «Centrat»: una taula que ja comença amb l'enunciat. Si no, l'enunciat i, a sota, les línies «= …».
     const passos = S.cen ? `<div class="taula">${Motor.centrada(e.arbre, op).html}</div>` : linies(r);
     h += '<div class="cos">';
-    if (!(resolt && S.cen)) h += `<div class="math">${resolt ? r.html[0] : e.html}</div>`;   // centrat: ja és a la taula
-    // Resolt (guiades): la resolució surt al full i s'imprimeix. Si no, es pot mirar, però no s'imprimeix.
-    if (resolt) h += `<div class="passos">${passos}</div>`;
-    else h += `<details class="veure"><summary>Veure els passos</summary><div class="passos">${passos}</div></details>`;
-    // Solucionari: el que surt al «PDF solucions»
-    if (S.sol === 'solucionari') {
-      h += `<div class="passos sol-imp">${+S.nomes ? `<div class="linia">= ${r.html[r.html.length - 1]}</div>` : passos}</div>`;
-    }
+    if (solucionari && S.nomes) h += `<div class="math">${e.html}<span class="op">=</span>${r.html[r.html.length - 1]}</div>`;
+    else if (resolt) h += `${S.cen ? '' : `<div class="math">${r.html[0]}</div>`}<div class="passos">${passos}</div>`;
+    else h += `<div class="math">${e.html}</div><details class="veure"><summary>Veure els passos</summary><div class="passos">${passos}</div></details>`;
     return h + '</div></div>';
   }
 
@@ -178,9 +139,6 @@
     mostra('opsol', S.sol !== 'cap');
     mostra('primers', S.sol === 'guiades');
     mostra('nomes-l', S.sol === 'solucionari');
-    // Amb «centrat», cada resultat ja surt sota el que substitueix: «destaca» no hi té sentit
-    $('dest').disabled = !!S.cen;
-    $('dest').parentNode.title = S.cen ? 'Amb «centrat», cada resultat ja surt sota el que substitueix' : '';
 
     // El full
     const P = Object.assign({}, S, { g });          // les opcions per al motor
@@ -198,9 +156,7 @@
     }
     const full = $('full');
     full.innerHTML = h;
-    full.style.setProperty('--esp', Motor.ESPAIS[S.esp]);
     full.style.setProperty('--sop', Motor.SIMBOLS[S.sim].css);
-    encaixaAlPaper(full);
 
     // Els .tex i la barra de baix
     const ok = v.ok && EX.length === S.n, solucionari = S.sol === 'solucionari';
@@ -211,8 +167,8 @@
       ? Motor.fitxerSolucionari(EX, P, { num: numSol, seed, adreca: deAquest ? fullBaixat.adreca : adreca() }, solucions()) : '';
     $('baixa').textContent = `Baixa ex${S.fit}.tex`;
     $('baixa-sol').textContent = `Baixa ex${numSol}-sol.tex`;
-    $('baixa').disabled = $('baixa-sol').disabled = $('copia').disabled = $('pdf').disabled = $('pdf-sol').disabled = !ok;
-    mostra('baixa-sol', solucionari); mostra('pdf-sol', solucionari); mostra('codi-sol-d', solucionari);
+    $('baixa').disabled = $('baixa-sol').disabled = !ok;
+    mostra('baixa-sol', solucionari); mostra('codi-sol-d', solucionari);
     $('recompte').textContent = `${S.n} operacions · espai ${S.esp} · símbols ${S.sim} · ${S.set}${S.grad ? ' · gradual' : ''}`
       + (S.sol === 'cap' ? '' : ` · ${S.sol}`);
     $('segell').textContent = Motor.VERSIO;
@@ -232,14 +188,6 @@
     else if (b.dataset.k !== undefined) RES = Array.from({ length: +b.dataset.k }, (_, i) => i);
     else if (b.dataset.r !== undefined) R[+b.dataset.r]++;
     else if (b.id === 'tot') { seed = novaLlavor(); g = Motor.GENERADOR; R = []; }
-    else if (b.id === 'pdf') { window.print(); return; }
-    else if (b.id === 'pdf-sol') {
-      // El mateix full, però amb les solucions: el CSS d'impressió mira aquesta classe.
-      document.body.classList.add('imprimeix-solucions');
-      window.print();
-      return;
-    }
-    else if (b.id === 'copia') { copia(b); return; }
     else if (b.id === 'baixa') {
       baixa(`ex${S.fit}.tex`, $('codi').textContent);
       fullBaixat = { firma: firma(), num: S.fit, adreca: adreca() };
@@ -266,8 +214,6 @@
     } else return;
     pinta();
   });
-
-  window.addEventListener('afterprint', () => document.body.classList.remove('imprimeix-solucions'));
 
   // Un enllaç desat obert a la mateixa pestanya només canvia el # i la pàgina
   // no es recarrega: sense això, s'hi quedava el full d'abans (i el següent

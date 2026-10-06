@@ -20,7 +20,7 @@
 var Motor = (function () {
   'use strict';
 
-  const VERSIO = 'v0.4';
+  const VERSIO = 'v0.5';
 
   /* La versió del GENERADOR va a l'adreça (g=…), perquè un full desat surti
      sempre amb el generador amb què es va fer. Les adreces sense g són de la
@@ -239,9 +239,9 @@ var Motor = (function () {
     potencia: (base, k) => `${base}^{${k}}`,
     // Davant d'un \left( cal \mathopen{}: si no, TeX hi deixa un espai fi, «− (».
     oposat: s => '-' + (s.startsWith('\\left(') ? '\\mathopen{}' : '') + s,
-    // La part que es calcula a la línia següent. Entre claus: un \underbrace sol és
-    // un operador, i el − o el + que el segueix es componia com un signe, «−6».
-    destaca: s => `{\\underbrace{${s}}_{}}`,
+    // La part que es calcula a la línia següent: en blau fosc (BLAU) i subratllada. Entre
+    // claus, perquè TeX la tracti com un sol nombre: el − o el + que la segueix és una resta.
+    destaca: s => `{\\color{darkblue}\\underline{${s}}}`,
     // «Centrat»: cada parèntesi, cada operador i cada − d'un oposat, sols a la seva columna.
     // Entre {} perquè TeX hi posi els mateixos espais que dins de la fórmula.
     meitats: meitatsTex,
@@ -729,39 +729,51 @@ var Motor = (function () {
     col.span.set(n.id, [a, col.n]);
   }
 
-  /** Una línia de la taula: els trossos [{a, b, s}] de l'arbre n (un pas), cada
-      text s a les columnes [a, b) del node de l'enunciat que substitueix. */
-  function trossos(n, E, alPrincipi, embolcallat, span) {
-    const [a, b] = span.get(n.id);
+  /** Una línia de la taula: els trossos [{a, b, s, dest}] de l'arbre n (un pas),
+      cada text s a les columnes [a, b) del node de l'enunciat que substitueix.
+      dest: és d'un node de `marques`, el que es calcula a la línia següent. */
+  function trossos(n, E, alPrincipi, embolcallat, span, marques) {
+    const [a, b] = span.get(n.id), dest = !!marques && marques.has(n);
     if (compacte(n)) {
-      const s = escriu(n, E, nousComptadors(), alPrincipi);
-      return [{ a, b, s: embolcallat ? E.parentesi(s) : s }];
+      // Si el que es destaca és la base d'una potència, (−4/4)² (es simplifica), la cel·la és tota la
+      // potència: la base es destaca a dins, com a la línia normal, i sense ratlla de columnes
+      const c = nousComptadors();
+      if (marques && !dest) c.marcats = marques;
+      const s = escriu(n, E, c, alPrincipi);
+      return [{ a, b, s: embolcallat ? E.parentesi(s) : s, dest }];
     }
     let t;
     if (n.t === 'bin') {
       const pl = calParentesi(n.l, n, 'l'), pr = calParentesi(n.r, n, 'r'), o = span.get(n.l.id)[1];
-      t = trossos(n.l, E, pl || alPrincipi, pl, span).concat({ a: o, b: o + 1, s: E.operadorSol(n.op) }, trossos(n.r, E, pr, pr, span));
+      t = trossos(n.l, E, pl || alPrincipi, pl, span, marques)
+        .concat({ a: o, b: o + 1, s: E.operadorSol(n.op) }, trossos(n.r, E, pr, pr, span, marques));
     } else if (n.t === 'neg') {
       const grup = n.a.t === 'bin', o = span.get(n.a.id)[0] - 1;
-      t = [{ a: o, b: o + 1, s: E.menys }].concat(trossos(n.a, E, grup, grup, span));
+      t = [{ a: o, b: o + 1, s: E.menys }].concat(trossos(n.a, E, grup, grup, span, marques));
     } else {                                                  // l'exponent, a l'últim tros de la base: (5−2)²
-      t = trossos(n.a, E, true, true, span);
+      t = trossos(n.a, E, true, true, span, marques);
       const u = t[t.length - 1];
-      t[t.length - 1] = { a: u.a, b: u.b, s: E.potencia(u.s, n.k) };
+      t[t.length - 1] = Object.assign({}, u, { s: E.potencia(u.s, n.k) });
     }
+    if (dest) t.forEach(x => { x.dest = true; });
     if (!ambParentesis(n, alPrincipi, embolcallat)) return t;
-    const [obre, tanca] = E.meitats(escriu(n, E, nousComptadors(), true));
-    return [{ a, b: a + 1, s: obre }].concat(t, { a: b - 1, b, s: tanca });
+    // Els parèntesis que li posa el pare no són seus: com a escriu, no es destaquen. Els de notació, sí.
+    const [obre, tanca] = E.meitats(escriu(n, E, nousComptadors(), true)), seus = dest && !embolcallat;
+    return [{ a, b: a + 1, s: obre, dest: seus }].concat(t, { a: b - 1, b, s: tanca, dest: seus });
   }
 
-  /** La resolució en disposició «centrat»: tex, un array de LaTeX; html, una
-      taula; files, els trossos de cada línia ({tex, html}). */
+  /** La resolució en disposició «centrat»: tex, un array de LaTeX (o uns quants,
+      un sota l'altre: blocs); html, una taula; files, els trossos de cada línia
+      ({tex, html}). Amb op.dest, el que es calcula a la línia següent surt en
+      blau fosc i subratllat. */
   function centrada(arbre, op) {
+    op = op || {};
     const ps = passos(arbre, op), col = { n: 0, span: new Map() };
     columnes(ps[0].arbre, true, false, col);
     const N = col.n;
     const files = ps.map(p => {
-      const f = { tex: trossos(p.arbre, TEX, true, false, col.span), html: trossos(p.arbre, HTML, true, false, col.span) };
+      const m = +op.dest ? p.marques : null;
+      const f = { tex: trossos(p.arbre, TEX, true, false, col.span, m), html: trossos(p.arbre, HTML, true, false, col.span, m) };
       // Els trossos cobreixen les N columnes, en ordre i sense encavalcar-se
       if (f.tex.some((t, i) => t.a !== (i ? f.tex[i - 1].b : 0) || t.b <= t.a) || f.tex[f.tex.length - 1].b !== N)
         throw new Error('centrat: les columnes no quadren');
@@ -769,30 +781,78 @@ var Motor = (function () {
     });
     const ultima = k => k === files.length - 1;
     // Una cel·la. \displaystyle, com a la fórmula sencera: fraccions, exponents i \left( de la mateixa mida
-    const cel = ({ a, b, s }) => {
+    const cel = ({ a, b, s, dest }) => {
+      if (dest) s = '\\color{darkblue}' + s;
       if (/\\frac|\^|\\left/.test(s)) s = '\\displaystyle ' + s;
       return b - a > 1 ? `\\multicolumn{${b - a}}{@{}c@{}}{${s}}` : s;
     };
+    // El subratllat de «destaca»: una fila amb una ratlla blau fosc sota les columnes que es calculen
+    // (com \cline, però de color), de punta a punta: el resultat de la línia següent hi va centrat a sota.
+    const subratllat = f => {
+      const trams = [];
+      f.tex.forEach(t => {
+        if (!t.dest) return;
+        const u = trams[trams.length - 1];
+        if (u && u[1] === t.a) u[1] = t.b; else trams.push([t.a, t.b]);
+      });
+      if (!trams.length) return '';
+      let c = 0;
+      const cels = [];
+      trams.forEach(([a, b]) => {
+        if (a > c) cels.push(`\\multispan{${a - c}}`);
+        // (el color, entre claus: si no, xcolor el desfà després del \cr i el \noalign queda fora de lloc)
+        cels.push(`\\multispan{${b - a}}{\\color{darkblue}\\leaders\\hrule height .4pt\\hfill}`);
+        c = b;
+      });
+      // La ratlla va just sota la línia: si hi ha fraccions o parèntesis alts, una mica més avall, que no les toqui
+      const fons = f.tex.some(t => /\\frac|\\Big|\\bigg|\\Bigg/.test(t.s));
+      return `${fons ? '\\noalign{\\vskip 2pt}' : ''}\n${cels.join('&')}\\cr`;
+    };
     // Entre dues línies, un espai fix (\noalign): així una línia amb fraccions no toca mai la del costat
     const fr = k => files[k].tex.some(t => t.s.includes('\\frac'));
-    const tex = `\\begin{array}[t]{@{}*{${N + 1}}{c@{}}}\n`
-      + files.map((f, k) => f.tex.map(cel).join(' & ')
-        + (ultima(k) ? '\n' : ` & {}={} \\\\\\noalign{\\vskip ${fr(k) || fr(k + 1) ? 6 : 3}pt}\n`)).join('')
-      + '\\end{array}';
-    const td = ({ a, b, s }) => `<td${b - a > 1 ? ` colspan="${b - a}"` : ''}>${s}</td>`;
+    const espai = k => (fr(k) || fr(k + 1) ? 6 : 3);
+    const linia = k => files[k].tex.map(cel).join(' & ') + (ultima(k) ? '' : ' & {}={}');
+    // Una línia invisible i sense alçada: només hi compta l'amplada de cada cel·la. Amb \multispan (sense la
+    // plantilla de l'array, que hi posaria el puntal), la fila no ocupa gens d'alçada.
+    const fantasma = k => files[k].tex.concat(ultima(k) ? [] : [{ a: N, b: N + 1, s: '{}={}' }])
+      .map(({ a, b, s }) => `\\multispan{${b - a}}$${/\\frac|\^|\\left/.test(s) ? '\\displaystyle' : ''}\\hphantom{${s}}$`).join('&') + '\\cr\n';
+    // Un array no es parteix entre pàgines, i una resolució llarga de ℚ pot passar d'una pàgina: amb més de 12
+    // línies, va en blocs, un array sota l'altre, i la pàgina es pot partir entre dos blocs. Perquè les columnes
+    // facin el mateix ample a tots els blocs, cadascun porta, invisibles, les línies dels altres.
+    const nb = Math.ceil(files.length / 12), mida = Math.ceil(files.length / nb), blocs = [];
+    for (let p = 0; p < files.length; p += mida) {
+      const q = Math.min(files.length, p + mida);
+      let b = `\\begin{array}[t]{@{}*{${N + 1}}{c@{}}}\n`;
+      for (let k = p; k < q; k++) {
+        b += linia(k);
+        if (k < q - 1) b += ` \\\\${subratllat(files[k])}\\noalign{\\vskip ${espai(k)}pt}\n`;
+        else if (nb > 1) b += ` \\\\${ultima(k) ? '' : subratllat(files[k])}\n` + files.map((f, j) => (j < p || j >= q ? fantasma(j) : '')).join('');
+        else b += '\n';
+      }
+      blocs.push(b + '\\end{array}');
+    }
+    // Entre dos blocs, el mateix espai que entre dues línies (menys l'1 pt de \lineskip que hi posa TeX)
+    const tex = blocs.map((b, j) => (j ? `$\\\\[${espai(j * mida - 1) - 1}pt]\n$` : '') + b).join('');
+    const td = ({ a, b, s, dest }) => `<td${dest ? ' class="dest"' : ''}${b - a > 1 ? ` colspan="${b - a}"` : ''}>${s}</td>`;
     const html = '<table class="centrat">'
       + files.map((f, k) => `<tr>${f.html.map(td).join('')}${ultima(k) ? '' : '<td class="igual">=</td>'}</tr>`).join('')
       + '</table>';
-    return { tex, html, files };
+    return { tex, html, files, blocs };
   }
 
   /* --------------------------------------------------------------- el .tex
      Només el cos: el main.tex del professor fa \input{exN.tex}. Només LaTeX
-     estàndard + amsmath: cap macro de defs.tex. m = {num, seed, adreca}; amb
+     estàndard + amsmath: cap macro de defs.tex. L'única excepció és «destaca»,
+     que pinta de blau: necessita xcolor (el carrega headers.tex), i el fitxer
+     mateix defineix el color (BLAU). m = {num, seed, adreca}; amb
      l'adreça (#…), el comentari del principi diu com refer el full.
      sol = {mode, resolts, gra, simp, dest, nomes, cen}, les solucions. Amb el mode
      «guiades», els exercicis de `resolts` (índexs) porten la resolució a sota;
      amb qualsevol altre mode, exN.tex és el de sempre, byte a byte. */
+
+  /** El color de «destaca»: el darkblue de l'HTML (#00008B). \providecolor no el canvia si
+      l'entorn ja en té un amb aquest nom. */
+  const BLAU = '\\providecolor{darkblue}{RGB}{0,0,139}% «destaca»: cal xcolor (headers.tex)\n';
 
   /** La segona línia del comentari: les opcions del full. */
   function descripcio(p, m) {
@@ -828,6 +888,7 @@ var Motor = (function () {
       + descripcio(p, m)
       + (resolts.size ? ` · resolts: ${[...resolts].sort((a, b) => a - b).map(i => i + 1).join(', ')}` : '') + '\n'
       + (m.adreca ? `% per refer aquest full: index.html${m.adreca}\n` : '')
+      + (resolts.size && +sol.dest ? BLAU : '')
       + principiLlista(p)
       + (resolts.size ? '\\allowdisplaybreaks\n' : '');      // una resolució llarga pot partir de pàgina
     exs.forEach((e, i) => {
@@ -844,6 +905,7 @@ var Motor = (function () {
     let s = `% ex${m.num}-sol.tex — solucionari de ex${m.num}.tex — generat per «Operacions combinades 1r ESO» ${VERSIO}\n`
       + descripcio(p, m) + '\n'
       + (m.adreca ? `% per refer aquest full: index.html${m.adreca}\n` : '')
+      + (+sol.dest && !+sol.nomes ? BLAU : '')
       + '\\noindent\\textbf{Solucions}\\par\\medskip\n'
       + principiLlista(p)
       + '\\allowdisplaybreaks\n';

@@ -7,12 +7,13 @@
    ample), fa 40 exercicis, els compila amb tex/main.tex com ho faria el
    professor (el full normal, un full amb exercicis resolts com a model, el
    solucionari amb l'operació destacada, el de «només resultats» i, amb la
-   disposició «centrat», el full i el solucionari) i comprova:
+   disposició «centrat», el full destacat i el solucionari) i comprova:
      - compila sense cap error ni cap «Overfull \hbox» o «\vbox»;
      - cap fórmula, ni cap línia d'una resolució, és més ampla que la línia
        del full (LaTeX la partiria en dues o sortiria del marge);
-     - cap resolució «centrat» (un array, que no es pot partir) és més ampla
-       que la línia o més alta que la pàgina.
+     - cap resolució «centrat» (un array, que no es pot partir; una de llarga
+       va en blocs) és més ampla que la línia, cap bloc és més alt que la
+       pàgina, i els blocs d'una resolució fan el mateix ample.
    Treballa en una carpeta temporal: no deixa res a l'arbre. Acaba amb codi 1
    si alguna cosa falla.
    =========================================================================== */
@@ -32,8 +33,9 @@ function comprova(nom, cond, extra) {
   else { ko++; console.log('  FALLA ' + nom + (extra !== undefined ? '  ' + extra : '')); }
 }
 
-/* El principi de l'enumerate d'un exN.tex (amb l'espai entre símbols del full). */
-const principiDeLlista = p => Motor.fitxerTex([], p, { num: 1, seed: '' }).split('\n').filter(l => !l.startsWith('%') && !l.startsWith('\\end')).join('\n') + '\n';
+/* El principi de l'enumerate d'un exN.tex (amb l'espai entre símbols del full), i el color de «destaca». */
+const principiDeLlista = p => '\\providecolor{darkblue}{RGB}{0,0,139}\n'
+  + Motor.fitxerTex([], p, { num: 1, seed: '' }).split('\n').filter(l => !l.startsWith('%') && !l.startsWith('\\end')).join('\n') + '\n';
 
 /* Compila ex1.tex amb el main.tex del projecte i torna el .log. */
 function compila(carpeta, cos) {
@@ -59,7 +61,7 @@ try {
     const fitxers = {
       'el full': tex,
       'el full amb resolts (guiades)': Motor.fitxerTex(exs, q, m0, { mode: 'guiades', resolts: [0, 1, 2, 3, 4], dest: 1 }),
-      'el full amb resolts, centrat': Motor.fitxerTex(exs, q, m0, { mode: 'guiades', resolts: [0, 1, 2, 3, 4], cen: 1 }),
+      'el full amb resolts, centrat i destacat': Motor.fitxerTex(exs, q, m0, { mode: 'guiades', resolts: [0, 1, 2, 3, 4], cen: 1, dest: 1 }),
       'el solucionari (destacat)': Motor.fitxerSolucionari(exs, q, m0, { dest: 1 }),
       'el solucionari (una operació per pas)': Motor.fitxerSolucionari(exs, q, m0, { gra: 'op' }),
       'el solucionari centrat (una operació per pas)': Motor.fitxerSolucionari(exs, q, m0, { cen: 1, gra: 'op' }),
@@ -93,18 +95,25 @@ try {
       `${al.length} mesures; la més ampla: ${pl[0]}pt de ${pl[1]}pt`);
     console.log(`        la més ampla fa el ${Math.round(100 * pl[0] / pl[1])} % de la línia`);
 
-    // I cada resolució «centrat»: un array, que no es pot partir ni de costat ni de pàgina.
-    const arrays = [];
-    for (const e of exs) for (const gra of ['prio', 'op']) arrays.push(Motor.centrada(e.arbre, { gra }).tex);
-    const cc = principiDeLlista(p) + '\\item ' + arrays.map(a => `\\setbox0\\hbox{$${a}$}` +
+    // I cada resolució «centrat» (destacada: les ratlles la fan una mica més alta). Un array no es pot partir
+    // ni de costat ni de pàgina: una resolució llarga va en blocs, i cada bloc ha de cabre a la línia i a la
+    // pàgina. I els blocs d'una resolució, amb les columnes iguals, han de fer el mateix ample.
+    const blocs = [];
+    exs.forEach((e, i) => { for (const gra of ['prio', 'op']) Motor.centrada(e.arbre, { gra, dest: 1 }).blocs.forEach(b => blocs.push([`${i}${gra}`, b])); });
+    const cc = principiDeLlista(p) + '\\item ' + blocs.map(([, b]) => `\\setbox0\\hbox{$${b}$}` +
       '\\typeout{AMPLE=\\the\\wd0;ALT=\\the\\dimexpr\\ht0+\\dp0\\relax;LINIA=\\the\\linewidth;PAGINA=\\the\\textheight}').join('\n') + '\n\\end{enumerate}\n';
     const mc = compila(carpeta, cc);
     const ac = [...mc.log.matchAll(/AMPLE=([\d.]+)pt;ALT=([\d.]+)pt;LINIA=([\d.]+)pt;PAGINA=([\d.]+)pt/g)].map(x => x.slice(1).map(parseFloat));
     const maxim = i => ac.reduce((a, x) => Math.max(a, x[i] / x[i + 2]), 0);
-    comprova(`les ${arrays.length} resolucions «centrat» caben a la línia i a la pàgina`,
-      mc.estat === 0 && ac.length === arrays.length && ac.every(([a, h, l, pg]) => a <= l && h <= pg),
+    const llargues = new Set(blocs.filter(([q], k) => k && blocs[k - 1][0] === q).map(([q]) => q));
+    const amplesBlocs = {};
+    blocs.forEach(([q], k) => { if (ac[k]) (amplesBlocs[q] = amplesBlocs[q] || []).push(ac[k][0]); });
+    comprova(`les ${2 * exs.length} resolucions «centrat» (${llargues.size} de llargues, en blocs) caben a la línia i a la pàgina`,
+      mc.estat === 0 && ac.length === blocs.length && ac.every(([a, h, l, pg]) => a <= l && h <= pg),
       `${ac.length} mesures; la més ampla, el ${Math.round(100 * maxim(0))} %; la més alta, el ${Math.round(100 * maxim(1))} % de la pàgina`);
-    console.log(`        la més ampla fa el ${Math.round(100 * maxim(0))} % de la línia; la més alta, el ${Math.round(100 * maxim(1))} % de la pàgina`);
+    comprova('els blocs d\'una resolució llarga fan el mateix ample (les columnes, alineades)',
+      Object.values(amplesBlocs).every(w => Math.max(...w) - Math.min(...w) < .01), JSON.stringify(Object.entries(amplesBlocs).filter(([, w]) => w.length > 1)));
+    console.log(`        la més ampla fa el ${Math.round(100 * maxim(0))} % de la línia; el bloc més alt, el ${Math.round(100 * maxim(1))} % de la pàgina`);
   }
 } finally {
   fs.rmSync(carpeta, { recursive: true, force: true });

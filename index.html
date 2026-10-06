@@ -37,7 +37,7 @@
     <div class="grup" id="gra"><button data-gra="prio" title="A cada línia, totes les operacions del mateix nivell">per prioritat</button><button data-gra="op" title="A cada línia, una sola operació">una operació per pas</button></div>
     <label title="Els signes d'operació alineats en columna, cada resultat centrat sota el que substitueix i el «=» al final de cada línia"><input type="checkbox" id="cen"> centrat: els signes en columna</label>
     <label><input type="checkbox" id="simp"> simplifica les fraccions en una línia a part</label>
-    <label><input type="checkbox" id="dest"> destaca l'operació de la línia següent</label>
+    <label title="En blau fosc i subratllada: el que es calcula a la línia següent"><input type="checkbox" id="dest"> destaca la següent operació</label>
     <label id="nomes-l"><input type="checkbox" id="nomes"> només els resultats</label>
   </div>
   <p><button id="tot">Genera-ho tot</button></p>
@@ -50,13 +50,12 @@
 <section><h2>Full</h2><div id="full"></div>
   <details><summary>Veure el codi TeX</summary><pre id="codi"></pre></details>
   <details id="codi-sol-d"><summary>Veure el codi TeX del solucionari</summary><pre id="codi-sol"></pre></details>
-  <p class="avis">El PDF és el d'impressió del navegador; per al PDF compilat amb LaTeX, baixa el .tex.</p>
 </section>
 </main>
 <footer>
   <span id="recompte"></span>
   <span class="grup"><label>Fitxer núm. <input type="number" id="fit" min="1" max="99"></label>
-  <button id="baixa"></button><button id="baixa-sol"></button><button id="copia">Copia el TeX</button><button id="pdf">PDF</button><button id="pdf-sol">PDF solucions</button></span>
+  <button id="baixa"></button><button id="baixa-sol"></button></span>
 </footer>
 <script src="assets/entorn.js"></script>
 <script src="assets/motor.js"></script>

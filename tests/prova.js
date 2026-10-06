@@ -206,19 +206,26 @@ function esperat(T, unaOp) {
   const s = F.find((n) => n.t === 'bin' && v(n.l) && v(n.r));
   return { tipus: s.l.d !== s.r.d ? 'mcm' : 'suma', nodes: [s] };
 }
-/** Treu les marques de «destaca l'operació»: {\underbrace{…}_{}} al TeX i <u class="dest">…</u> a l'HTML. */
-function sensDestacats(tex) {
-  for (let i; (i = tex.indexOf('{\\underbrace{')) >= 0;) {
-    let j = i + 13, d = 1;
+/** «Destaca la següent operació»: {\color{darkblue}\underline{…}} al TeX (i <u class="dest">…</u> a l'HTML).
+    Torna el text sense les marques i, per ordre, el que hi havia destacat. */
+const DEST = '{\\color{darkblue}\\underline{';
+function destacats(tex) {
+  const grups = [];
+  for (let i; (i = tex.indexOf(DEST)) >= 0;) {
+    let j = i + DEST.length, d = 1;
     for (; d && j < tex.length; j++) { if (tex[j] === '{') d++; else if (tex[j] === '}') d--; }
-    if (tex.slice(j, j + 4) !== '_{}}') throw new Error('\\underbrace mal tancat');
-    tex = tex.slice(0, i) + tex.slice(i + 13, j - 1) + tex.slice(j + 4);
+    if (tex[j] !== '}') throw new Error('destacat mal tancat');
+    grups.push(tex.slice(i + DEST.length, j - 1));
+    tex = tex.slice(0, i) + tex.slice(i + DEST.length, j - 1) + tex.slice(j + 1);
   }
-  return tex;
+  return { net: tex, grups };
 }
+const sensDestacats = (tex) => destacats(tex).net;
 /* «Centrat»: l'array del .tex i la taula de l'HTML, llegits pel seu compte.
-   Cada fila: [{a, b, s}], el text s a les columnes [a, b); l'última cel·la de
-   cada fila menys de l'última és el «=». */
+   Cada fila: [{a, b, s, blau}], el text s a les columnes [a, b) (blau: és
+   destacat); l'última cel·la de cada fila menys de l'última és el «=». Amb
+   «destaca», sota una fila hi pot haver una fila de ratlles: regles[k] són
+   els trams de columnes [a, b) que subratlla. */
 function treuVphantoms(s) {                         // \vphantom{…}, amb claus dins
   for (let i; (i = s.indexOf('\\vphantom{')) >= 0;) {
     let j = i + 10, d = 1;
@@ -227,34 +234,70 @@ function treuVphantoms(s) {                         // \vphantom{…}, amb claus
   }
   return s;
 }
-function llegeixArray(tex) {
+function llegeixBloc(tex) {
   const m = /^\\begin\{array\}\[t\]\{@\{\}\*\{(\d+)\}\{c@\{\}\}\}\n([\s\S]*)\n\\end\{array\}$/.exec(tex);
   if (!m) throw new Error('no és un array «centrat»');
-  const files = m[2].split(/ \\\\\\noalign\{\\vskip \d+pt\}\n/).map((fila) => {
-    let a = 0;
-    return fila.split(' & ').map((c) => {
-      const mc = /^\\multicolumn\{(\d+)\}\{@\{\}c@\{\}\}\{([\s\S]*)\}$/.exec(c), k = mc ? +mc[1] : 1;
-      const cel = { a, b: a + k, s: mc ? mc[2] : c };
-      a += k;
-      return cel;
-    });
+  const files = [], regles = [], fantasmes = [];
+  for (const l of m[2].split('\n')) {
+    if (/^\\multispan\{\d+\}\$/.test(l)) {                       // una línia d'un altre bloc, invisible
+      let a = 0;
+      fantasmes.push(l.replace(/\\cr$/, '').split('&').map((x) => {
+        const mf = /^\\multispan\{(\d+)\}\$(?:\\displaystyle)?\\hphantom\{([\s\S]*)\}\$$/.exec(x);
+        if (!mf) throw new Error(`línia invisible incorrecta: ${l}`);
+        const cel = { a, b: a + +mf[1], s: mf[2] };
+        a = cel.b;
+        return cel;
+      }));
+    } else if (l.startsWith('\\multispan{')) {                     // la ratlla de «destaca» de la línia d'abans
+      const trams = [];
+      let c = 0;
+      for (const x of l.replace(/\\cr(\\noalign\{\\vskip \d+pt\})?$/, '').split('&')) {
+        const mr = /^\\multispan\{(\d+)\}(\{\\color\{darkblue\}\\leaders\\hrule height \.4pt\\hfill\})?$/.exec(x);
+        if (!mr) throw new Error(`fila de ratlles incorrecta: ${l}`);
+        if (mr[2]) trams.push([c, c + +mr[1]]);
+        c += +mr[1];
+      }
+      regles[regles.length - 1] = trams;
+    } else {
+      let a = 0;
+      files.push(l.replace(/ \\\\(\\noalign\{\\vskip \d+pt\})?$/, '').split(' & ').map((c) => {
+        const mc = /^\\multicolumn\{(\d+)\}\{@\{\}c@\{\}\}\{([\s\S]*)\}$/.exec(c), k = mc ? +mc[1] : 1;
+        const cel = { a, b: a + k, s: mc ? mc[2] : c };
+        cel.blau = /^(\\displaystyle )?\\color\{darkblue\}/.test(cel.s);
+        a += k;
+        return cel;
+      }));
+      regles.push([]);
+    }
+  }
+  return { columnes: +m[1], files, regles, fantasmes };
+}
+/** Una resolució llarga va en blocs (un array cadascun, l'un sota l'altre); cadascun porta, invisibles, les
+    línies dels altres, perquè les columnes facin el mateix ample: les mateixes columnes i el mateix text. */
+function llegeixArray(tex) {
+  const blocs = tex.split(/\$\\\\\[\d+pt\]\n\$/).map(llegeixBloc);
+  const clau = (f) => f.map((x) => `${x.a}:${x.b}:${celTex(sensDestacats(x.s))}`).join('|');
+  blocs.forEach((b, j) => {
+    const altres = blocs.filter((x, i) => i !== j).flatMap((x) => x.files);
+    if (b.columnes !== blocs[0].columnes || b.fantasmes.map(clau).join('\n') !== altres.map(clau).join('\n'))
+      throw new Error(`el bloc ${j + 1} no porta, invisibles, les línies dels altres`);
   });
-  return { columnes: +m[1], files };
+  return { columnes: blocs[0].columnes, files: blocs.flatMap((b) => b.files), regles: blocs.flatMap((b) => b.regles), blocs };
 }
 function llegeixTaula(html) {
   const m = /^<table class="centrat">((?:<tr>.*?<\/tr>)*)<\/table>$/.exec(html);
   if (!m) throw new Error('no és una taula «centrat»');
   return [...m[1].matchAll(/<tr>(.*?)<\/tr>/g)].map(([, tr]) => {
     let a = 0;
-    return [...tr.matchAll(/<td(?: colspan="(\d+)")?( class="igual")?>(.*?)<\/td>/g)].map(([, k, igual, s]) => {
-      const cel = { a, b: a + (+k || 1), s: igual ? '=' : s };
+    return [...tr.matchAll(/<td(?: class="(dest|igual)")?(?: colspan="(\d+)")?>(.*?)<\/td>/g)].map(([, cl, k, s]) => {
+      const cel = { a, b: a + (+k || 1), s: cl === 'igual' ? '=' : s, dest: cl === 'dest' };
       a = cel.b;
       return cel;
     });
   });
 }
-/** El text lineal d'una cel·la del .tex: sense \displaystyle, ni els {} d'un operador, ni el \vphantom d'una meitat de parèntesi. */
-const celTex = (s) => treuVphantoms(s.replace(/^\\displaystyle /, '').replace(/^\{\}|\{\}$/g, ''))
+/** El text lineal d'una cel·la del .tex: sense \displaystyle, ni el color, ni els {} d'un operador, ni el \vphantom d'una meitat de parèntesi. */
+const celTex = (s) => treuVphantoms(s.replace(/^\\displaystyle /, '').replace(/^\\color\{darkblue\}/, '').replace(/^\{\}|\{\}$/g, ''))
   .replace(/\\right\.\\kern-\\nulldelimiterspace|\\kern-\\nulldelimiterspace\\left\./g, '');
 /** I el d'una cel·la de l'HTML: les dues meitats d'un parèntesi gran, com si fossin un sol grup. */
 const celHtml = (s) => s.replace(/^<span class="pg">(<span class="pb"[^>]*>\(<\/span>)<\/span>/, '<span class="pg">$1')
@@ -265,6 +308,8 @@ function revisaCentrat(nom, e, gra, r) {
   try { c = Motor.centrada(e.arbre, { gra }); t = llegeixArray(c.tex); files = llegeixTaula(c.html); } catch (x) { falla(`${nom} centrat: ${x.message}`); return; }
   const N = t.columnes - 1;
   if (t.files.length !== r.tex.length || files.length !== r.tex.length) { falla(`${nom} centrat: ${t.files.length} files i ${r.tex.length} línies`); return; }
+  // Més de 12 línies: en blocs de 12 com a molt (un array no es parteix entre pàgines)
+  if (t.blocs.length !== Math.ceil(t.files.length / 12) || t.blocs.some((b) => b.files.length > 12)) falla(`${nom} centrat: ${t.files.length} línies en ${t.blocs.length} blocs`);
   t.files.forEach((f, k) => {
     const ultima = k === t.files.length - 1, igual = f[f.length - 1], h = files[k];
     // Cada fila cobreix les N columnes (més la del «=», menys a l'última)
@@ -281,6 +326,38 @@ function revisaCentrat(nom, e, gra, r) {
     if (cos.some((x) => !vores.has(x.a))) falla(`${nom} centrat: la fila ${k} té una columna nova`);
     // Un signe no canvia mai de columna: cada operador d'una fila ja era a la mateixa columna de l'anterior
     if (cos.some((x) => esOperador(x.s) && !t.files[k - 1].some((y) => y.a === x.a && y.b === x.b && esOperador(y.s)))) falla(`${nom} centrat: un signe ha canviat de columna a la fila ${k}`);
+  });
+}
+
+/* «Destaca» amb «centrat»: les mateixes cel·les que sense destacar; en blau, just el que es destaca a la línia
+   normal, en el mateix ordre (els parèntesis que li posa el pare, fora); la ratlla, just sota aquestes
+   columnes; i a l'HTML, les mateixes cel·les. d: la resolució normal amb «destaca». */
+function revisaCentratDest(nom, e, d) {
+  let t0, t, h;
+  try {
+    t0 = llegeixArray(Motor.centrada(e.arbre, { gra: 'prio' }).tex);
+    const c = Motor.centrada(e.arbre, { gra: 'prio', dest: 1 });
+    t = llegeixArray(c.tex); h = llegeixTaula(c.html);
+  } catch (x) { falla(`${nom} centrat destacat: ${x.message}`); return; }
+  const clau = (f) => f.map((x) => `${x.a}:${x.b}:${celTex(sensDestacats(x.s))}`).join('|');
+  t.files.forEach((f, k) => {
+    if (clau(f) !== clau(t0.files[k])) falla(`${nom} centrat destacat: la fila ${k} no és la de sense destacar`);
+    // El destacat, per ordre: les cel·les blaves seguides (amb ratlla a sota) i, dins d'una cel·la que no ho és
+    // (una potència), la base que es simplifica, (−4/4)², destacada com a la línia normal
+    const trams = [], tot = [];
+    f.forEach((x) => {
+      if (!x.blau) { destacats(x.s).grups.forEach((g) => tot.push(g)); return; }
+      const u = trams[trams.length - 1];
+      if (u && u.b === x.a && tot[tot.length - 1] === u) { u.b = x.b; u.s += celTex(x.s); } else { trams.push({ a: x.a, b: x.b, s: celTex(x.s) }); tot.push(trams[trams.length - 1]); }
+    });
+    const grups = destacats(d.tex[k]).grups, text = tot.map((x) => linealTex(typeof x === 'string' ? x : x.s));
+    if (text.join('|') !== grups.map(linealTex).join('|'))
+      falla(`${nom} centrat destacat: a la fila ${k}, destacat «${text.join('|')}» i a la línia «${grups.join('|')}»`);
+    if (t.regles[k].map(([a, b]) => a + ':' + b).join() !== trams.map((x) => x.a + ':' + x.b).join())
+      falla(`${nom} centrat destacat: la ratlla de la fila ${k} no és sota el que es destaca`);
+    if (h[k].filter((x) => x.dest).map((x) => x.a + ':' + x.b).join() !== f.filter((x) => x.blau).map((x) => x.a + ':' + x.b).join())
+      falla(`${nom} centrat destacat: a la fila ${k}, l'HTML no destaca les mateixes cel·les`);
+    if ((k === t.files.length - 1) === !!tot.length) falla(`${nom} centrat destacat: la fila ${k} ${tot.length ? 'és l\'última i té' : 'no té'} res destacat`);
   });
 }
 
@@ -314,7 +391,8 @@ function revisaResolucio(etq, p, e) {
       const net = (t) => t.replace(/\\mathopen\{\}/g, '');
       const tex = d.tex.map((t) => net(sensDestacats(t))), html = d.html.map((h) => h.replace(/<u class="dest">|<\/u>/g, ''));
       if (tex.join('|') !== r.tex.map(net).join('|') || html.join('|') !== r.html.join('|')) falla(`${nom}: destacar canvia les línies`);
-      if (d.tex.some((t, k) => (k < d.tex.length - 1) !== t.includes('\\underbrace'))) falla(`${nom}: una línia sense destacar o l'última destacada`);
+      if (d.tex.some((t, k) => (k < d.tex.length - 1) !== t.includes(DEST))) falla(`${nom}: una línia sense destacar o l'última destacada`);
+      revisaCentratDest(nom, e, d);
     }
   }
   if (linies.op < linies.prio) falla(`${etq}: «una operació» té menys línies que «per prioritat»`);
@@ -587,16 +665,21 @@ if (!Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 1 }).ok) fal
   if (!s.startsWith(`% ex${m.num}-sol.tex — solucionari de ex${m.num}.tex`) || !s.includes('\\textbf{Solucions}') ||
       compta(s, /\\item /g) !== p.n || compta(s, /\\begin\{flalign\*\}/g) !== p.n) falla('solucionari: format');
   const r = Motor.fitxerSolucionari(ex, p, m, { nomes: 1, dest: 1 });
-  if (compta(r, /\\item /g) !== p.n || r.includes('flalign') || r.includes('underbrace') ||
+  if (compta(r, /\\item /g) !== p.n || r.includes('flalign') || r.includes('darkblue') ||
       !ex.every((e) => r.includes(`\\item $\\displaystyle ${e.tex}=`))) falla('solucionari: només resultats');
-  // «Centrat»: cada exercici resolt és un array, amb l'enunciat a la primera fila; «destaca» no s'hi aplica
+  // «Centrat»: cada exercici resolt és un array, amb l'enunciat a la primera fila; «destaca», en blau
   const enunciats = (t) => t.match(/^\\item \$\\displaystyle .*\$$/gm) || [];
   const gc = Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [2, 0], cen: 1, dest: 1 });
   if (compta(gc, /^\\item \$\\begin\{array\}\[t\]/gm) !== 2 || compta(gc, /^\\end\{array\}\$$/gm) !== 2 || compta(gc, /\\item /g) !== p.n ||
-      gc.includes('flalign') || gc.includes('underbrace') || !gc.includes(' · resolts: 1, 3\n')) falla('guiades centrat: resolucions');
+      gc.includes('flalign') || !gc.includes(' · resolts: 1, 3\n') || !gc.includes('\\color{darkblue}') || !gc.includes('\\multispan')) falla('guiades centrat: resolucions');
   if (enunciats(gc).join('\n') !== enunciats(Motor.fitxerTex(ex, p, m)).filter((x, i) => i !== 0 && i !== 2).join('\n')) falla('guiades centrat: els altres enunciats');
   const sc = Motor.fitxerSolucionari(ex, p, m, { cen: 1, dest: 1, gra: 'op' });
-  if (compta(sc, /^\\item \$\\begin\{array\}\[t\]/gm) !== p.n || sc.includes('flalign') || sc.includes('underbrace')) falla('solucionari centrat');
+  if (compta(sc, /^\\item \$\\begin\{array\}\[t\]/gm) !== p.n || sc.includes('flalign') || !sc.includes('\\color{darkblue}')) falla('solucionari centrat');
+  // El color de «destaca» el defineix el fitxer mateix (cal xcolor, que carrega headers.tex), i només quan cal
+  const blau = (t) => compta(t, /^\\providecolor\{darkblue\}\{RGB\}\{0,0,139\}/gm);
+  if (blau(gc) !== 1 || blau(sc) !== 1 || blau(Motor.fitxerSolucionari(ex, p, m, { dest: 1 })) !== 1) falla('«destaca»: el fitxer no defineix el color');
+  if (blau(Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [0] })) || blau(r) || blau(Motor.fitxerTex(ex, p, m, { mode: 'cap', dest: 1 })) ||
+      blau(Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [], dest: 1 }))) falla('«destaca»: el color, en un fitxer que no destaca res');
 }
 
 /* ── 12. «Centrat», exemple a exemple: cada signe es queda a la seva columna i
@@ -629,7 +712,12 @@ if (!Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 1 }).ok) fal
     const files = llegeixArray(Motor.centrada(arbre, op).tex).files.map((f) => f.map(curt).join(' ')).join(' | ');
     if (files !== esperades) falla(`centrat ${JSON.stringify(op)}: ${files}  (esperat: ${esperades})`);
   }
-  if (Motor.centrada(casos[0][0], { dest: 1 }).tex.includes('underbrace')) falla('centrat: «destaca» no s\'hi aplica');
+  // «Destaca»: en blau el que es calcula a la línia següent, i la ratlla sota les seves columnes
+  // (fila: cel·les blaves / ratlles). El 5 − 2, sense els parèntesis, com a la línia normal.
+  const cd = llegeixArray(Motor.centrada(casos[0][0], { dest: 1 }).tex);
+  const blaus = cd.files.map((f, k) => f.filter((x) => x.blau).map((x) => `${x.a}-${x.b}`).join(',') + ' / ' + cd.regles[k].map(([a, b]) => `${a}-${b}`).join(','));
+  const esperat = ['5-6,6-7,7-8 / 5-8', '4-9 / 4-9', '2-3,3-4,4-9 / 2-9', '0-1,1-2,2-9 / 0-9', '0-9,9-10,10-11 / 0-11', ' / '];
+  if (blaus.join(' | ') !== esperat.join(' | ')) falla(`centrat destacat: ${blaus.join(' | ')}  (esperat: ${esperat.join(' | ')})`);
 }
 
 console.log(`${combos} combinacions (i ${combosTotes} amb força i gradual), ${total} exercicis, ${errors} errors`);
