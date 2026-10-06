@@ -398,6 +398,102 @@ function revisaResolucio(etq, p, e) {
   if (linies.op < linies.prio) falla(`${etq}: «una operació» té menys línies que «per prioritat»`);
 }
 
+
+/* ── «Completa la igualtat»: el lector i el cercador de la prova, pel seu compte ──
+   Una solució s'escriu «(1 + 2) · 5», «3 + 3 + 3²», «√9 · 2». El lector la torna a
+   calcular i comprova les regles: els nombres en ordre i tots, d'una xifra; cap valor,
+   ni pel camí, negatiu ni de més de 100; divisions exactes; √ només d'un quadrat
+   perfecte; ² i √ només damunt d'un nombre; i només els símbols permesos. El cercador
+   prova totes les cadenes possibles per saber què NECESSITA cada igualtat. */
+const Igualtats = require('../assets/igualtats.js');
+function llegeixIgualtat(text) {
+  const net = text.replace(/\s+/g, ''), tk = net.match(/\d|[-+−·:()²√]/g) || [];
+  if (tk.join('') !== net) throw new Error(`símbols desconeguts a «${text}»`);
+  let i = 0;
+  const nombres = [], usats = new Set();
+  const dins = (v) => { if (!(Number.isInteger(v) && v >= 0 && v <= 100)) throw new Error(`un valor de ${v} a «${text}»`); return v; };
+  function atom() {
+    if (tk[i] === '(') { usats.add('('); i++; const v = expr(); if (tk[i++] !== ')') throw new Error(`falta un ) a «${text}»`); return v; }
+    const arrel = tk[i] === '√';
+    if (arrel) { usats.add('√'); i++; }
+    if (!/^\d$/.test(tk[i] || '')) throw new Error(`esperava un nombre a «${text}»`);
+    const x = +tk[i++];
+    nombres.push(x);
+    let v = x;
+    if (arrel) { v = Math.round(Math.sqrt(x)); if (v * v !== x) throw new Error(`√${x} a «${text}»`); }
+    if (tk[i] === '²') { if (arrel) throw new Error(`√ i ² junts a «${text}»`); usats.add('²'); i++; v = x * x; }
+    return dins(v);
+  }
+  function terme() {
+    let v = atom();
+    while (tk[i] === '·' || tk[i] === ':') {
+      const op = tk[i++], w = atom();
+      usats.add(op);
+      if (op === '·') v = dins(v * w);
+      else { if (!w || v % w) throw new Error(`una divisió no exacta a «${text}»`); v = v / w; }
+    }
+    return v;
+  }
+  function expr() {
+    let v = terme();
+    while (tk[i] === '+' || tk[i] === '−') { const op = tk[i++], w = terme(); v = dins(op === '+' ? v + w : v - w); }
+    return v;
+  }
+  const v = expr();
+  if (i !== tk.length) throw new Error(`text sobrant a «${text}»`);
+  return { v, nombres, usats };
+}
+/** Tots els valors que s'aconsegueixen amb ns: sense parèntesis (les cadenes, llegides amb la prioritat de
+    sempre) o amb parèntesis (tots els arbres, escrits amb tots els parèntesis), i amb ² i √ o sense. */
+function valorsProva(ns, p, ambParentesis, ambPot) {
+  const ops = ['+', '−', '·'].concat(p.div ? [':'] : []);
+  const fulles = (x) => [String(x)].concat(ambPot && p.pot && x >= 2 && x * x <= 100 ? [x + '²'] : [],
+    ambPot && p.arr && x >= 4 && Number.isInteger(Math.sqrt(x)) ? ['√' + x] : []);
+  const cadenes = (a, b) => {
+    if (b - a === 1) return fulles(ns[a]);
+    const out = [];
+    if (!ambParentesis) { for (const f of fulles(ns[a])) for (const resta of cadenes(a + 1, b)) for (const op of ops) out.push(`${f} ${op} ${resta}`); }
+    else for (let m = a + 1; m < b; m++) for (const l of cadenes(a, m)) for (const r of cadenes(m, b)) for (const op of ops) out.push(`(${l} ${op} ${r})`);
+    return out;
+  };
+  const valors = new Set();
+  for (const c of cadenes(0, ns.length)) { try { valors.add(llegeixIgualtat(c).v); } catch (e) { /* no compleix les regles */ } }
+  return valors;
+}
+/** El que necessita la igualtat ns = t: 0, només + − · :; 1, parèntesis; 2, ² o √ (null: impossible). */
+function nivellProva(ns, t, p) {
+  if (valorsProva(ns, p, false, false).has(t)) return 0;
+  if (p.par && valorsProva(ns, p, true, false).has(t)) return 1;
+  return valorsProva(ns, p, !!p.par, true).has(t) ? 2 : null;
+}
+/** Una igualtat: la solució, tornada a llegir; el nivell, tornat a buscar; i el TeX i l'HTML, que diuen el mateix. */
+function revisaIgualtat(etq, p, x, nivell) {
+  if (x.error) { falla(`${etq}: ${x.error}`); return; }
+  if (x.ns.length !== p.nombres || x.ns.some((n) => !Number.isInteger(n) || n < 0 || n > 9) || !(x.t >= 0 && x.t <= 100)) falla(`${etq}: ${x.ns} = ${x.t} fora de les regles`);
+  let l;
+  try { l = llegeixIgualtat(x.solucio.text); } catch (e) { falla(`${etq}: ${e.message}`); return; }
+  if (l.v !== x.t || l.nombres.join() !== x.ns.join()) falla(`${etq}: «${x.solucio.text}» no és ${x.ns.join(' ')} = ${x.t}`);
+  const prohibits = [['(', p.par], ['²', p.pot], ['√', p.arr], [':', p.div]].filter(([sim, si]) => !si && l.usats.has(sim));
+  if (prohibits.length) falla(`${etq}: «${x.solucio.text}» fa servir ${prohibits.map(([sim]) => sim).join(' ')}`);
+  if (x.nivell !== nivell) falla(`${etq}: la igualtat ${x.ns.join(' ')} = ${x.t} és de nivell ${x.nivell} i en tocava ${nivell}`);
+  const n = nivellProva(x.ns, x.t, p);
+  if (n !== x.nivell) falla(`${etq}: ${x.ns.join(' ')} = ${x.t} necessita el nivell ${n} i el motor diu ${x.nivell} (${x.solucio.text})`);
+  const deTex = x.solucio.tex.replace(/\\cdot /g, '·').replace(/-/g, '−').replace(/\^\{2\}/g, '²').replace(/\\sqrt\{(\d)\}/g, '√$1');
+  const deHtml = x.solucio.html.replace(/<span class="op">(.)<\/span>/g, '$1').replace(/<sup>2<\/sup>/g, '²').replace(/<span class="arrel">√<span>(\d)<\/span><\/span>/g, '√$1');
+  const pla = x.solucio.text.replace(/\s+/g, '');
+  if (deTex !== pla || deHtml !== pla) falla(`${etq}: el TeX (${x.solucio.tex}) o l'HTML (${x.solucio.html}) no diuen «${x.solucio.text}»`);
+}
+/** Un full sencer: cada igualtat, la del nivell que li toca al pla, cap de repetida, i l'exemple. */
+function revisaFullIgualtats(etq, q, llavor) {
+  const f = Igualtats.full(q, llavor, []), p = f.p, pla = Igualtats.pla(p, llavor);
+  f.items.forEach((x, i) => revisaIgualtat(`${etq} (${i + 1})`, p, x, pla[i]));
+  revisaIgualtat(`${etq} (exemple)`, p, f.exemple, p.par ? 1 : p.pot || p.arr ? 2 : 0);
+  const claus = f.items.concat(f.exemple).map((x) => `${x.ns}=${x.t}`);
+  if (new Set(claus).size !== claus.length) falla(`${etq}: dues igualtats iguals`);
+  return f;
+}
+const etiquetaIgualtats = (q) => `igualtats nombres=${q.nombres} par=${q.par} pot=${q.pot} arr=${q.arr} div=${q.div} ig=${Igualtats.GENERADOR}`;
+
 const base = { n: 5, esp: 'mitja', sim: 'petit', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1 };
 const etiqueta = (p) => `${p.set} int=${p.int} fin=${p.fin} div=${p.div} pot=${p.pot} par=${p.par} opo=${p.opo} forca=${p.forca} grad=${p.grad || 0}` +
   (p.g >= 2 ? ` g=${p.g}` : '');
@@ -454,11 +550,19 @@ for (let g = 1; g <= Motor.GENERADOR; g++)
         }
         empremtes[etq] = h.digest('hex').slice(0, 16);
       }
+let combosIgualtats = 0;
+for (const nombres of [3, 4]) for (let m = 0; m < 16; m++) {
+  const q = { n: 9, nombres, par: m & 1, pot: (m >> 1) & 1, arr: (m >> 2) & 1, div: (m >> 3) & 1 }, etq = etiquetaIgualtats(q);
+  const f = revisaFullIgualtats(etq, q, 'empremta');
+  combosIgualtats++; total += f.items.length;
+  empremtes[etq] = crypto.createHash('sha256').update(f.items.map((x) => `${x.ns.join(' ')}=${x.t}`).join('|')).digest('hex').slice(0, 16);
+}
 const fitxerEmpremtes = path.join(__dirname, 'empremtes.json');
 let desades = {};
 try { desades = JSON.parse(fs.readFileSync(fitxerEmpremtes, 'utf8')); } catch (e) { /* encara no n'hi ha */ }
 const canviades = Object.keys(empremtes).filter((k) => desades[k] !== empremtes[k]);
-const delUltim = (k) => (Motor.GENERADOR >= 2 ? k.endsWith(' g=' + Motor.GENERADOR) : !/ g=\d+$/.test(k));
+const delUltim = (k) => (k.startsWith('igualtats ') ? k.endsWith(' ig=' + Igualtats.GENERADOR)
+  : Motor.GENERADOR >= 2 ? k.endsWith(' g=' + Motor.GENERADOR) : !/ g=\d+$/.test(k));
 if (process.argv.includes('--actualitza-empremtes')) {
   // Les d'un generador antic no es poden refer: són els fulls que ja hi ha desats.
   const antigues = canviades.filter((k) => !delUltim(k) && desades[k] !== undefined);
@@ -720,5 +824,57 @@ if (!Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 1 }).ok) fal
   if (blaus.join(' | ') !== esperat.join(' | ')) falla(`centrat destacat: ${blaus.join(' | ')}  (esperat: ${esperat.join(' | ')})`);
 }
 
-console.log(`${combos} combinacions (i ${combosTotes} amb força i gradual), ${total} exercicis, ${errors} errors`);
+/* ── 13. «Completa la igualtat» ─────────────────────────────────────────────
+   Les igualtats del professor; el pla de cada full (com el seu: de cada 9, 5
+   només amb + − · :, 3 amb parèntesis i 1 amb ² o √); molts fulls de cada
+   mena, revisats sencers; el determinisme i ↻; i els fitxers. */
+{
+  const tot = { par: 1, pot: 1, arr: 1, div: 1 };
+  // Les del full del professor: què necessita cadascuna, segons el motor i segons la prova
+  for (const [ns, t, nivell] of [[[1, 2, 5], 15, 1], [[1, 1, 1], 3, 0], [[3, 3, 3], 3, 0], [[4, 5, 6], 15, 0], [[9, 0, 9], 81, 1],
+    [[1, 4, 6], 30, 1], [[0, 0, 7], 0, 0], [[5, 3, 4], 32, 1], [[3, 3, 3], 15, 2], [[1, 1, 1], 2, 0]]) {
+    const x = Igualtats.resol(ns, Igualtats.opcions(tot)).get(t);
+    if (!x || x.nivell !== nivell || nivellProva(ns, t, tot) !== nivell) falla(`igualtats: ${ns.join(' ')} = ${t} hauria de ser de nivell ${nivell} (${x && x.nivell})`);
+  }
+  if (Igualtats.escriuText(Igualtats.resol([1, 2, 5], Igualtats.opcions(tot)).get(15).millor.a) !== '(1 + 2) · 5') falla('igualtats: la solució de 1 2 5 = 15');
+  // El pla: quantes de cada nivell, per a cada mida de full i cada combinació de símbols
+  for (let n = 3; n <= 15; n++) for (let m = 0; m < 16; m++) {
+    const p = Igualtats.opcions({ n, par: m & 1, pot: (m >> 1) & 1, arr: (m >> 2) & 1, div: (m >> 3) & 1 });
+    const pla = Igualtats.pla(p, 'pla' + m), compte = [0, 1, 2].map((k) => pla.filter((x) => x === k).length);
+    const n2 = p.pot || p.arr ? Math.max(1, Math.round(n / 9)) : 0, n1 = p.par ? Math.round(n / 3) : 0;
+    if (compte.join() !== [n - n1 - n2, n1, n2].join()) { falla(`igualtats: el pla de ${n} (${JSON.stringify(p)}) és ${compte}`); break; }
+  }
+  const p9 = Igualtats.pla(Igualtats.opcions(tot), 'x');
+  if ([0, 1, 2].map((k) => p9.filter((x) => x === k).length).join() !== '5,3,1') falla(`igualtats: el pla de 9 no és com el full del professor: ${p9}`);
+  // Molts fulls de cada mena, sencers (també amb 4 nombres i amb 15 igualtats)
+  let fulls = 0;
+  for (const nombres of [3, 4]) for (let m = 0; m < 16; m++) for (let s = 0; s < (nombres === 3 ? 6 : 2); s++) {
+    const q = { n: s % 2 ? 15 : 9, nombres, par: m & 1, pot: (m >> 1) & 1, arr: (m >> 2) & 1, div: (m >> 3) & 1 };
+    const f = revisaFullIgualtats(etiquetaIgualtats(q), q, `fulls${m}-${s}`);
+    fulls++; total += f.items.length;
+  }
+  // Determinisme i ↻: el mateix full, cada cop; ↻ canvia la igualtat, però no el nivell
+  const q = { n: 9, nombres: 3, ...tot }, a = Igualtats.full(q, 'det', []), b = Igualtats.full(q, 'det', []);
+  if (JSON.stringify(a) !== JSON.stringify(b)) falla('igualtats: no determinista');
+  const c = Igualtats.full(q, 'det', [0, 0, 1]);
+  if (`${c.items[2].ns}=${c.items[2].t}` === `${a.items[2].ns}=${a.items[2].t}` || c.items[2].nivell !== a.items[2].nivell ||
+      c.items.some((x, i) => i !== 2 && `${x.ns}=${x.t}` !== `${a.items[i].ns}=${a.items[i].t}`)) falla('igualtats: ↻ ha de canviar només la seva igualtat, i no el nivell');
+  // Els fitxers
+  const m = { num: 4, seed: 'det', adreca: '#act=igu&seed=det', versio: 'vX' };
+  for (const [opts, cols] of [[{ nombres: 3, esp: 'mitja' }, 3], [{ nombres: 4, esp: 'gran' }, 2], [{ nombres: 3, esp: 'gran' }, 2], [{ nombres: 4, esp: 'petit' }, 3]]) {
+    const qq = { n: 9, ...tot, ...opts, ...(opts.nombres === 4 ? { div: 0 } : {}) }, f = Igualtats.full(qq, 'fitxer', []);
+    const t = Igualtats.fitxerTex(f, m), sol = Igualtats.fitxerSolucionari(f, m), compta = (x, re) => (x.match(re) || []).length;
+    if (Igualtats.columnes(f.p) !== cols || !t.includes(`\\begin{tabular}{@{}*{${cols}}{p{`)) falla(`igualtats: ${JSON.stringify(opts)} en ${cols} columnes`);
+    if (!t.startsWith('% ex4.tex — «Completa la igualtat»') || !t.includes('% per refer aquest full: index.html#act=igu&seed=det\n')) falla('igualtats: la capçalera de exN.tex');
+    if (compta(t, /\$\\hspace\{[\d.]+mm\}\d/g) !== 9 || compta(t, new RegExp(`\\\\\\\\\\[${Igualtats.ESPAIS[f.p.esp].fila}mm\\]`, 'g')) !== Math.ceil(9 / cols) - 1)
+      falla(`igualtats: les igualtats de exN.tex (${JSON.stringify(opts)})`);
+    if (!t.includes('\\colorbox{gray!25}') || !t.includes(`$${f.exemple.solucio.tex}=${f.exemple.t}$`)) falla('igualtats: l\'exemple');
+    if (t.includes('$:$') !== !!qq.div || t.includes('$($') !== !!qq.par || t.includes('{}^{2}') !== !!qq.pot || t.includes('\\sqrt{\\ }') !== !!qq.arr)
+      falla(`igualtats: l'enunciat ha de dir només els símbols permesos (${JSON.stringify(qq)})`);
+    if (!sol.startsWith('% ex4-sol.tex — solucionari de ex4.tex — «Completa la igualtat»') || !f.items.every((x) => sol.includes(`$${x.solucio.tex}=${x.t}$`)))
+      falla('igualtats: el solucionari');
+  }
+}
+
+console.log(`${combos} combinacions (i ${combosTotes} amb força i gradual), ${combosIgualtats} de «Completa la igualtat», ${total} exercicis, ${errors} errors`);
 process.exit(errors ? 1 : 0);

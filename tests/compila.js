@@ -14,6 +14,9 @@
      - cap resolució «centrat» (un array, que no es pot partir; una de llarga
        va en blocs) és més ampla que la línia, cap bloc és més alt que la
        pàgina, i els blocs d'una resolució fan el mateix ample.
+   I «Completa la igualtat»: el full i el solucionari, amb 3 i 4 nombres i
+   cada espai (amb 4 nombres i espai gran, el cas més ample), sense errors
+   ni «Overfull»: cada igualtat cap a la seva columna.
    Treballa en una carpeta temporal: no deixa res a l'arbre. Acaba amb codi 1
    si alguna cosa falla.
    =========================================================================== */
@@ -114,6 +117,17 @@ try {
     comprova('els blocs d\'una resolució llarga fan el mateix ample (les columnes, alineades)',
       Object.values(amplesBlocs).every(w => Math.max(...w) - Math.min(...w) < .01), JSON.stringify(Object.entries(amplesBlocs).filter(([, w]) => w.length > 1)));
     console.log(`        la més ampla fa el ${Math.round(100 * maxim(0))} % de la línia; el bloc més alt, el ${Math.round(100 * maxim(1))} % de la pàgina`);
+  }
+  console.log('Completa la igualtat');
+  const Igualtats = require('../assets/igualtats.js');
+  for (const nombres of [3, 4]) for (const esp of ['petit', 'mitja', 'gran']) {
+    const f = Igualtats.full({ n: 15, nombres, esp }, `compila-${nombres}-${esp}`, []);
+    const m = { num: 1, seed: 'compila', adreca: '#prova', versio: Motor.VERSIO };
+    for (const [nom, cos] of [['el full', Igualtats.fitxerTex(f, m)], ['el solucionari', Igualtats.fitxerSolucionari(f, m)]]) {
+      const r = compila(carpeta, cos);
+      comprova(`${nombres} nombres, espai ${esp}, ${Igualtats.columnes(f.p)} columnes: ${nom} compila sense errors ni «Overfull»`,
+        r.estat === 0 && !/Overfull \\[hv]box/.test(r.log), (r.log.match(/^!.*$/m) || r.log.match(/Overfull \\[hv]box.*/) || [''])[0]);
+    }
   }
 } finally {
   fs.rmSync(carpeta, { recursive: true, force: true });

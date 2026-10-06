@@ -11,6 +11,8 @@
 <main>
 <aside>
   <h2>Configuració</h2>
+  <div class="grup" id="act"><button data-act="comb">Operacions combinades</button><button data-act="igu">Completa la igualtat</button></div>
+  <div id="op-comb">
   <label class="fila">Operacions <input type="number" id="n" min="1" max="10"></label>
   <h3>Espai entre operacions</h3>
   <div class="grup" id="esp">
@@ -40,6 +42,21 @@
     <label title="En blau fosc i subratllada: el que es calcula a la línia següent"><input type="checkbox" id="dest"> destaca la següent operació</label>
     <label id="nomes-l"><input type="checkbox" id="nomes"> només els resultats</label>
   </div>
+  </div>
+  <div id="op-igu">
+  <label class="fila">Igualtats <input type="number" id="in" min="3" max="15"></label>
+  <h3>Nombres per igualtat</h3>
+  <div class="grup" id="inom"><button data-inom="3">3</button><button data-inom="4">4</button></div>
+  <h3>Símbols (sempre + − ·)</h3>
+  <label><input type="checkbox" id="ipar"> parèntesis ( )</label>
+  <label><input type="checkbox" id="ipot"> quadrats ²</label>
+  <label><input type="checkbox" id="iarr"> arrels √</label>
+  <label><input type="checkbox" id="idiv"> divisions :</label>
+  <h3>Espai per escriure</h3>
+  <div class="grup" id="iesp"><button data-iesp="petit">petit</button><button data-iesp="mitja">mitjà</button><button data-iesp="gran">gran</button></div>
+  <h3>Solucions</h3>
+  <div class="grup" id="isol"><button data-isol="cap" title="Cada igualtat té «Veure la solució»">cap</button><button data-isol="solucionari" title="Les solucions a la vista i exN-sol.tex">solucionari</button></div>
+  </div>
   <p><button id="tot">Genera-ho tot</button></p>
   <div class="entorn">
     <h2>Entorn</h2>
@@ -59,6 +76,7 @@
 </footer>
 <script src="assets/entorn.js"></script>
 <script src="assets/motor.js"></script>
+<script src="assets/igualtats.js"></script>
 <script src="assets/app.js"></script>
 </body>
 </html>
