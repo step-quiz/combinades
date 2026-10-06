@@ -1,7 +1,7 @@
 # Operacions combinades · 1r ESO
 
 Web estàtica (HTML + CSS + JS, sense dependències ni build) que genera fulls d'operacions combinades
-i els lliura com a `exN.tex` (només el cos: el teu `main.tex` fa `\input{ex1.tex}`) o com a PDF d'impressió del navegador.
+i els lliura com a `exN.tex` (només el cos: el teu `main.tex` fa `\input{ex1.tex}`). El PDF, el fas tu compilant-lo amb LaTeX.
 
 ## Ús
 Obre `index.html` amb doble clic. Tria operacions (1–10), espai, conjunt (ℕ/ℤ/ℚ) i opcions.
@@ -31,10 +31,11 @@ Al panell, **Solucions** té tres modes:
 
 - **cap**: el full de sempre.
 - **guiades**: alguns exercicis del full surten resolts pas a pas, com a model. Es trien amb la casella
-  «resolt» de cada targeta o amb «Resol els primers 1, 2, 3». A l'`exN.tex` i a la impressió, els resolts porten
-  la resolució a sota (i poc espai); la resta, com sempre.
-- **solucionari**: l'`exN.tex` no canvia, i a la barra de baix apareixen **Baixa exN-sol.tex** (tots els
-  exercicis resolts, amb la mateixa numeració; al `main.tex`, `\input{exN-sol.tex}`) i **PDF solucions**.
+  «resolt» de cada targeta o amb «Resol els primers 1, 2, 3». A la web i a l'`exN.tex`, els resolts porten la
+  resolució a sota (i poc espai); la resta, com sempre.
+- **solucionari**: l'`exN.tex` no canvia, i a la barra de baix apareix **Baixa exN-sol.tex** (tots els
+  exercicis resolts, amb la mateixa numeració; al `main.tex`, `\input{exN-sol.tex}`). A la web, cada exercici
+  surt resolt, tal com al solucionari.
 
 La resolució segueix l'ordre de l'aula:
 - primer els parèntesis, d'un en un: el més interior i, si n'hi ha diversos, el de més a l'esquerra;
@@ -44,8 +45,12 @@ La resolució segueix l'ordre de l'aula:
   es pot simplificar, una més: `= 3/6 = 1/2`.
 
 Opcions: *per prioritat* (totes les operacions del mateix nivell en una línia) o *una operació per pas*;
-*simplifica les fraccions en una línia a part*; *destaca l'operació de la línia següent* (`\underbrace`); i, al
-solucionari, *només els resultats*. Cada targeta té **Veure els passos**, en qualsevol mode.
+*simplifica les fraccions en una línia a part*; **destaca la següent operació**: a cada línia, el que es calcula
+a la següent surt en blau fosc i subratllat (a la web i al `.tex`, `{\color{darkblue}\underline{…}}`); i, al
+solucionari, *només els resultats*. Els exercicis que no surten resolts tenen **Veure els passos**.
+
+El blau, el `.tex` mateix el defineix (`\providecolor{darkblue}{RGB}{0,0,139}`): només cal el paquet `xcolor`,
+que ja carrega el `headers.tex` de l'Entorn. Amb el fons fosc de la pantalla, a la web és un blau clar.
 
 **centrat: els signes en columna** canvia la disposició: els signes d'operació queden alineats en columna,
 cada resultat va centrat sota el que substitueix i el «=» és al final de cada línia (menys de l'última):
@@ -59,10 +64,14 @@ cada resultat va centrat sota el que substitueix i el «=» és al final de cada
            37
 ```
 
-Al `.tex`, cada resolució és un `array` (LaTeX estàndard): una columna per a cada nombre, operador i parèntesi
-de l'enunciat, i `\multicolumn` per als resultats. Amb *centrat*, *destaca* queda desactivat (ja es veu què es
-calcula). Un `array` no es parteix entre pàgines: la resolució més llarga que s'ha trobat (ℚ, amb tots els
-extres) ocupa un 96 % de la pàgina.
+Es veu igual a la web (una taula) i al `.tex`, on cada resolució és un `array` (LaTeX estàndard): una columna
+per a cada nombre, operador i parèntesi de l'enunciat, i `\multicolumn` per als resultats. Amb *destaca*, el que
+es calcula surt en blau i amb una ratlla blava a sota de les seves columnes, de punta a punta: el resultat de la
+línia següent hi va centrat a sota.
+
+Un `array` no es parteix entre pàgines, i una resolució llarga de ℚ pot fer més d'una pàgina. Per això, una
+resolució de més de 12 línies va en blocs (un `array` sota l'altre, amb les mateixes columnes) i la pàgina es
+pot partir entre dos blocs.
 
 ## La carpeta de fulls
 
@@ -90,10 +99,7 @@ node tests/prova.js
 
 La prova falla si `entorn.js` no coincideix amb els `.tex`.
 
-El PDF de la web és el d'impressió del navegador, **no** un PDF compilat amb LaTeX.
-Per al PDF compilat, baixa el `.tex` i compila'l amb el teu `main.tex`. Al diàleg d'impressió del navegador,
-desmarca *Capçaleres i peus de pàgina*. Una fórmula que no cabria a l'amplada del paper s'imprimeix una mica
-més petita (només aquella): abans es partia en dues línies.
+La web no fa PDF: el PDF és sempre el de LaTeX, compilant el `.tex` amb el teu `main.tex`.
 
 ## Proves
 
@@ -136,7 +142,7 @@ No deixa cap fitxer a l'arbre.
 index.html           pàgina única
 assets/motor.js      model, generador, validador, renderitzadors (sense DOM)
 assets/app.js        interfície
-assets/style.css     estil (clar/fosc/impressió)
+assets/style.css     estil (clar/fosc)
 assets/entorn.js     GENERAT: main/headers/defs incrustats
 tex/                 main.tex, headers.tex, defs.tex (font única)
 eines/entorn.py      regenera assets/entorn.js

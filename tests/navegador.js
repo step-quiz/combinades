@@ -4,7 +4,7 @@
        node tests/navegador.js
 
    Obre index.html amb doble clic (file://), la fa servir com un professor i
-   comprova el que surt a la pantalla, als fitxers baixats i a la impressió.
+   comprova el que surt a la pantalla i als fitxers baixats.
    Acaba amb codi 1 si alguna comprovació falla. Necessita Playwright:
        npm install --no-save playwright && npx playwright install chromium
    =========================================================================== */
@@ -113,33 +113,16 @@ const llegeixBaixada = async (pag, selector) => {
   e = await estat();
   comprova('una combinació impossible ho diu i no deixa baixar res', !!e.error && e.cartes === 0 && e.desactivat, e.error);
 
-  console.log('Impressió');
-  await pag.goto(EINA + '#n=6&set=Z&div=1&opo=1&pot=1&par=1&grad=1&seed=imp');
-  await pag.emulateMedia({ media: 'print' });
-  const imp = await pag.evaluate(() => ({
-    ext: [...document.querySelectorAll('.ext')].map(x => getComputedStyle(x).display),
-    amagats: ['header', 'aside', 'footer', 'details'].map(s => getComputedStyle(document.querySelector(s)).display)
-  }));
-  comprova('les etiquetes del mode gradual no s\'imprimeixen', imp.ext.length === 6 && imp.ext.every(d => d === 'none'), imp.ext.join());
-  comprova('capçalera, panell, barra i codi no s\'imprimeixen', imp.amagats.every(d => d === 'none'), imp.amagats.join());
-  const pdf = await pag.pdf({ format: 'A4' });
-  comprova('el PDF d\'impressió es genera', pdf.length > 1000 && pdf.slice(0, 4).toString() === '%PDF');
-  /* Cap fórmula no surt del paper: A4 menys els marges de @page = 174 mm ≈ 658 px. */
-  await pag.setViewportSize({ width: 658, height: 900 });
-  let maxAmple = 0;
-  for (const set of ['Z', 'Q']) for (let s = 0; s < 8; s++) {
-    await pag.goto(EINA + `#n=10&esp=petit&sim=gran&set=${set}&div=1&opo=1&pot=1&par=1&seed=ample${s}`);
-    maxAmple = Math.max(maxAmple, await pag.evaluate(() => Math.max(...[...document.querySelectorAll('.math')].map(m => m.getBoundingClientRect().left + m.scrollWidth))));
-  }
-  comprova('a la impressió, les fórmules més amples (símbols «gran») hi caben', maxAmple <= 658, Math.round(maxAmple) + ' px');
-  await pag.emulateMedia({ media: 'screen' });
+  console.log('Barra');
+  const botons = await pag.evaluate(() => [...document.querySelectorAll('footer button')].map(b => b.id).join());
+  comprova('a la barra de baix només hi ha «Baixa exN.tex» i «Baixa exN-sol.tex» (ni «Copia el TeX» ni PDF)', botons === 'baixa,baixa-sol', botons);
 
   console.log('Mòbil');
   const mob = await nova({ viewport: { width: 390, height: 844 } });
   await mob.goto(EINA + '#n=4&esp=petit&sim=gran&set=Q&div=1&opo=1&pot=1&par=1&seed=mob');
   const m = await mob.evaluate(() => {
     window.scrollTo(0, document.body.scrollHeight);
-    const avis = document.querySelectorAll('section .avis'), ultim = avis[avis.length - 1].getBoundingClientRect();
+    const finals = [...document.querySelectorAll('section > *')].filter(x => x.offsetParent !== null), ultim = finals[finals.length - 1].getBoundingClientRect();
     return {
       ample: document.documentElement.scrollWidth, finestra: document.documentElement.clientWidth,
       linies: [...document.querySelectorAll('.math')].map(x => Math.round(x.getBoundingClientRect().height)),
@@ -171,16 +154,18 @@ const llegeixBaixada = async (pag, selector) => {
   await pag.click('#full .carta:nth-child(4) [data-res]');
   e = await estat();
   comprova('guiades: la casella «resolt» d\'una targeta l\'afegeix', /&res=0,1,3(&|$)/.test(e.hash) && (e.codi.match(/flalign\*\}/g) || []).length === 6, e.hash);
-  await pag.emulateMedia({ media: 'print' });
-  const imp2 = await pag.evaluate(() => [...document.querySelectorAll('#full .carta')].map(c =>
-    [...c.querySelectorAll('.passos')].some(x => x.offsetParent !== null) ? 1 : 0).join(''));
-  comprova('guiades: a la impressió, només els resolts porten la resolució', imp2 === '11010', imp2);
-  await pag.emulateMedia({ media: 'screen' });
+  const aLaVista = () => pag.evaluate(() => [...document.querySelectorAll('#full .carta')].map(c =>     // (no dins d'un «Veure els passos» tancat)
+    [...c.querySelectorAll('.passos')].some(x => !x.closest('details:not([open])')) ? 1 : 0).join(''));
+  const vista2 = await aLaVista();
+  comprova('guiades: a la web, només els resolts porten la resolució a la vista (els altres, «Veure els passos»)', vista2 === '11010', vista2);
   await pag.click('[data-sol="solucionari"]');
   e = await estat();
   const vis = id => pag.evaluate(i => getComputedStyle(document.getElementById(i)).display !== 'none', id);
-  comprova('solucionari: hi ha «Baixa ex3-sol.tex» i «PDF solucions», i exN.tex és el de sempre',
-    await vis('baixa-sol') && await vis('pdf-sol') && await pag.textContent('#baixa-sol') === 'Baixa ex3-sol.tex' && !e.codi.includes('flalign'));
+  comprova('solucionari: hi ha «Baixa ex3-sol.tex», i exN.tex és el de sempre',
+    await vis('baixa-sol') && await pag.textContent('#baixa-sol') === 'Baixa ex3-sol.tex' && !e.codi.includes('flalign'));
+  const vista3 = await aLaVista();
+  comprova('solucionari: a la web, tots els exercicis surten resolts, com a exN-sol.tex',
+    vista3 === '11111' && await pag.locator('#full details.veure').count() === 0 && await pag.locator('#full .carta.resolt').count() === 5, vista3);
   const ex3 = await llegeixBaixada(pag, '#baixa');
   comprova('després de baixar ex3.tex, el solucionari continua sent el del 3', ex3.nom === 'ex3.tex' &&
     await pag.textContent('#baixa') === 'Baixa ex4.tex' && await pag.textContent('#baixa-sol') === 'Baixa ex3-sol.tex');
@@ -189,19 +174,10 @@ const llegeixBaixada = async (pag, selector) => {
     sol.text.includes('\\textbf{Solucions}') && (sol.text.match(/\\begin\{flalign\*\}/g) || []).length === 5 &&
     sol.text.includes('% per refer aquest full: index.html#') && sol.text.includes('&fit=3&'), sol.text.slice(0, 200));
   await pag.check('#nomes');
-  comprova('«només els resultats»: una línia per exercici', !(await pag.textContent('#codi-sol')).includes('flalign'));
+  const nomes = await pag.evaluate(() => [...document.querySelectorAll('#full .carta')].map(c => c.querySelectorAll('.passos').length + ':' + (c.querySelector('.math').textContent.includes('=') ? 1 : 0)).join());
+  comprova('«només els resultats»: una línia per exercici, al .tex i a la web («enunciat = resultat»)',
+    !(await pag.textContent('#codi-sol')).includes('flalign') && nomes === '0:1,0:1,0:1,0:1,0:1', nomes);
   await pag.uncheck('#nomes');
-  await pag.evaluate(() => document.body.classList.add('imprimeix-solucions'));
-  await pag.emulateMedia({ media: 'print' });
-  const imp3 = await pag.evaluate(() => ({
-    sol: [...document.querySelectorAll('#full .sol-imp')].filter(x => x.offsetParent !== null).length,
-    titol: getComputedStyle(document.getElementById('full'), '::before').content
-  }));
-  comprova('«PDF solucions»: cada exercici amb la resolució, i el títol', imp3.sol === 5 && imp3.titol.includes('Solucions'), JSON.stringify(imp3));
-  await pag.evaluate(() => document.body.classList.remove('imprimeix-solucions'));
-  await pag.emulateMedia({ media: 'screen' });
-  const imp4 = await pag.evaluate(() => [...document.querySelectorAll('#full .sol-imp')].filter(x => x.offsetParent !== null).length);
-  comprova('sense «PDF solucions», la resolució del solucionari no surt a la pantalla', imp4 === 0, imp4);
 
   console.log('Centrat');
   const pz = { n: 5, esp: 'mitja', sim: 'petit', set: 'Z', int: 1, fin: 1, div: 1, opo: 1, pot: 1, par: 1, forca: 1, vs: 0, grad: 0, g: 2 };
@@ -210,51 +186,47 @@ const llegeixBaixada = async (pag, selector) => {
   await pag.goto(EINA + '#n=5&set=Z&div=1&opo=1&pot=1&par=1&seed=sol1&g=2&sol=guiades&res=0,1');
   await pag.check('#cen');
   e = await estat();
-  const cz = await pag.evaluate(() => ({
-    resolts: [...document.querySelectorAll('#full .carta.resolt')].map(c => [c.querySelectorAll('.math').length,
-      ((c.querySelector('.passos table.centrat') || {}).outerHTML || '').replace(/<\/?tbody>/g, '')]),   // (el navegador hi afegeix el tbody)
-    veure: document.querySelectorAll('#full details.veure table.centrat').length,
-    dest: document.getElementById('dest').disabled
-  }));
-  comprova('centrat: cada resolt és una taula (la del motor, amb l\'enunciat a dalt) i «destaca» es desactiva',
-    cz.resolts.length === 2 && cz.resolts.every(([m, t], i) => m === 0 && t === Motor.centrada(exz[i].arbre, { gra: 'prio', simp: 1, dest: 0 }).html) &&
-    cz.veure === 3 && cz.dest, JSON.stringify(cz).slice(0, 300));
+  const taules = () => pag.evaluate(() => [...document.querySelectorAll('#full .carta.resolt')].map(c => [c.querySelectorAll('.math').length,
+    ((c.querySelector('.passos table.centrat') || {}).outerHTML || '').replace(/<\/?tbody>/g, '')]));   // (el navegador hi afegeix el tbody)
+  const cz = await taules(), veure = await pag.locator('#full details.veure table.centrat').count();
+  comprova('centrat: cada resolt és una taula (la del motor, amb l\'enunciat a dalt), i «Veure els passos» també',
+    cz.length === 2 && cz.every(([m, t], i) => m === 0 && t === Motor.centrada(exz[i].arbre, { gra: 'prio', simp: 1, dest: 0 }).html) && veure === 3,
+    JSON.stringify(cz).slice(0, 300));
   comprova('centrat: el .tex porta un array per exercici resolt, i l\'adreça ho recorda',
     (e.codi.match(/^\\item \$\\begin\{array\}\[t\]/gm) || []).length === 2 && !e.codi.includes('flalign') && /&cen=1(&|$)/.test(e.hash), e.hash);
-  await pag.uncheck('#cen');
-  comprova('sense centrat, «destaca» torna a funcionar', !(await pag.isDisabled('#dest')) && (await estat()).codi.includes('flalign'));
-  // El «PDF solucions» d'un solucionari centrat: la taula substitueix l'enunciat, i cap no surt del paper
-  await pag.setViewportSize({ width: 658, height: 900 });
-  let maxTaula = 0, malament = '';
-  for (const s of [0, 1, 2, 18]) {
-    await pag.goto(EINA + `#n=10&esp=petit&sim=gran&set=Q&div=1&opo=1&pot=1&par=1&seed=ample${s}&g=2&sol=solucionari&cen=1`);
-    await pag.evaluate(() => document.body.classList.add('imprimeix-solucions'));
-    await pag.emulateMedia({ media: 'print' });
-    const r = await pag.evaluate(() => ({
-      enunciats: [...document.querySelectorAll('#full .math')].filter(x => x.offsetParent !== null).length,
-      taules: [...document.querySelectorAll('#full .sol-imp table.centrat')].filter(x => x.offsetParent !== null).map(t => t.getBoundingClientRect().right)
-    }));
-    if (r.enunciats || r.taules.length !== 10) malament = JSON.stringify(r);
-    maxTaula = Math.max(maxTaula, ...r.taules);
-    await pag.evaluate(() => document.body.classList.remove('imprimeix-solucions'));
-    await pag.emulateMedia({ media: 'screen' });
-  }
-  comprova('centrat, «PDF solucions»: una taula per exercici, sense l\'enunciat repetit', !malament, malament);
-  comprova('centrat, «PDF solucions»: les taules més amples (ℚ, símbols «gran») caben al paper', maxTaula <= 658, Math.round(maxTaula) + ' px');
-  // I el mecanisme, sigui quina sigui la lletra del sistema: amb la lletra a 24 px, moltes taules passen de 600 px, i
-  // les del «PDF solucions» (que no es veuen a la pantalla) també s'han d'encongir, just el que cal
-  await pag.addStyleTag({ content: 'html { font-size: 24px }' });
-  await pag.evaluate(() => window.dispatchEvent(new HashChangeEvent('hashchange')));      // l'eina es torna a pintar
-  const enc = await pag.evaluate(() => [...document.querySelectorAll('#full .sol-imp')].map(x => {
-    x.style.display = 'block';
-    const t = x.querySelector('table.centrat'), r = document.createRange();
-    r.selectNodeContents(t);
-    const ample = r.getBoundingClientRect().width;
-    x.style.display = '';
-    return [Math.round(ample), parseFloat(t.style.getPropertyValue('--encaix')) || 1];
+  // «Destaca la següent operació», també amb «centrat»: en blau fosc i subratllat, al .tex i a la web
+  await pag.check('#dest');
+  e = await estat();
+  const czd = await taules(), blau = await pag.evaluate(() => [...document.querySelectorAll('#full td.dest')].map(t => {
+    const c = getComputedStyle(t);
+    return `${c.color}|${c.borderBottomStyle}`;
   }));
-  comprova('centrat, «PDF solucions»: una taula que no cap al paper s\'encongeix, encara que no es vegi a la pantalla',
-    enc.some(([a]) => a > 600) && enc.every(([a, k]) => Math.abs(Math.min(a, 600) - a * k) < 2), JSON.stringify(enc));
+  comprova('centrat i destaca: les taules del motor, amb les cel·les que es calculen en blau fosc i subratllades',
+    czd.every(([m, t], i) => t === Motor.centrada(exz[i].arbre, { gra: 'prio', simp: 1, dest: 1 }).html) &&
+    blau.length > 0 && blau.every(x => x === 'rgb(0, 0, 139)|solid'), blau.slice(0, 3).join(' '));
+  comprova('centrat i destaca: el .tex defineix el blau i el fa servir',
+    e.codi.includes('\\providecolor{darkblue}{RGB}{0,0,139}') && e.codi.includes('\\color{darkblue}') && e.codi.includes('\\multispan'), e.codi.slice(0, 400));
+  await pag.uncheck('#cen');
+  const linia = await pag.evaluate(() => [...document.querySelectorAll('#full .carta.resolt u.dest')].map(u => {
+    const c = getComputedStyle(u);
+    return `${c.color}|${c.borderBottomStyle}`;
+  }));
+  e = await estat();
+  comprova('destaca, sense centrat: en blau fosc i subratllat, a la web i al .tex ({\\color{darkblue}\\underline{…}})',
+    linia.length > 0 && linia.every(x => x === 'rgb(0, 0, 139)|solid') && e.codi.includes('{\\color{darkblue}\\underline{') && e.codi.includes('flalign'),
+    linia.slice(0, 3).join(' '));
+  const fosc = await nova({ viewport: { width: 1280, height: 900 }, colorScheme: 'dark' });
+  await fosc.goto(EINA + '#n=5&set=Z&div=1&opo=1&pot=1&par=1&seed=sol1&g=2&sol=guiades&res=0,1&dest=1');
+  const blauFosc = await fosc.evaluate(() => getComputedStyle(document.querySelector('#full u.dest')).color);
+  comprova('destaca, amb el fons fosc: un blau clar, que es llegeix', blauFosc === 'rgb(147, 197, 253)', blauFosc);
+  await fosc.close();
+  // Al solucionari, amb «centrat», cada exercici és una taula a la web
+  await pag.goto(EINA + '#n=10&esp=petit&sim=gran&set=Q&div=1&opo=1&pot=1&par=1&seed=ample0&g=2&sol=solucionari&cen=1&dest=1');
+  const sc = await pag.evaluate(() => ({
+    taules: [...document.querySelectorAll('#full .carta table.centrat')].filter(t => t.offsetParent !== null).length,
+    enunciats: document.querySelectorAll('#full .math').length
+  }));
+  comprova('centrat, al solucionari: a la web, cada exercici és una taula (que ja comença amb l\'enunciat)', sc.taules === 10 && sc.enunciats === 0, JSON.stringify(sc));
   await pag.setViewportSize({ width: 390, height: 844 });
   await pag.goto(EINA + '#n=4&esp=petit&sim=gran&set=Q&div=1&opo=1&pot=1&par=1&seed=ample18&g=2&sol=guiades&res=0,1,2,3&cen=1');
   const mc = await pag.evaluate(() => ({ ample: document.documentElement.scrollWidth, finestra: document.documentElement.clientWidth }));

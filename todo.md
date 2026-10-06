@@ -8,8 +8,9 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.4: la disposició «centrat» del solucionari (§2.8), sobre la v0.3 (el solucionari pas a pas, §2) i
-la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
+**Versió:** v0.5: «destaca la següent operació» en blau fosc i subratllat (també amb «centrat»), les solucions a la
+web i fora el PDF del navegador i «Copia el TeX» (§2.9). Sobre la v0.4 (la disposició «centrat», §2.8), la v0.3 (el
+solucionari pas a pas, §2) i la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
 **Generador:** els fulls nous es fan amb el generador 2 (`g=2` a l'adreça): parèntesis segons el pla del
 professor (§5). Les adreces sense `g` (v0.1) es refan amb el generador 1, sense cap canvi.
 **Proves:** `node tests/prova.js` → per a cada generador, 82 combinacions × 100 exercicis i les 328 combinacions
@@ -20,14 +21,15 @@ exercicis amb les dues granularitats (cada línia, el mateix valor; l'ordre dels
 escrites a la prova pel seu compte; HTML = TeX), els exemples de les decisions del professor i el mode «Cap» igual
 byte a byte que abans (`tests/referencia-cap.tex`). «Centrat»: de cada resolució, l'array i la taula es tornen a
 llegir (cada fila diu el mateix que la línia, cap signe no canvia de columna, cap resultat no ocupa una columna
-nova) i l'exemple del professor, columna a columna.
+nova; els blocs d'una resolució llarga porten, invisibles, les línies dels altres) i l'exemple del professor,
+columna a columna. «Destaca» amb «centrat»: en blau, just el que es destaca a la línia normal, i la ratlla a sota.
 **LaTeX:** `node tests/compila.js` compila 40 exercicis de ℕ, de ℤ i de ℚ amb totes les opcions i símbols «gran»,
-en full normal, guiades, solucionari (destacat i «una operació»), «només resultats» i «centrat» (guiades i
-solucionari): sense errors ni «Overfull». La fórmula més ampla fa el 54 % de la línia; la línia de resolució més
-ampla, el 59 %; i la resolució «centrat» més ampla, el 63 % (i la més alta, el 93 % de la pàgina). (També compilat
-pel professor amb el seu `capsalera.tex`.)
-**Interfície:** `node tests/navegador.js` (Chromium, 43 comprovacions: adreça i generador, ↻, baixades, impressió, mòbil,
-guiades, solucionari i «centrat»).
+en full normal, guiades, solucionari (destacat i «una operació»), «només resultats» i «centrat» (guiades destacat
+i solucionari): sense errors ni «Overfull». La fórmula més ampla fa el 54 % de la línia; la línia de resolució més
+ampla, el 59 %; la resolució «centrat» més ampla, el 63 %, i el bloc més alt, el 65 % de la pàgina; els blocs d'una
+resolució llarga fan el mateix ample. (També compilat pel professor amb el seu `capsalera.tex`.)
+**Interfície:** `node tests/navegador.js` (Chromium, 40 comprovacions: adreça i generador, ↻, baixades, mòbil,
+guiades, solucionari, «centrat» i «destaca», també amb el fons fosc).
 Falta mirar-la a Firefox, a Safari i en un mòbil de debò.
 
 Fet:
@@ -36,7 +38,8 @@ Fet:
   progressió dels extres **immediata/gradual**; `\vspace*` opcional.
 - Generació determinista amb llavors; ↻ per exercici (no canvia el nivell en mode gradual); «Genera-ho tot»;
   estat a l'adreça (`#…`) + `localStorage`.
-- Sortida `exN.tex` (només el cos: LaTeX estàndard + `amsmath`), «Copia el TeX», codi visible, PDF d'impressió.
+- Sortida `exN.tex` (només el cos: LaTeX estàndard + `amsmath`), amb el codi visible a la pàgina. Sense PDF del
+  navegador ni «Copia el TeX» (v0.5): el PDF és el de LaTeX.
 - Entorn: `tex/main.tex`, `tex/headers.tex`, `tex/defs.tex` (font única) → `assets/entorn.js` (generat amb
   `python3 eines/entorn.py`; la prova en comprova la paritat). `headers.tex` carrega `array`, `tabularx`,
   `xcolor[table]` i `graphicx` perquè ho necessita el `capsalera.tex` del professor (el d'`exam2bat`).
@@ -45,8 +48,10 @@ Fet:
   invisible dins de `\mathopen` (vegeu §6.1).
 - Previsualització HTML sense llibreries, amb xifres alineades (`lining-nums`) i potències que no desquadren la línia.
 - El `.tex` porta a la tercera línia l'adreça que el refà (`% per refer aquest full: index.html#…`).
-- Solucionari pas a pas (§2): modes cap · guiades · solucionari, `exN-sol.tex`, «PDF solucions», «Veure els passos».
+- Solucionari pas a pas (§2): modes cap · guiades · solucionari, `exN-sol.tex`, «Veure els passos»; al solucionari,
+  totes les resolucions a la web.
 - Disposició «centrat» (§2.8): signes alineats en columna i cada resultat centrat sota el que substitueix.
+- «Destaca la següent operació» (§2.9): en blau fosc i subratllat, també amb «centrat».
 
 ---
 
@@ -59,8 +64,9 @@ Fet:
   parèntesi i la potència en una sola línia; amb l'ordre estricte, són dues: `= 3·3+4²:8 = 3·3+16:8`.
 - Les línies van en un **`flalign*`** (amsmath) i no en un `align*`: `align*` les centrava al mig del full, lluny de
   l'enunciat; així comencen just a sota.
-- «Destaca l'operació»: `{\underbrace{…}_{}}`, entre claus. Un `\underbrace` sol és un operador per a TeX, i el −
-  o el + que el seguia es componia com un signe («−6» en lloc de «− 6»).
+- «Destaca l'operació»: a la v0.3, `{\underbrace{…}_{}}`; des de la v0.5, en blau fosc i subratllat (§2.9). Sempre
+  entre claus: si no, TeX tractava el destacat com un operador i el − o el + que el seguia es componia com un
+  signe («−6» en lloc de «− 6»).
 - Codi: `passos()`, `resolucio()` i `fitxerSolucionari()` a `motor.js` (secció «el solucionari»); la interfície, a
   `app.js` (`carta()`). Les notes de §2.7 estan resoltes.
 
@@ -137,7 +143,7 @@ Exercici resolt (al full en mode Guiades, o a `exN-sol.tex`):
   destaca l'operació, només resultats.
 - Targeta: casella **«resolt»** (només en mode Guiades) i un desplegable **«Veure els passos»** a qualsevol mode
   (útil per al professor). Els passos, en HTML, amb el mateix emissor que l'enunciat.
-- **PDF d'impressió:** en mode Guiades, com el `.tex`; en mode Solucionari, un segon botó «PDF solucions».
+- **PDF d'impressió:** en mode Guiades, com el `.tex`; en mode Solucionari, un segon botó «PDF solucions». (Tret a la v0.5: §2.9.)
 - Adreça: `sol=cap|guiades|solucionari`, `res=0,2` (índexs resolts), `gra=prio|op`, `simp=1`, `dest=0`, `nomes=0`.
   Valors desconeguts → valor per defecte. `localStorage` com la resta.
 
@@ -211,12 +217,28 @@ centrat sota la part que substitueix i el «=» al final de cada línia, menys d
   grup (i l'alçada invisible dels de dins), de manera que fa la mateixa mida. Entre línies, un `\noalign{\vskip}` fix
   (3 pt; 6 pt al costat d'una línia amb fraccions): així dues línies amb fraccions no es toquen mai.
 - **Web:** una taula amb `colspan`, que es desplaça sola si no hi cap (mòbil). En una targeta resolta, la taula
-  substitueix l'enunciat (n'és la primera fila); al «PDF solucions», també.
-- **Destaca l'operació** queda desactivat: amb «centrat» ja es veu què es calcula a cada línia.
-- **Límit:** un `array` no es parteix entre pàgines. De 12.000 resolucions de ℚ amb tots els extres, la més alta
-  ocupa un 96 % de la pàgina (`tests/compila.js` comprova que totes les de la seva mostra hi caben). Si mai en sortís
-  una de més alta, caldria partir l'array en dos.
+  substitueix l'enunciat (n'és la primera fila).
+- **Destaca** (v0.5, §2.9): les cel·les del que es calcula, en blau, i a sota una fila amb una ratlla blava de punta a
+  punta de les seves columnes (com `\cline`, però de color; amb fraccions, 2 pt més avall, que no les toqui).
+- **Blocs:** un `array` no es parteix entre pàgines, i amb «destaca» una resolució de ℚ de 16 línies va fer un 104 %
+  de la pàgina (1 de 12.000). Una resolució de més de 12 línies va en blocs, un `array` sota l'altre, i la pàgina es
+  pot partir entre dos blocs. Perquè les columnes facin el mateix ample a tots els blocs, cadascun porta les línies
+  dels altres invisibles i sense alçada (`\multispan` amb `\hphantom`: sense la plantilla de l'array, la fila no té
+  puntal). El bloc més alt de la mostra de `tests/compila.js` fa el 65 % de la pàgina.
 - Codi: `columnes()`, `trossos()` i `centrada()` a `motor.js`; `itemResolt()` la fa servir amb `sol.cen`.
+
+### 2.9 «Destaca», solucions a la web i fora el PDF del navegador (fet, v0.5)
+
+Ho va demanar el professor:
+- **Fora «Copia el TeX», «PDF» i «PDF solucions»**, que no farà servir mai. També tot el que només hi servia: el CSS
+  d'impressió i l'encongiment de les fórmules que no cabien al paper.
+- **«Destaca la següent operació»**: en blau fosc (`darkblue`, #00008B) i subratllat. Al `.tex`,
+  `{\color{darkblue}\underline{…}}`; el fitxer defineix el color (`\providecolor`, cal `xcolor`, que carrega
+  `headers.tex`), només si destaca res. A la web, el mateix blau (amb el fons fosc, un blau clar, `#93c5fd`).
+  Ara també funciona amb «centrat» (§2.8). Un cas especial: si el que es simplifica és la base d'una potència,
+  `(−4/4)²`, la cel·la és tota la potència i la base es destaca a dins, com a la línia normal, sense ratlla.
+- **«Centrat» a la web**: al solucionari, cada exercici surt resolt a la pàgina (abans només es veia al «PDF
+  solucions»), centrat si es tria; amb «només els resultats», `enunciat = resultat`.
 
 ---
 
@@ -234,9 +256,8 @@ centrat sota la part que substitueix i el «=» al final de cada línia, menys d
    publica el repositori (projecte `combinades`; cada pull request en té una vista prèvia).
 8. Ampliacions: «Tot en un» (preàmbul incrustat), «Obre a Overleaf», versió de 2n d'ESO.
 9. ~~Decidir les preguntes de la secció 6.2.~~ Decidit (vegeu §5) i fet: generador 2.
-10. **Provar el solucionari a l'aula** (també amb «centrat») i ajustar-ne els espais: entre exercicis d'`exN-sol.tex`
-    (ara 1,5 cm), entre les línies de «centrat» (3 pt i 6 pt) i al «PDF solucions» del navegador (amb ℚ, una
-    resolució pot ocupar mitja pàgina).
+10. **Provar el solucionari a l'aula** (també amb «centrat» i «destaca») i ajustar-ne els espais: entre exercicis
+    d'`exN-sol.tex` (ara 1,5 cm) i entre les línies de «centrat» (3 pt i 6 pt).
 
 ---
 
@@ -249,8 +270,9 @@ centrat sota la part que substitueix i el «=» al final de cada línia, menys d
   de cada combinació i generador els vigila `tests/empremtes.json`. Un canvi que els alteri necessita un generador
   nou (§6.3). `--actualitza-empremtes` no deixa tocar les d'un generador antic, i les de l'últim només es poden refer
   mentre encara no s'ha publicat (fusionat a `main`).
-- `exN.tex` i `exN-sol.tex` només depenen de LaTeX estàndard + `amsmath`. En mode «Cap», `exN.tex` no canvia
-  (`tests/referencia-cap.tex`, menys el número de versió).
+- `exN.tex` i `exN-sol.tex` només depenen de LaTeX estàndard + `amsmath`; l'única excepció és «destaca», que
+  necessita `xcolor` (el carrega `headers.tex`) i defineix el color al fitxer mateix. En mode «Cap», `exN.tex` no
+  canvia (`tests/referencia-cap.tex`, menys el número de versió).
 - `tex/*.tex` és la font única de l'entorn; `assets/entorn.js` és generat (`python3 eines/entorn.py`).
 - Cap canvi es dona per bo sense `node tests/prova.js` amb 0 errors (i, si toca la interfície o el TeX,
   `node tests/navegador.js` i `node tests/compila.js`). A GitHub, les tres passen soles a cada push.
@@ -258,7 +280,9 @@ centrat sota la part que substitueix i el «=» al final de cada línia, menys d
 
 ## 5. Decisions ja preses (no canviar sense preguntar)
 
-- El PDF de la web és el d'impressió del navegador, **no** un PDF compilat amb LaTeX.
+- **Sense PDF del navegador** (octubre de 2026): el professor no el fa servir, ni «Copia el TeX». El PDF és el de
+  LaTeX. (Fins a la v0.4, la web tenia «PDF» i «PDF solucions», d'impressió del navegador: vegeu l'historial.)
+- **«Destaca la següent operació»** (octubre de 2026): en blau fosc (`darkblue`) i subratllat, també amb «centrat».
 - Carpeta d'extracció: `_uploads` (amb «s»), com el workflow d'`exam2bat`.
 - **Parèntesis (generador 2, octubre de 2026).** Com a màxim 3 per exercici, i el 3 improbable. Compten tots els que
   es veuen menys els d'un sol nombre o fracció: `(−3)` i `(½)²` no compten; `(−(2+3))` en té dos.

@@ -2,11 +2,13 @@
 :root {
   --bg: #f8fafc; --sf: #fff; --bd: #cbd5e1; --tx: #1e293b; --mu: #64748b;
   --ac: #7c3aed; --on: #fff; --er: #b45309;
+  --dest: #00008b;                     /* «destaca»: el darkblue del .tex */
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0f172a; --sf: #1e293b; --bd: #334155; --tx: #e2e8f0; --mu: #94a3b8;
     --ac: #a78bfa; --on: #1e1b4b; --er: #fbbf24;
+    --dest: #93c5fd;                   /* sobre fons fosc, el blau fosc no es llegiria */
   }
 }
 * { box-sizing: border-box; }
@@ -87,8 +89,6 @@ pre { overflow: auto; background: var(--sf); border: 1px solid var(--bd); paddin
 }
 .passos { padding: 0 0 6px; }
 details.veure summary { font: .7rem monospace; color: var(--mu); cursor: pointer; }
-.sol-imp { display: none; }
-body.mesura .sol-imp { display: block; }      /* un moment, per mesurar-la (encaixaAlPaper) */
 /* «Centrat»: una columna per a cada nombre, operador i parèntesi de l'enunciat */
 .taula { overflow-x: auto; }
 table.centrat {
@@ -98,11 +98,14 @@ table.centrat {
 }
 table.centrat td { padding: 0; text-align: center; vertical-align: baseline; white-space: nowrap; }
 table.centrat td.igual { padding: 0 var(--sop, .22em); }
-/* Un parèntesi gran sol a la seva cel·la: la caixa ha de contenir tot el traç (si no, a la impressió,
-   el d'una primera línia a dalt de pàgina sortia retallat al peu de la pàgina d'abans) */
+/* Un parèntesi gran sol a la seva cel·la: la caixa ha de contenir tot el traç */
 table.centrat .pb { line-height: 1; }
-/* La part que es calcula a la línia següent («destaca l'operació») */
-u.dest { text-decoration: none; border-bottom: .09em solid currentColor; padding-bottom: .05em; }
+/* «Destaca»: a la taula, la cel·la sencera, perquè la ratlla vagi de punta a punta del que es calcula */
+table.centrat td.dest { color: var(--dest); border-bottom: .09em solid currentColor; }
+/* La part que es calcula a la línia següent («destaca la següent operació»): en blau fosc i subratllada */
+/* (inline-block: si no, la ratlla anava a l'altura de la lletra i travessava el denominador d'una fracció) */
+u.dest { display: inline-block; line-height: 1.2; color: var(--dest); text-decoration: none; border-bottom: .09em solid currentColor; padding-bottom: .05em; }
+u.dest .fr { line-height: 1.9; }      /* les fraccions, com a fora */
 #opsol { margin-top: 4px; }
 #primers { margin: 6px 0; font-size: .85rem; }
 /* Potència: s'enlaira sense alterar l'alçada de la línia */
@@ -120,29 +123,4 @@ footer {
   display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
   font: .72rem monospace;
-}
-
-/* ── Impressió: el full de l'alumne i res més ── */
-@media print {
-  @page { size: A4; margin: 2cm 1.8cm; }
-  header, aside, footer, details, .avis, h2, .cap button, .cap small, .cap .res, .ext { display: none !important; }
-  body { background: #fff; color: #000; }
-  main { display: block; padding: 0; }
-  .carta { border: 0; background: none; padding: 0; margin: 0; break-inside: avoid; display: flex; align-items: baseline; gap: .6em; }
-  .cap { display: block; }
-  .cap .num { background: none; color: #000; font: 700 1.1rem serif; padding: 0; }
-  .cap .num::after { content: ")"; }
-  .math { padding: 0 0 var(--esp); overflow: visible; font-size: calc(1.35rem * var(--encaix, 1)); }
-  .linia { overflow: visible; font-size: calc(1.2rem * var(--encaix, 1)); }
-  .taula { overflow: visible; }
-  table.centrat { font-size: calc(1.2rem * var(--encaix, 1)); }
-  /* Guiades: un exercici resolt no necessita espai per escriure-hi; el petit, després de la resolució */
-  .carta.resolt .math { padding-bottom: 0; }
-  .carta.resolt .passos { padding-bottom: 1.5cm; }
-  /* «PDF solucions»: el mateix full, amb la resolució (o el resultat) de cada exercici */
-  body.imprimeix-solucions #full::before { content: "Solucions"; display: block; font: 700 1.1rem serif; margin-bottom: .8em; }
-  body.imprimeix-solucions .math { padding-bottom: 0; }
-  body.imprimeix-solucions .sol-imp { display: block; padding-bottom: .9cm; }
-  body.imprimeix-solucions .carta.resolt .passos:not(.sol-imp) { display: none; }
-  body.imprimeix-solucions .carta.centrat .math { display: none; }   /* la taula ja comença amb l'enunciat */
 }
