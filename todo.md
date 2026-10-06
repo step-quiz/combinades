@@ -8,7 +8,8 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.3: el solucionari pas a pas (§2), sobre la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
+**Versió:** v0.4: la disposició «centrat» del solucionari (§2.8), sobre la v0.3 (el solucionari pas a pas, §2) i
+la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
 **Generador:** els fulls nous es fan amb el generador 2 (`g=2` a l'adreça): parèntesis segons el pla del
 professor (§5). Les adreces sense `g` (v0.1) es refan amb el generador 1, sense cap canvi.
 **Proves:** `node tests/prova.js` → per a cada generador, 82 combinacions × 100 exercicis i les 328 combinacions
@@ -17,13 +18,16 @@ empremtes dels exercicis (`tests/empremtes.json`), testimonis de «força», −
 mides dels parèntesis i el pla de parèntesis del generador 2 (2.000 fulls). Solucionari: la resolució de 6.560
 exercicis amb les dues granularitats (cada línia, el mateix valor; l'ordre dels passos, comprovat amb les regles
 escrites a la prova pel seu compte; HTML = TeX), els exemples de les decisions del professor i el mode «Cap» igual
-byte a byte que abans (`tests/referencia-cap.tex`).
+byte a byte que abans (`tests/referencia-cap.tex`). «Centrat»: de cada resolució, l'array i la taula es tornen a
+llegir (cada fila diu el mateix que la línia, cap signe no canvia de columna, cap resultat no ocupa una columna
+nova) i l'exemple del professor, columna a columna.
 **LaTeX:** `node tests/compila.js` compila 40 exercicis de ℕ, de ℤ i de ℚ amb totes les opcions i símbols «gran»,
-en full normal, guiades, solucionari (destacat i «una operació») i «només resultats»: sense errors ni «Overfull».
-La fórmula més ampla fa el 54 % de la línia, i la línia de resolució més ampla, el 59 %. (També compilat pel
-professor amb el seu `capsalera.tex`.)
-**Interfície:** `node tests/navegador.js` (Chromium, 36 comprovacions: adreça i generador, ↻, baixades, impressió, mòbil,
-guiades i solucionari).
+en full normal, guiades, solucionari (destacat i «una operació»), «només resultats» i «centrat» (guiades i
+solucionari): sense errors ni «Overfull». La fórmula més ampla fa el 54 % de la línia; la línia de resolució més
+ampla, el 59 %; i la resolució «centrat» més ampla, el 63 % (i la més alta, el 93 % de la pàgina). (També compilat
+pel professor amb el seu `capsalera.tex`.)
+**Interfície:** `node tests/navegador.js` (Chromium, 42 comprovacions: adreça i generador, ↻, baixades, impressió, mòbil,
+guiades, solucionari i «centrat»).
 Falta mirar-la a Firefox, a Safari i en un mòbil de debò.
 
 Fet:
@@ -42,6 +46,7 @@ Fet:
 - Previsualització HTML sense llibreries, amb xifres alineades (`lining-nums`) i potències que no desquadren la línia.
 - El `.tex` porta a la tercera línia l'adreça que el refà (`% per refer aquest full: index.html#…`).
 - Solucionari pas a pas (§2): modes cap · guiades · solucionari, `exN-sol.tex`, «PDF solucions», «Veure els passos».
+- Disposició «centrat» (§2.8): signes alineats en columna i cada resultat centrat sota el que substitueix.
 
 ---
 
@@ -182,6 +187,37 @@ denominador (decisió del professor); 5 i 6, com es deia; 7, un `−0` s'escriu 
 8. Per a la prova 2.5.1, l'analitzador independent de `tests/prova.js` (`llegeix`) ja llegeix el TeX de cada línia
    i en valida la sintaxi (parelles i mides de parèntesis, el `−` unari).
 
+### 2.8 La disposició «centrat» (fet, v0.4)
+
+Ho va demanar el professor: una opció perquè els signes d'operació quedin alineats en columna, cada resultat
+centrat sota la part que substitueix i el «=» al final de cada línia, menys de l'última:
+
+```
+2 + 3 · (5 − 2)² + 8 =
+2 + 3 ·    3²    + 8 =
+2 + 3 ·    9     + 8 =
+2 +     27       + 8 =
+     29          + 8 =
+           37
+```
+
+- **Columnes:** cada nombre, cada operador, cada − d'un oposat i cada parèntesi de l'enunciat en té una (més la del
+  «=»). Cada node de l'enunciat ocupa un interval de columnes, amb els seus parèntesis.
+- **Ids:** `passos()` numera els nodes de l'enunciat i `transforma()` fa que cada node d'un pas porti l'id del node que
+  substitueix (un resultat, el de l'operació; `−(4+6)` → `−10`, el de l'oposat). L'id diu a quines columnes va.
+- **TeX:** un `array` (LaTeX estàndard; cap paquet) amb `\multicolumn` per als resultats, centrats. Cada cel·la amb
+  fraccions, exponents o `\left` porta `\displaystyle`, com la fórmula sencera. Un parèntesi d'un grup amb fraccions no
+  pot ser un `\left(…\right)` partit entre cel·les: cada meitat és un `\left(`/`\right)` amb un `\vphantom` de tot el
+  grup (i l'alçada invisible dels de dins), de manera que fa la mateixa mida. Entre línies, un `\noalign{\vskip}` fix
+  (3 pt; 6 pt al costat d'una línia amb fraccions): així dues línies amb fraccions no es toquen mai.
+- **Web:** una taula amb `colspan`, que es desplaça sola si no hi cap (mòbil). En una targeta resolta, la taula
+  substitueix l'enunciat (n'és la primera fila); al «PDF solucions», també.
+- **Destaca l'operació** queda desactivat: amb «centrat» ja es veu què es calcula a cada línia.
+- **Límit:** un `array` no es parteix entre pàgines. De 12.000 resolucions de ℚ amb tots els extres, la més alta
+  ocupa un 96 % de la pàgina (`tests/compila.js` comprova que totes les de la seva mostra hi caben). Si mai en sortís
+  una de més alta, caldria partir l'array en dos.
+- Codi: `columnes()`, `trossos()` i `centrada()` a `motor.js`; `itemResolt()` la fa servir amb `sol.cen`.
+
 ---
 
 ## 3. Altres tasques pendents (per ordre d'importància)
@@ -198,8 +234,9 @@ denominador (decisió del professor); 5 i 6, com es deia; 7, un `−0` s'escriu 
    publica el repositori (projecte `combinades`; cada pull request en té una vista prèvia).
 8. Ampliacions: «Tot en un» (preàmbul incrustat), «Obre a Overleaf», versió de 2n d'ESO.
 9. ~~Decidir les preguntes de la secció 6.2.~~ Decidit (vegeu §5) i fet: generador 2.
-10. **Provar el solucionari a l'aula** i ajustar-ne els espais: entre exercicis d'`exN-sol.tex` (ara 1,5 cm) i al
-    «PDF solucions» del navegador (amb ℚ, una resolució pot ocupar mitja pàgina).
+10. **Provar el solucionari a l'aula** (també amb «centrat») i ajustar-ne els espais: entre exercicis d'`exN-sol.tex`
+    (ara 1,5 cm), entre les línies de «centrat» (3 pt i 6 pt) i al «PDF solucions» del navegador (amb ℚ, una
+    resolució pot ocupar mitja pàgina).
 
 ---
 
@@ -239,6 +276,8 @@ denominador (decisió del professor); 5 i 6, com es deia; 7, un `−0` s'escriu 
   - *Regla dels signes:* amb una línia que la mostra. `5−(−3)+(−8) = 5+3−8 = 8−8 = 0`.
   - *Fraccions:* amb una línia de comú denominador (m.c.m.) i, si cal, una de simplificar.
     `1/6+1/3 = 1/6+2/6 = 3/6 = 1/2`.
+  - *Centrat* (opció): els signes alineats en columna, cada resultat centrat sota el que substitueix i el «=» al final
+    de cada línia, menys de l'última (§2.8).
 
 ---
 

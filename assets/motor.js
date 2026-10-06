@@ -20,7 +20,7 @@
 var Motor = (function () {
   'use strict';
 
-  const VERSIO = 'v0.3';
+  const VERSIO = 'v0.4';
 
   /* La versió del GENERADOR va a l'adreça (g=…), perquè un full desat surti
      sempre amb el generador amb què es va fer. Les adreces sense g són de la
@@ -174,28 +174,48 @@ var Motor = (function () {
   const OBRE_TEX = ['(', '\\bigl(', '\\Bigl(', '\\biggl(', '\\Biggl('];
   const TANCA_TEX = [')', '\\bigr)', '\\Bigr)', '\\biggr)', '\\Biggr)'];
 
-  function parentesiTex(s) {
+  /** L'alçada invisible d'un \left( amb fraccions i parèntesis a dins. */
+  function alcadaTex(s) {
     const h = profunditat(s);
-    if (!s.includes('\\frac')) {
-      const nivell = Math.min(4, h);
-      return OBRE_TEX[nivell] + s + TANCA_TEX[nivell];
+    if (!h) return '';
+    const r = 1.25 + .4 * h;
+    return `\\mathopen{\\vphantom{\\rule[-${(r - .25).toFixed(2)}em]{0pt}{${(2 * r).toFixed(2)}em}}}`;
+  }
+
+  function parentesiTex(s) {
+    if (s.includes('\\frac')) return `\\left(${alcadaTex(s)}${s}\\right)`;
+    const nivell = Math.min(4, profunditat(s));
+    return OBRE_TEX[nivell] + s + TANCA_TEX[nivell];
+  }
+
+  /** Els dos parèntesis de s, cadascun sol (la disposició «centrat» els posa
+      en columnes diferents). Amb fraccions, cada meitat és un \left…\right amb
+      un \vphantom de tot el contingut: fa la mateixa alçada que tot el grup. */
+  function meitatsTex(s) {
+    if (s.includes('\\frac')) {
+      const alt = `${alcadaTex(s)}\\vphantom{${s}}`, sense = '\\kern-\\nulldelimiterspace';
+      return [`\\left(${alt}\\right.${sense}`, `${sense}\\left.${alt}\\right)`];
     }
-    let alcada = '';
-    if (h) {
-      const r = 1.25 + .4 * h;
-      alcada = `\\mathopen{\\vphantom{\\rule[-${(r - .25).toFixed(2)}em]{0pt}{${(2 * r).toFixed(2)}em}}}`;
-    }
-    return `\\left(${alcada}${s}\\right)`;
+    const nivell = Math.min(4, profunditat(s));
+    return [OBRE_TEX[nivell], TANCA_TEX[nivell]];
   }
 
   /* A la previsualització, el mateix criteri: cada nivell, un 22 % més gran;
      amb fraccions, de partida gairebé el doble. */
-  function parentesiHtml(s) {
+  function obreHtml(s) {
     const h = profunditat(s), fraccio = s.includes('class="fr"');
-    if (!h && !fraccio) return `(${s})`;
-    const mida = (fraccio ? 1.9 : 1) * (1 + .22 * h);
-    const obre = `<span class="pb" style="font-size:${mida.toFixed(2)}em">`;
-    return `<span class="pg">${obre}(</span>${s}${obre})</span></span>`;
+    if (!h && !fraccio) return '';
+    return `<span class="pb" style="font-size:${((fraccio ? 1.9 : 1) * (1 + .22 * h)).toFixed(2)}em">`;
+  }
+
+  function parentesiHtml(s) {
+    const obre = obreHtml(s);
+    return obre ? `<span class="pg">${obre}(</span>${s}${obre})</span></span>` : `(${s})`;
+  }
+
+  function meitatsHtml(s) {
+    const obre = obreHtml(s);
+    return obre ? [`<span class="pg">${obre}(</span></span>`, `<span class="pg">${obre})</span></span>`] : ['(', ')'];
   }
 
   /* L'exponent d'un parèntesi allargat s'enlaira segons la mida del parèntesi
@@ -221,7 +241,12 @@ var Motor = (function () {
     oposat: s => '-' + (s.startsWith('\\left(') ? '\\mathopen{}' : '') + s,
     // La part que es calcula a la línia següent. Entre claus: un \underbrace sol és
     // un operador, i el − o el + que el segueix es componia com un signe, «−6».
-    destaca: s => `{\\underbrace{${s}}_{}}`
+    destaca: s => `{\\underbrace{${s}}_{}}`,
+    // «Centrat»: cada parèntesi, cada operador i cada − d'un oposat, sols a la seva columna.
+    // Entre {} perquè TeX hi posi els mateixos espais que dins de la fórmula.
+    meitats: meitatsTex,
+    operadorSol: op => `{}${TEX.operador(op)}{}`,
+    menys: '-'
   };
 
   const HTML = {
@@ -231,7 +256,10 @@ var Motor = (function () {
     parentesi: parentesiHtml,
     potencia: potenciaHtml,
     oposat: s => '−' + s,
-    destaca: s => `<u class="dest">${s}</u>`
+    destaca: s => `<u class="dest">${s}</u>`,
+    meitats: meitatsHtml,
+    operadorSol: op => HTML.operador(op),
+    menys: '−'
   };
 
   /** Cal un parèntesi al voltant de `fill`, que és el costat 'l' o 'r' de
@@ -557,7 +585,7 @@ var Motor = (function () {
   function comuDenominador(node) {
     const a = node.l, b = node.r, m = a.d / mcd(a.d, b.d) * b.d;
     return { t: 'bin', op: node.op,
-             l: { t: 'val', n: a.n * (m / a.d), d: m }, r: { t: 'val', n: b.n * (m / b.d), d: m } };
+             l: { t: 'val', n: a.n * (m / a.d), d: m, id: a.id }, r: { t: 'val', n: b.n * (m / b.d), d: m, id: b.id } };
   }
 
   /** La regla dels signes: a − (−b) → a + b; a + (−b) → a − b. */
@@ -582,16 +610,17 @@ var Motor = (function () {
 
   /** Una còpia de l'arbre T on cada node de `canvien` passa per f (amb els
       fills ja copiats). L'oposat d'un valor positiu passa a ser el valor
-      negatiu sense cap línia: −10 s'escriu igual. */
+      negatiu sense cap línia: −10 s'escriu igual. Cada node conserva l'id
+      del de l'enunciat que substitueix (la disposició «centrat» el fa servir). */
   function transforma(T, canvien, f, tipus, marques) {
     const copia = n => {
       let c;
-      if (n.t === 'bin') c = { t: 'bin', op: n.op, l: copia(n.l), r: copia(n.r) };
-      else if (n.t === 'neg') c = { t: 'neg', a: copia(n.a) };
-      else if (n.t === 'pow') c = { t: 'pow', a: copia(n.a), k: n.k };
+      if (n.t === 'bin') c = { t: 'bin', op: n.op, l: copia(n.l), r: copia(n.r), id: n.id };
+      else if (n.t === 'neg') c = { t: 'neg', a: copia(n.a), id: n.id };
+      else if (n.t === 'pow') c = { t: 'pow', a: copia(n.a), k: n.k, id: n.id };
       else c = Object.assign({}, n);
-      if (canvien.includes(n)) c = f(c);
-      if (c.t === 'neg' && c.a.t === 'val' && c.a.n >= 0) c = Object.assign({}, c.a, { n: -c.a.n });
+      if (canvien.includes(n)) c = Object.assign(f(c), { id: n.id });
+      if (c.t === 'neg' && c.a.t === 'val' && c.a.n >= 0) c = Object.assign({}, c.a, { n: -c.a.n, id: c.id });
       return c;
     };
     return { nou: copia(T), tipus, marques: new Set(marques || canvien) };
@@ -631,6 +660,7 @@ var Motor = (function () {
     op = op || {};
     const unaOperacio = op.gra === 'op', simp = op.simp === undefined ? true : !!+op.simp;
     let T = ambValors(arbre);
+    nodes(T).forEach((n, i) => { n.id = i; });       // cada node de l'enunciat, el seu id
     const llista = [{ arbre: T }];
     while (T.t !== 'val' || T.brut) {
       if (llista.length > 300) throw new Error('solucionari: no acaba');
@@ -655,11 +685,112 @@ var Motor = (function () {
     return { tex: ps.map(p => linia(p, TEX)), html: ps.map(p => linia(p, HTML)), passos: ps };
   }
 
+  /* ------------------------------------------------ la disposició «centrat»
+     Totes les línies en una taula (un array, al .tex): cada nombre, cada
+     operador, cada − d'un oposat i cada parèntesi de l'enunciat té la seva
+     columna, i el resultat d'un càlcul ocupa les columnes del que substitueix,
+     centrat a sota. Així un signe que encara hi és no canvia mai de columna.
+     El «=» va al final de cada línia, menys de l'última:
+
+         2 + 3 · (5 − 2)² + 8 =
+         2 + 3 ·    3²    + 8 =
+         2 + 3 ·    9     + 8 =
+         2 +     27       + 8 =
+              29          + 8 =
+                    37
+
+     Cada node d'un pas porta l'id del node de l'enunciat que substitueix
+     (passos i transforma el conserven): és el que diu a quines columnes va. */
+
+  /** Un node que s'escriu d'una peça: un valor o la potència d'un valor. */
+  const compacte = n => n.t === 'val' || (n.t === 'pow' && n.a.t === 'val');
+
+  /** Té parèntesis propis? Els que li posa el pare (embolcallat) o, si és un
+      oposat que no és al principi, els de notació: (−(2+3)). */
+  const ambParentesis = (n, alPrincipi, embolcallat) => embolcallat || (n.t === 'neg' && !alPrincipi);
+
+  /** Les columnes de l'enunciat. Deixa a col.span l'interval [a, b) de cada
+      node, amb els seus parèntesis. alPrincipi, com a escriu; embolcallat: el
+      pare l'escriu entre parèntesis (una operació o la base d'una potència). */
+  function columnes(n, alPrincipi, embolcallat, col) {
+    if (compacte(n)) { col.span.set(n.id, [col.n, ++col.n]); return; }
+    const a = col.n, par = ambParentesis(n, alPrincipi, embolcallat);
+    if (par) col.n++;
+    if (n.t === 'bin') {
+      const pl = calParentesi(n.l, n, 'l'), pr = calParentesi(n.r, n, 'r');
+      columnes(n.l, pl || alPrincipi, pl, col);
+      col.n++;                                                // l'operador
+      columnes(n.r, pr, pr, col);
+    } else if (n.t === 'neg') {
+      col.n++;                                                // el −
+      columnes(n.a, n.a.t === 'bin', n.a.t === 'bin', col);
+    } else columnes(n.a, true, true, col);                    // la base d'una potència
+    if (par) col.n++;
+    col.span.set(n.id, [a, col.n]);
+  }
+
+  /** Una línia de la taula: els trossos [{a, b, s}] de l'arbre n (un pas), cada
+      text s a les columnes [a, b) del node de l'enunciat que substitueix. */
+  function trossos(n, E, alPrincipi, embolcallat, span) {
+    const [a, b] = span.get(n.id);
+    if (compacte(n)) {
+      const s = escriu(n, E, nousComptadors(), alPrincipi);
+      return [{ a, b, s: embolcallat ? E.parentesi(s) : s }];
+    }
+    let t;
+    if (n.t === 'bin') {
+      const pl = calParentesi(n.l, n, 'l'), pr = calParentesi(n.r, n, 'r'), o = span.get(n.l.id)[1];
+      t = trossos(n.l, E, pl || alPrincipi, pl, span).concat({ a: o, b: o + 1, s: E.operadorSol(n.op) }, trossos(n.r, E, pr, pr, span));
+    } else if (n.t === 'neg') {
+      const grup = n.a.t === 'bin', o = span.get(n.a.id)[0] - 1;
+      t = [{ a: o, b: o + 1, s: E.menys }].concat(trossos(n.a, E, grup, grup, span));
+    } else {                                                  // l'exponent, a l'últim tros de la base: (5−2)²
+      t = trossos(n.a, E, true, true, span);
+      const u = t[t.length - 1];
+      t[t.length - 1] = { a: u.a, b: u.b, s: E.potencia(u.s, n.k) };
+    }
+    if (!ambParentesis(n, alPrincipi, embolcallat)) return t;
+    const [obre, tanca] = E.meitats(escriu(n, E, nousComptadors(), true));
+    return [{ a, b: a + 1, s: obre }].concat(t, { a: b - 1, b, s: tanca });
+  }
+
+  /** La resolució en disposició «centrat»: tex, un array de LaTeX; html, una
+      taula; files, els trossos de cada línia ({tex, html}). */
+  function centrada(arbre, op) {
+    const ps = passos(arbre, op), col = { n: 0, span: new Map() };
+    columnes(ps[0].arbre, true, false, col);
+    const N = col.n;
+    const files = ps.map(p => {
+      const f = { tex: trossos(p.arbre, TEX, true, false, col.span), html: trossos(p.arbre, HTML, true, false, col.span) };
+      // Els trossos cobreixen les N columnes, en ordre i sense encavalcar-se
+      if (f.tex.some((t, i) => t.a !== (i ? f.tex[i - 1].b : 0) || t.b <= t.a) || f.tex[f.tex.length - 1].b !== N)
+        throw new Error('centrat: les columnes no quadren');
+      return f;
+    });
+    const ultima = k => k === files.length - 1;
+    // Una cel·la. \displaystyle, com a la fórmula sencera: fraccions, exponents i \left( de la mateixa mida
+    const cel = ({ a, b, s }) => {
+      if (/\\frac|\^|\\left/.test(s)) s = '\\displaystyle ' + s;
+      return b - a > 1 ? `\\multicolumn{${b - a}}{@{}c@{}}{${s}}` : s;
+    };
+    // Entre dues línies, un espai fix (\noalign): així una línia amb fraccions no toca mai la del costat
+    const fr = k => files[k].tex.some(t => t.s.includes('\\frac'));
+    const tex = `\\begin{array}[t]{@{}*{${N + 1}}{c@{}}}\n`
+      + files.map((f, k) => f.tex.map(cel).join(' & ')
+        + (ultima(k) ? '\n' : ` & {}={} \\\\\\noalign{\\vskip ${fr(k) || fr(k + 1) ? 6 : 3}pt}\n`)).join('')
+      + '\\end{array}';
+    const td = ({ a, b, s }) => `<td${b - a > 1 ? ` colspan="${b - a}"` : ''}>${s}</td>`;
+    const html = '<table class="centrat">'
+      + files.map((f, k) => `<tr>${f.html.map(td).join('')}${ultima(k) ? '' : '<td class="igual">=</td>'}</tr>`).join('')
+      + '</table>';
+    return { tex, html, files };
+  }
+
   /* --------------------------------------------------------------- el .tex
      Només el cos: el main.tex del professor fa \input{exN.tex}. Només LaTeX
      estàndard + amsmath: cap macro de defs.tex. m = {num, seed, adreca}; amb
      l'adreça (#…), el comentari del principi diu com refer el full.
-     sol = {mode, resolts, gra, simp, dest, nomes}, les solucions. Amb el mode
+     sol = {mode, resolts, gra, simp, dest, nomes, cen}, les solucions. Amb el mode
      «guiades», els exercicis de `resolts` (índexs) porten la resolució a sota;
      amb qualsevol altre mode, exN.tex és el de sempre, byte a byte. */
 
@@ -680,8 +811,11 @@ var Motor = (function () {
 
   /** Un exercici resolt: l'enunciat a l'\item i, a sota, una línia per pas.
       flalign* (amsmath) i no align*: align* centrava les línies al mig del
-      full, lluny de l'enunciat; així comencen just a sota. */
-  function itemResolt(r) {
+      full, lluny de l'enunciat; així comencen just a sota. Amb sol.cen
+      («centrat»), un array que té l'enunciat a la primera fila. */
+  function itemResolt(arbre, sol) {
+    if (+sol.cen) return `\\item $${centrada(arbre, sol).tex}$\n`;
+    const r = resolucio(arbre, sol);
     return `\\item $\\displaystyle ${r.tex[0]}$\n\\begin{flalign*}\n`
       + r.tex.slice(1).map(l => `&= ${l} &&`).join('\\\\\n') + '\n\\end{flalign*}\n';
   }
@@ -698,7 +832,7 @@ var Motor = (function () {
       + (resolts.size ? '\\allowdisplaybreaks\n' : '');      // una resolució llarga pot partir de pàgina
     exs.forEach((e, i) => {
       // Un exercici resolt no necessita espai per escriure-hi: el petit.
-      if (resolts.has(i)) s += itemResolt(resolucio(e.arbre, sol)) + `${vs}{${ESPAIS.petit}}\n`;
+      if (resolts.has(i)) s += itemResolt(e.arbre, sol) + `${vs}{${ESPAIS.petit}}\n`;
       else s += `\\item $\\displaystyle ${e.tex}$\n${vs}{${ESPAIS[p.esp]}}\n`;
     });
     return s + '\\end{enumerate}\n';
@@ -717,12 +851,12 @@ var Motor = (function () {
       if (+sol.nomes) {
         const r = resolucio(e.arbre, Object.assign({}, sol, { dest: 0 }));
         s += `\\item $\\displaystyle ${e.tex}=${r.tex[r.tex.length - 1]}$\n\\par\\medskip\n`;
-      } else s += itemResolt(resolucio(e.arbre, sol)) + `\\par\\vspace{${ESPAIS.petit}}\n`;
+      } else s += itemResolt(e.arbre, sol) + `\\par\\vspace{${ESPAIS.petit}}\n`;
     });
     return s + '\\end{enumerate}\n';
   }
 
-  const M = { VERSIO, GENERADOR, ESPAIS, SIMBOLS, EXTRES, valida, opcions, exercici, passos, resolucio, fitxerTex, fitxerSolucionari };
+  const M = { VERSIO, GENERADOR, ESPAIS, SIMBOLS, EXTRES, valida, opcions, exercici, passos, resolucio, centrada, fitxerTex, fitxerSolucionari };
   if (typeof module !== 'undefined') module.exports = M;
   return M;
 })();

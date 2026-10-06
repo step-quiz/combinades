@@ -216,6 +216,74 @@ function sensDestacats(tex) {
   }
   return tex;
 }
+/* «Centrat»: l'array del .tex i la taula de l'HTML, llegits pel seu compte.
+   Cada fila: [{a, b, s}], el text s a les columnes [a, b); l'última cel·la de
+   cada fila menys de l'última és el «=». */
+function treuVphantoms(s) {                         // \vphantom{…}, amb claus dins
+  for (let i; (i = s.indexOf('\\vphantom{')) >= 0;) {
+    let j = i + 10, d = 1;
+    for (; d && j < s.length; j++) { if (s[j] === '{') d++; else if (s[j] === '}') d--; }
+    s = s.slice(0, i) + s.slice(j);
+  }
+  return s;
+}
+function llegeixArray(tex) {
+  const m = /^\\begin\{array\}\[t\]\{@\{\}\*\{(\d+)\}\{c@\{\}\}\}\n([\s\S]*)\n\\end\{array\}$/.exec(tex);
+  if (!m) throw new Error('no és un array «centrat»');
+  const files = m[2].split(/ \\\\\\noalign\{\\vskip \d+pt\}\n/).map((fila) => {
+    let a = 0;
+    return fila.split(' & ').map((c) => {
+      const mc = /^\\multicolumn\{(\d+)\}\{@\{\}c@\{\}\}\{([\s\S]*)\}$/.exec(c), k = mc ? +mc[1] : 1;
+      const cel = { a, b: a + k, s: mc ? mc[2] : c };
+      a += k;
+      return cel;
+    });
+  });
+  return { columnes: +m[1], files };
+}
+function llegeixTaula(html) {
+  const m = /^<table class="centrat">((?:<tr>.*?<\/tr>)*)<\/table>$/.exec(html);
+  if (!m) throw new Error('no és una taula «centrat»');
+  return [...m[1].matchAll(/<tr>(.*?)<\/tr>/g)].map(([, tr]) => {
+    let a = 0;
+    return [...tr.matchAll(/<td(?: colspan="(\d+)")?( class="igual")?>(.*?)<\/td>/g)].map(([, k, igual, s]) => {
+      const cel = { a, b: a + (+k || 1), s: igual ? '=' : s };
+      a = cel.b;
+      return cel;
+    });
+  });
+}
+/** El text lineal d'una cel·la del .tex: sense \displaystyle, ni els {} d'un operador, ni el \vphantom d'una meitat de parèntesi. */
+const celTex = (s) => treuVphantoms(s.replace(/^\\displaystyle /, '').replace(/^\{\}|\{\}$/g, ''))
+  .replace(/\\right\.\\kern-\\nulldelimiterspace|\\kern-\\nulldelimiterspace\\left\./g, '');
+/** I el d'una cel·la de l'HTML: les dues meitats d'un parèntesi gran, com si fossin un sol grup. */
+const celHtml = (s) => s.replace(/^<span class="pg">(<span class="pb"[^>]*>\(<\/span>)<\/span>/, '<span class="pg">$1')
+  .replace(/^<span class="pg">(<span class="pb"[^>]*>\)<\/span><\/span>)/, '$1');
+const esOperador = (s) => /^\{\}(\+|-|\\cdot |:)\{\}$/.test(s) || s === '-';
+function revisaCentrat(nom, e, gra, r) {
+  let c, t, files;
+  try { c = Motor.centrada(e.arbre, { gra }); t = llegeixArray(c.tex); files = llegeixTaula(c.html); } catch (x) { falla(`${nom} centrat: ${x.message}`); return; }
+  const N = t.columnes - 1;
+  if (t.files.length !== r.tex.length || files.length !== r.tex.length) { falla(`${nom} centrat: ${t.files.length} files i ${r.tex.length} línies`); return; }
+  t.files.forEach((f, k) => {
+    const ultima = k === t.files.length - 1, igual = f[f.length - 1], h = files[k];
+    // Cada fila cobreix les N columnes (més la del «=», menys a l'última)
+    if (f[f.length - 1].b !== (ultima ? N : N + 1) || h[h.length - 1].b !== f[f.length - 1].b) falla(`${nom} centrat: la fila ${k} no fa ${N} columnes`);
+    if (!ultima && (igual.s !== '{}={}' || igual.a !== N || h[h.length - 1].s !== '=')) falla(`${nom} centrat: la fila ${k} no acaba amb =`);
+    const cos = ultima ? f : f.slice(0, -1), cosH = ultima ? h : h.slice(0, -1);
+    // I diu el mateix que la línia de la resolució
+    if (linealTex(cos.map((x) => celTex(x.s)).join('')) !== linealTex(r.tex[k])) falla(`${nom} centrat: la fila «${c.tex.split('\n')[k + 1]}» no és «${r.tex[k]}»`);
+    if (linealHtml(cosH.map((x) => celHtml(x.s)).join('')) !== linealHtml(r.html[k])) falla(`${nom} centrat: la fila HTML ${k} no és la línia ${r.html[k]}`);
+    if (cosH.map((x) => x.a + ':' + x.b).join() !== cos.map((x) => x.a + ':' + x.b).join()) falla(`${nom} centrat: l'HTML i el TeX no tenen les mateixes columnes a la fila ${k}`);
+    if (!k) return;
+    // Un resultat ocupa les columnes del que substitueix: les vores de cada fila també ho són de l'anterior
+    const vores = new Set(t.files[k - 1].map((x) => x.a));
+    if (cos.some((x) => !vores.has(x.a))) falla(`${nom} centrat: la fila ${k} té una columna nova`);
+    // Un signe no canvia mai de columna: cada operador d'una fila ja era a la mateixa columna de l'anterior
+    if (cos.some((x) => esOperador(x.s) && !t.files[k - 1].some((y) => y.a === x.a && y.b === x.b && esOperador(y.s)))) falla(`${nom} centrat: un signe ha canviat de columna a la fila ${k}`);
+  });
+}
+
 function revisaResolucio(etq, p, e) {
   const li = p.set === 'N' || !p.int ? 'N' : p.set;
   const linies = {};
@@ -238,6 +306,7 @@ function revisaResolucio(etq, p, e) {
       }
     }
     if (r.tex.length > 4 * totsNodes(e.arbre).length) falla(`${nom}: massa línies (${r.tex.length})`);
+    revisaCentrat(nom, e, gra, r);
     if (gra === 'prio') {                                  // «destaca l'operació»: les mateixes línies, amb marques
       const d = Motor.resolucio(e.arbre, { gra, dest: 1 });
       // (\mathopen{} només canvia l'espai: amb una part destacada, també va darrere d'un −)
@@ -520,6 +589,47 @@ if (!Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 1 }).ok) fal
   const r = Motor.fitxerSolucionari(ex, p, m, { nomes: 1, dest: 1 });
   if (compta(r, /\\item /g) !== p.n || r.includes('flalign') || r.includes('underbrace') ||
       !ex.every((e) => r.includes(`\\item $\\displaystyle ${e.tex}=`))) falla('solucionari: només resultats');
+  // «Centrat»: cada exercici resolt és un array, amb l'enunciat a la primera fila; «destaca» no s'hi aplica
+  const enunciats = (t) => t.match(/^\\item \$\\displaystyle .*\$$/gm) || [];
+  const gc = Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [2, 0], cen: 1, dest: 1 });
+  if (compta(gc, /^\\item \$\\begin\{array\}\[t\]/gm) !== 2 || compta(gc, /^\\end\{array\}\$$/gm) !== 2 || compta(gc, /\\item /g) !== p.n ||
+      gc.includes('flalign') || gc.includes('underbrace') || !gc.includes(' · resolts: 1, 3\n')) falla('guiades centrat: resolucions');
+  if (enunciats(gc).join('\n') !== enunciats(Motor.fitxerTex(ex, p, m)).filter((x, i) => i !== 0 && i !== 2).join('\n')) falla('guiades centrat: els altres enunciats');
+  const sc = Motor.fitxerSolucionari(ex, p, m, { cen: 1, dest: 1, gra: 'op' });
+  if (compta(sc, /^\\item \$\\begin\{array\}\[t\]/gm) !== p.n || sc.includes('flalign') || sc.includes('underbrace')) falla('solucionari centrat');
+}
+
+/* ── 12. «Centrat», exemple a exemple: cada signe es queda a la seva columna i
+   cada resultat va a les columnes del que substitueix ([k]: ocupa k columnes).
+   El primer, el del professor:
+       2 + 3 · (5 − 2)² + 8 =
+       2 + 3 ·    3²    + 8 =
+       2 + 3 ·    9     + 8 =
+       2 +     27       + 8 =
+            29          + 8 =
+                  37                                                          */
+{
+  const N = (v) => ({ t: 'num', v }), F = (p, q) => ({ t: 'frac', p, q }), O = (a) => ({ t: 'neg', a }),
+    P = (a, k) => ({ t: 'pow', a, k }), B = (op, l, r) => ({ t: 'bin', op, l, r });
+  const curt = (c) => (c.b - c.a > 1 ? `[${c.b - c.a}]` : '') + celTex(c.s).replace(/\\cdot /, '·').replace(/\^\{(\d+)\}/, '^$1')
+    .replace(/\\left\(/, '(').replace(/\\right\)/, ')');
+  const casos = [
+    [B('+', B('+', N(2), B('*', N(3), P(B('-', N(5), N(2)), 2))), N(8)), {},
+      '2 + 3 · ( 5 - 2 )^2 + 8 = | 2 + 3 · [5]3^2 + 8 = | 2 + 3 · [5]9 + 8 = | 2 + [7]27 + 8 = | [9]29 + 8 = | [11]37'],
+    [B('+', B('+', N(2), B('*', N(3), P(B('-', N(5), N(2)), 2))), N(8)), { gra: 'op' },
+      '2 + 3 · ( 5 - 2 )^2 + 8 = | 2 + 3 · [5]3^2 + 8 = | 2 + 3 · [5]9 + 8 = | 2 + [7]27 + 8 = | [9]29 + 8 = | [11]37'],
+    [B('*', O(B('-', N(2), N(5))), N(4)), {}, '- ( 2 - 5 ) · 4 = | - [5](-3) · 4 = | [6]3 · 4 = | [8]12'],
+    [B('+', B('-', N(5), O(N(3))), O(N(8))), {}, '5 - (-3) + (-8) = | 5 + 3 - 8 = | [3]8 - 8 = | [5]0'],
+    [B('*', N(5), O(B('+', N(2), N(3)))), {}, '5 · \\bigl( - ( 2 + 3 ) \\bigr) = | 5 · [8](-5) = | [10]-25'],
+    [B('+', B('*', N(2), N(3)), B('*', N(4), N(5))), { gra: 'op' }, '2 · 3 + 4 · 5 = | [3]6 + 4 · 5 = | [3]6 + [3]20 = | [7]26'],
+    [B('*', N(3), B('+', F(1, 2), F(1, 4))), {},
+      '3 · ( \\frac{1}{2} + \\frac{1}{4} ) = | 3 · ( \\frac{2}{4} + \\frac{1}{4} ) = | 3 · [5]\\frac{3}{4} = | [7]\\frac{9}{4}']
+  ];
+  for (const [arbre, op, esperades] of casos) {
+    const files = llegeixArray(Motor.centrada(arbre, op).tex).files.map((f) => f.map(curt).join(' ')).join(' | ');
+    if (files !== esperades) falla(`centrat ${JSON.stringify(op)}: ${files}  (esperat: ${esperades})`);
+  }
+  if (Motor.centrada(casos[0][0], { dest: 1 }).tex.includes('underbrace')) falla('centrat: «destaca» no s\'hi aplica');
 }
 
 console.log(`${combos} combinacions (i ${combosTotes} amb força i gradual), ${total} exercicis, ${errors} errors`);
