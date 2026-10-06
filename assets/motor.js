@@ -20,7 +20,7 @@
 var Motor = (function () {
   'use strict';
 
-  const VERSIO = 'v0.2';
+  const VERSIO = 'v0.3';
 
   /* La versió del GENERADOR va a l'adreça (g=…), perquè un full desat surti
      sempre amb el generador amb què es va fer. Les adreces sense g són de la
@@ -218,7 +218,10 @@ var Motor = (function () {
     parentesi: parentesiTex,
     potencia: (base, k) => `${base}^{${k}}`,
     // Davant d'un \left( cal \mathopen{}: si no, TeX hi deixa un espai fi, «− (».
-    oposat: s => '-' + (s.startsWith('\\left(') ? '\\mathopen{}' : '') + s
+    oposat: s => '-' + (s.startsWith('\\left(') ? '\\mathopen{}' : '') + s,
+    // La part que es calcula a la línia següent. Entre claus: un \underbrace sol és
+    // un operador, i el − o el + que el segueix es componia com un signe, «−6».
+    destaca: s => `{\\underbrace{${s}}_{}}`
   };
 
   const HTML = {
@@ -227,7 +230,8 @@ var Motor = (function () {
     operador: op => `<span class="op">${({ '+': '+', '-': '−', '*': '·', ':': ':' })[op]}</span>`,
     parentesi: parentesiHtml,
     potencia: potenciaHtml,
-    oposat: s => '−' + s
+    oposat: s => '−' + s,
+    destaca: s => `<u class="dest">${s}</u>`
   };
 
   /** Cal un parèntesi al voltant de `fill`, que és el costat 'l' o 'r' de
@@ -246,11 +250,23 @@ var Motor = (function () {
 
   /** Escriu l'arbre amb l'emissor E i compta a `c` el que hi surt.
       `alPrincipi`: el node és el primer símbol de l'expressió o d'un grup.
-      Només allà un negatiu va sense parèntesi: −3+5, però 5·(−3). */
+      Només allà un negatiu va sense parèntesi: −3+5, però 5·(−3).
+      Els nodes de `c.marcats` (si n'hi ha) surten destacats. */
   function escriu(node, E, c, alPrincipi) {
+    const s = escriuNode(node, E, c, alPrincipi);
+    return c.marcats && c.marcats.has(node) ? E.destaca(s) : s;
+  }
+
+  function escriuNode(node, E, c, alPrincipi) {
     switch (node.t) {
       case 'num': return E.nombre(node.v);
       case 'frac': return E.fraccio(node.p, node.q);
+      case 'val': {           // un valor del solucionari: com el nombre, la fracció o l'oposat que seria
+        const s = node.d === 1 ? E.nombre(Math.abs(node.n)) : E.fraccio(Math.abs(node.n), node.d);
+        if (!(node.n < 0)) return s;
+        const negatiu = E.oposat(s);
+        return alPrincipi ? negatiu : E.parentesi(negatiu);
+      }
       case 'neg': {
         c.neg++;
         let dins;
@@ -266,6 +282,7 @@ var Motor = (function () {
         const b = node.a;
         let base;
         if (b.t === 'num') base = E.nombre(b.v);
+        else if (b.t === 'val' && b.d === 1 && b.n >= 0) base = E.nombre(b.n);
         else if (b.t === 'bin') { c.grups++; c.parentesis++; base = E.parentesi(escriu(b, E, c, true)); }
         else {                                                 // (−3)², (2/3)², (−(2+3))²
           if (b.t === 'neg' && b.a.t === 'bin') c.parentesis++;
@@ -476,25 +493,236 @@ var Motor = (function () {
     return x;
   }
 
+  /* ======================================================== el solucionari
+     La resolució pas a pas d'un exercici, com es fa a l'aula (decisions del
+     professor, todo.md §5):
+       - primer els parèntesis, d'un en un: el grup més interior i, si n'hi ha
+         diversos, el de més a l'esquerra (el FOCUS). Sense grups pendents, el
+         focus és tota l'expressió;
+       - dins del focus: −(−a); després les potències; després · i :; i
+         després + i −: primer una línia amb la regla dels signes, 5−(−3) →
+         5+3, i després d'una en una, d'esquerra a dreta;
+       - amb fraccions, una suma o una resta es passa primer a comú
+         denominador (el m.c.m.), i un resultat que es pot simplificar se
+         simplifica a la línia següent (si `simp`).
+     Granularitat: «prio» fa en una línia totes les operacions del mateix
+     nivell del focus (2·3+4·5 → 6+20); «op», només la de més a l'esquerra.
+
+     Els passos són arbres amb un tipus de fulla nou, {t:'val', n, d}: un
+     valor exacte (d > 0) que pot estar sense simplificar (6/8, o 6/2 quan es
+     passa a comú denominador). S'escriu com el nombre, la fracció o l'oposat
+     que seria, o sigui que l'enunciat passat a valors s'escriu igual. Els
+     passos no fan servir l'atzar. */
+
+  /** L'enunciat amb valors. L'oposat d'un nombre, −3, també és un valor: és
+      un nombre i no una operació (si no, (−3) → (−3) seria un pas buit). */
+  function ambValors(n) {
+    switch (n.t) {
+      case 'num': return { t: 'val', n: n.v, d: 1 };
+      case 'frac': return { t: 'val', n: n.p, d: n.q };
+      case 'val': return Object.assign({}, n);
+      case 'neg':
+        if (n.a.t === 'num' || n.a.t === 'frac') { const v = ambValors(n.a); v.n = -v.n; return v; }
+        return { t: 'neg', a: ambValors(n.a) };
+      case 'pow': return { t: 'pow', a: ambValors(n.a), k: n.k };
+      case 'bin': return { t: 'bin', op: n.op, l: ambValors(n.l), r: ambValors(n.r) };
+    }
+  }
+
+  /** El resultat d'una operació tal com surt, n/d. Si es pot simplificar i es
+      vol el pas de simplificar, queda marcat (brut) per a la línia següent. */
+  function resultat(n, d, simp) {
+    if (d < 0) { n = -n; d = -d; }
+    if (n === 0) return { t: 'val', n: 0, d: 1 };
+    const k = mcd(n, d);
+    return k > 1 && simp ? { t: 'val', n, d, brut: true } : { t: 'val', n: n / k, d: d / k };
+  }
+
+  /** Una potència o una operació amb dos valors. Les sumes i les restes ja
+      arriben amb el mateix denominador. */
+  function calcula(node, simp) {
+    if (node.t === 'pow') return resultat(node.a.n ** node.k, node.a.d ** node.k, simp);
+    const a = node.l, b = node.r;
+    switch (node.op) {
+      case '*': return resultat(a.n * b.n, a.d * b.d, simp);
+      case ':':   // dos enters que es divideixen exactament: l'enter (12:4 = 3, no 12/4)
+        if (a.d === 1 && b.d === 1 && a.n % b.n === 0) return { t: 'val', n: a.n / b.n, d: 1 };
+        return resultat(a.n * b.d, a.d * b.n, simp);
+      case '+': return resultat(a.n + b.n, a.d, simp);
+      case '-': return resultat(a.n - b.n, a.d, simp);
+    }
+  }
+
+  /** a ± b, amb denominadors diferents, passat a comú denominador (m.c.m.). */
+  function comuDenominador(node) {
+    const a = node.l, b = node.r, m = a.d / mcd(a.d, b.d) * b.d;
+    return { t: 'bin', op: node.op,
+             l: { t: 'val', n: a.n * (m / a.d), d: m }, r: { t: 'val', n: b.n * (m / b.d), d: m } };
+  }
+
+  /** La regla dels signes: a − (−b) → a + b; a + (−b) → a − b. */
+  function canviaSigne(node) {
+    return { t: 'bin', op: node.op === '+' ? '-' : '+', l: node.l, r: Object.assign({}, node.r, { n: -node.r.n }) };
+  }
+
+  /** El focus: el primer grup pendent (en ordre de lectura) que no en té cap
+      altre a dins. Un grup és una operació que s'escriu entre parèntesis:
+      la que en demana el pare, la d'un oposat, −(…), o la base d'una potència. */
+  function focus(T) {
+    const grups = [];
+    (function recorre(n, pare, costat) {
+      if (n.t === 'bin') {
+        if (pare && (pare.t !== 'bin' || calParentesi(n, pare, costat))) grups.push(n);
+        recorre(n.l, n, 'l');
+        recorre(n.r, n, 'r');
+      } else if (n.a) recorre(n.a, n, null);
+    })(T, null, null);
+    return grups.find(g => !grups.some(h => h !== g && nodes(g).includes(h))) || T;
+  }
+
+  /** Una còpia de l'arbre T on cada node de `canvien` passa per f (amb els
+      fills ja copiats). L'oposat d'un valor positiu passa a ser el valor
+      negatiu sense cap línia: −10 s'escriu igual. */
+  function transforma(T, canvien, f, tipus, marques) {
+    const copia = n => {
+      let c;
+      if (n.t === 'bin') c = { t: 'bin', op: n.op, l: copia(n.l), r: copia(n.r) };
+      else if (n.t === 'neg') c = { t: 'neg', a: copia(n.a) };
+      else if (n.t === 'pow') c = { t: 'pow', a: copia(n.a), k: n.k };
+      else c = Object.assign({}, n);
+      if (canvien.includes(n)) c = f(c);
+      if (c.t === 'neg' && c.a.t === 'val' && c.a.n >= 0) c = Object.assign({}, c.a, { n: -c.a.n });
+      return c;
+    };
+    return { nou: copia(T), tipus, marques: new Set(marques || canvien) };
+  }
+
+  /** La línia següent de la resolució de T. */
+  function pas(T, unaOperacio, simp) {
+    const tria = llista => (unaOperacio ? llista.slice(0, 1) : llista);
+    // Un resultat que es pot simplificar, se simplifica abans de res
+    const bruts = nodes(T).filter(n => n.t === 'val' && n.brut);
+    if (bruts.length) return transforma(T, bruts, n => resultat(n.n, n.d, false), 'simplifica');
+    const dins = nodes(focus(T)), val = n => n.t === 'val';
+    // −(−a)
+    let cands = dins.filter(n => n.t === 'neg' && val(n.a));
+    if (cands.length) return transforma(T, tria(cands), n => ({ t: 'val', n: -n.a.n, d: n.a.d }), 'signes');
+    // potències
+    cands = dins.filter(n => n.t === 'pow' && val(n.a));
+    if (cands.length) return transforma(T, tria(cands), n => calcula(n, simp), 'potencia');
+    // · i :
+    cands = dins.filter(n => n.t === 'bin' && (n.op === '*' || n.op === ':') && val(n.l) && val(n.r));
+    if (cands.length) return transforma(T, tria(cands), n => calcula(n, simp), 'producte');
+    // + i −: primer la regla dels signes, tota en una línia
+    cands = dins.filter(n => n.t === 'bin' && (n.op === '+' || n.op === '-') && val(n.r) && n.r.n < 0);
+    if (cands.length) return transforma(T, cands, canviaSigne, 'signes', cands.map(n => n.r));
+    // i després d'una en una (amb el focus pla, només n'hi ha una de llesta: la de més a l'esquerra)
+    const s = dins.find(n => n.t === 'bin' && val(n.l) && val(n.r));
+    if (!s) throw new Error('solucionari: cap operació a fer');
+    if (s.l.d !== s.r.d) return transforma(T, [s], comuDenominador, 'mcm');
+    return transforma(T, [s], n => calcula(n, simp), 'suma');
+  }
+
+  /** Els passos de la resolució: [{arbre, tipus, marques}]. El primer és
+      l'enunciat; l'últim, el resultat (un sol valor). `tipus`: com s'ha
+      arribat a aquest pas; `marques`: els nodes que canvien al següent.
+      op = {gra: 'prio'|'op', simp: true|false}. */
+  function passos(arbre, op) {
+    op = op || {};
+    const unaOperacio = op.gra === 'op', simp = op.simp === undefined ? true : !!+op.simp;
+    let T = ambValors(arbre);
+    const llista = [{ arbre: T }];
+    while (T.t !== 'val' || T.brut) {
+      if (llista.length > 300) throw new Error('solucionari: no acaba');
+      const p = pas(T, unaOperacio, simp);
+      llista[llista.length - 1].marques = p.marques;
+      T = p.nou;
+      llista.push({ arbre: T, tipus: p.tipus });
+    }
+    return llista;
+  }
+
+  /** Les línies de la resolució, en TeX i en HTML; la primera és l'enunciat.
+      Amb op.dest, cada línia destaca el que es calcula a la següent. */
+  function resolucio(arbre, op) {
+    op = op || {};
+    const ps = passos(arbre, op);
+    const linia = (p, E) => {
+      const c = nousComptadors();
+      if (+op.dest && p.marques) c.marcats = p.marques;
+      return escriu(p.arbre, E, c, true);
+    };
+    return { tex: ps.map(p => linia(p, TEX)), html: ps.map(p => linia(p, HTML)), passos: ps };
+  }
+
   /* --------------------------------------------------------------- el .tex
      Només el cos: el main.tex del professor fa \input{exN.tex}. Només LaTeX
      estàndard + amsmath: cap macro de defs.tex. m = {num, seed, adreca}; amb
-     l'adreça (#…), el comentari del principi diu com refer el full. */
-  function fitxerTex(exs, p, m) {
+     l'adreça (#…), el comentari del principi diu com refer el full.
+     sol = {mode, resolts, gra, simp, dest, nomes}, les solucions. Amb el mode
+     «guiades», els exercicis de `resolts` (índexs) porten la resolució a sota;
+     amb qualsevol altre mode, exN.tex és el de sempre, byte a byte. */
+
+  /** La segona línia del comentari: les opcions del full. */
+  function descripcio(p, m) {
     const conj = p.set === 'N' ? 'N' : `${p.set}(${[p.int && 'int', p.fin && 'fin'].filter(Boolean).join(',')})`;
     const opts = ['div', 'pot', 'par', 'opo', 'vs', 'grad'].filter(k => p[k]).map(k => k === 'grad' ? 'gradual' : k).join(' ');
-    let s = `% ex${m.num}.tex — generat per «Operacions combinades 1r ESO» ${VERSIO}\n`
-      + `% llavor=${m.seed} · n=${p.n} · espai=${p.esp} · simbols=${p.sim} · conjunt=${conj}${opts ? ' · ' + opts : ''}\n`
-      + (m.adreca ? `% per refer aquest full: index.html${m.adreca}\n` : '')
-      + '\\begin{enumerate}\n'
+    return `% llavor=${m.seed} · n=${p.n} · espai=${p.esp} · simbols=${p.sim} · conjunt=${conj}${opts ? ' · ' + opts : ''}`;
+  }
+
+  /** El principi de la llista: números en negreta i l'espai entre símbols. */
+  function principiLlista(p) {
+    return '\\begin{enumerate}\n'
       + '\\renewcommand{\\labelenumi}{\\textbf{\\arabic{enumi})}}\n'
       + '\\setlength{\\itemsep}{0pt}\n'
       + `\\medmuskip=${SIMBOLS[p.sim].med}\\thickmuskip=${SIMBOLS[p.sim].thick}\n`;
-    exs.forEach(e => { s += `\\item $\\displaystyle ${e.tex}$\n\\par\\vspace${p.vs ? '*' : ''}{${ESPAIS[p.esp]}}\n`; });
+  }
+
+  /** Un exercici resolt: l'enunciat a l'\item i, a sota, una línia per pas.
+      flalign* (amsmath) i no align*: align* centrava les línies al mig del
+      full, lluny de l'enunciat; així comencen just a sota. */
+  function itemResolt(r) {
+    return `\\item $\\displaystyle ${r.tex[0]}$\n\\begin{flalign*}\n`
+      + r.tex.slice(1).map(l => `&= ${l} &&`).join('\\\\\n') + '\n\\end{flalign*}\n';
+  }
+
+  function fitxerTex(exs, p, m, sol) {
+    const resolts = sol && sol.mode === 'guiades'
+      ? new Set((sol.resolts || []).filter(i => i >= 0 && i < exs.length)) : new Set();
+    const vs = `\\par\\vspace${p.vs ? '*' : ''}`;
+    let s = `% ex${m.num}.tex — generat per «Operacions combinades 1r ESO» ${VERSIO}\n`
+      + descripcio(p, m)
+      + (resolts.size ? ` · resolts: ${[...resolts].sort((a, b) => a - b).map(i => i + 1).join(', ')}` : '') + '\n'
+      + (m.adreca ? `% per refer aquest full: index.html${m.adreca}\n` : '')
+      + principiLlista(p)
+      + (resolts.size ? '\\allowdisplaybreaks\n' : '');      // una resolució llarga pot partir de pàgina
+    exs.forEach((e, i) => {
+      // Un exercici resolt no necessita espai per escriure-hi: el petit.
+      if (resolts.has(i)) s += itemResolt(resolucio(e.arbre, sol)) + `${vs}{${ESPAIS.petit}}\n`;
+      else s += `\\item $\\displaystyle ${e.tex}$\n${vs}{${ESPAIS[p.esp]}}\n`;
+    });
     return s + '\\end{enumerate}\n';
   }
 
-  const M = { VERSIO, GENERADOR, ESPAIS, SIMBOLS, EXTRES, valida, opcions, exercici, fitxerTex };
+  /** exN-sol.tex: tots els exercicis resolts (o, amb sol.nomes, el resultat), amb la mateixa numeració. */
+  function fitxerSolucionari(exs, p, m, sol) {
+    sol = sol || {};
+    let s = `% ex${m.num}-sol.tex — solucionari de ex${m.num}.tex — generat per «Operacions combinades 1r ESO» ${VERSIO}\n`
+      + descripcio(p, m) + '\n'
+      + (m.adreca ? `% per refer aquest full: index.html${m.adreca}\n` : '')
+      + '\\noindent\\textbf{Solucions}\\par\\medskip\n'
+      + principiLlista(p)
+      + '\\allowdisplaybreaks\n';
+    exs.forEach(e => {
+      if (+sol.nomes) {
+        const r = resolucio(e.arbre, Object.assign({}, sol, { dest: 0 }));
+        s += `\\item $\\displaystyle ${e.tex}=${r.tex[r.tex.length - 1]}$\n\\par\\medskip\n`;
+      } else s += itemResolt(resolucio(e.arbre, sol)) + `\\par\\vspace{${ESPAIS.petit}}\n`;
+    });
+    return s + '\\end{enumerate}\n';
+  }
+
+  const M = { VERSIO, GENERADOR, ESPAIS, SIMBOLS, EXTRES, valida, opcions, exercici, passos, resolucio, fitxerTex, fitxerSolucionari };
   if (typeof module !== 'undefined') module.exports = M;
   return M;
 })();
