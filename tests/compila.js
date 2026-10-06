@@ -5,9 +5,11 @@
 
    Per a ℕ, ℤ i ℚ, amb totes les opcions i els símbols «gran» (el cas més
    ample), fa 40 exercicis, els compila amb tex/main.tex com ho faria el
-   professor i comprova que:
+   professor (el full normal, un full amb exercicis resolts com a model, el
+   solucionari amb l'operació destacada i el de «només resultats») i comprova:
      - compila sense cap error ni cap «Overfull \hbox»;
-     - cap fórmula és més ampla que la línia (LaTeX la partiria en dues).
+     - cap fórmula, ni cap línia d'una resolució, és més ampla que la línia
+       del full (LaTeX la partiria en dues o sortiria del marge).
    Treballa en una carpeta temporal: no deixa res a l'arbre. Acaba amb codi 1
    si alguna cosa falla.
    =========================================================================== */
@@ -26,6 +28,9 @@ function comprova(nom, cond, extra) {
   if (cond) { ok++; console.log('  ok    ' + nom); }
   else { ko++; console.log('  FALLA ' + nom + (extra !== undefined ? '  ' + extra : '')); }
 }
+
+/* El principi de l'enumerate d'un exN.tex (amb l'espai entre símbols del full). */
+const principiDeLlista = p => Motor.fitxerTex([], p, { num: 1, seed: '' }).split('\n').filter(l => !l.startsWith('%') && !l.startsWith('\\end')).join('\n') + '\n';
 
 /* Compila ex1.tex amb el main.tex del projecte i torna el .log. */
 function compila(carpeta, cos) {
@@ -47,9 +52,19 @@ try {
     const tex = Motor.fitxerTex(exs, { ...p, n: exs.length }, { num: 1, seed: 'compila', adreca: '#prova' });
     console.log(`${set}: ${exs.length} exercicis`);
 
-    const r = compila(carpeta, tex);
-    comprova('compila sense errors', r.estat === 0, (r.log.match(/^!.*$/m) || [''])[0]);
-    comprova('cap «Overfull \\hbox»', !/Overfull \\hbox/.test(r.log), (r.log.match(/Overfull \\hbox.*/) || [''])[0]);
+    const q = { ...p, n: exs.length }, m0 = { num: 1, seed: 'compila', adreca: '#prova' };
+    const fitxers = {
+      'el full': tex,
+      'el full amb resolts (guiades)': Motor.fitxerTex(exs, q, m0, { mode: 'guiades', resolts: [0, 1, 2, 3, 4], dest: 1 }),
+      'el solucionari (destacat)': Motor.fitxerSolucionari(exs, q, m0, { dest: 1 }),
+      'el solucionari (una operació per pas)': Motor.fitxerSolucionari(exs, q, m0, { gra: 'op' }),
+      'el solucionari (només resultats)': Motor.fitxerSolucionari(exs, q, m0, { nomes: 1 })
+    };
+    for (const [nom, cos] of Object.entries(fitxers)) {
+      const r = compila(carpeta, cos);
+      comprova(`${nom}: compila sense errors ni «Overfull»`, r.estat === 0 && !/Overfull \\hbox/.test(r.log),
+        (r.log.match(/^!.*$/m) || r.log.match(/Overfull \\hbox.*/) || [''])[0]);
+    }
 
     // Amplada de cada fórmula, mesurada amb el mateix espai entre símbols, contra l'amplada de la línia.
     const mesura = tex.replace(/^\\item \$(\\displaystyle .*)\$$/gm,
@@ -60,6 +75,18 @@ try {
     comprova('totes les fórmules caben a la línia', amples.length === exs.length && amples.every(([a, l]) => a <= l),
       `${amples.length} mesures; la més ampla: ${pitjor[0]}pt de ${pitjor[1]}pt`);
     console.log(`        la més ampla fa el ${Math.round(100 * pitjor[0] / pitjor[1])} % de la línia`);
+
+    // I cada línia de les resolucions, amb el «= » del davant, en totes dues granularitats.
+    const linies = [];
+    for (const e of exs) for (const gra of ['prio', 'op']) Motor.resolucio(e.arbre, { gra, dest: 1 }).tex.slice(1).forEach(l => linies.push(l));
+    const cos = principiDeLlista(p) + '\\item ' + linies.map(l =>
+      `\\settowidth{\\dimen0}{$\\displaystyle =${l}$}\\typeout{AMPLE=\\the\\dimen0;LINIA=\\the\\linewidth}`).join('\n') + '\n\\end{enumerate}\n';
+    const ml = compila(carpeta, cos);
+    const al = [...ml.log.matchAll(/AMPLE=([\d.]+)pt;LINIA=([\d.]+)pt/g)].map(x => [parseFloat(x[1]), parseFloat(x[2])]);
+    const pl = al.reduce((a, x) => (x[0] / x[1] > a[0] / a[1] ? x : a), [0, 1]);
+    comprova(`les ${linies.length} línies de les resolucions caben a la línia`, ml.estat === 0 && al.length === linies.length && al.every(([a, l]) => a <= l),
+      `${al.length} mesures; la més ampla: ${pl[0]}pt de ${pl[1]}pt`);
+    console.log(`        la més ampla fa el ${Math.round(100 * pl[0] / pl[1])} % de la línia`);
   }
 } finally {
   fs.rmSync(carpeta, { recursive: true, force: true });

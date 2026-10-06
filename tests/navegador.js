@@ -63,7 +63,7 @@ const llegeixBaixada = async (pag, selector) => {
   let e = await estat();
   comprova('surt un full de 5 exercicis', e.cartes === 5, e.cartes);
   comprova('el segell diu la versió del motor', await pag.textContent('#segell') === Motor.VERSIO);
-  comprova("l'adreça guarda el full, amb les comes llegibles", /seed=[a-z0-9]+/.test(e.hash) && /&r=0,0,0,0,0$/.test(e.hash), e.hash);
+  comprova("l'adreça guarda el full, amb les comes llegibles", /seed=[a-z0-9]+/.test(e.hash) && /&r=0,0,0,0,0(&|$)/.test(e.hash), e.hash);
   comprova('un full nou es fa amb l\'últim generador', e.hash.includes(`&g=${Motor.GENERADOR}&`), e.hash);
   comprova('el .tex porta l\'adreça per refer el full', e.codi.includes('% per refer aquest full: index.html' + e.hash), e.codi.split('\n')[2]);
 
@@ -71,7 +71,7 @@ const llegeixBaixada = async (pag, selector) => {
   const enllac = '#n=4&esp=gran&sim=mitja&set=Z&int=1&fin=1&div=1&opo=1&pot=1&par=1&forca=1&fit=7&vs=0&grad=0&seed=prova1&r=0,2,0,1';
   await pag.goto(EINA + enllac);
   e = await estat();
-  comprova("un enllaç obert a la mateixa pestanya es carrega (hashchange)", e.cartes === 4 && /seed=prova1&g=1&r=0,2,0,1$/.test(e.hash), `${e.cartes} ${e.hash}`);
+  comprova("un enllaç obert a la mateixa pestanya es carrega (hashchange)", e.cartes === 4 && /seed=prova1&g=1&r=0,2,0,1(&|$)/.test(e.hash), `${e.cartes} ${e.hash}`);
   const esperat = [0, 1, 2, 3].map(i => Motor.exercici({ n: 4, esp: 'gran', sim: 'mitja', set: 'Z', int: 1, fin: 1, div: 1, opo: 1, pot: 1, par: 1, forca: 1, vs: 0, grad: 0 }, 'prova1', i, [0, 2, 0, 1][i]));
   comprova("un enllaç de la v0.1 (sense g) torna el mateix full, amb el generador 1",
     e.codi.includes(esperat.map(x => x.tex).join('$\n\\par\\vspace{5cm}\n\\item $\\displaystyle ')), e.codi.slice(0, 300));
@@ -101,7 +101,7 @@ const llegeixBaixada = async (pag, selector) => {
   const e2 = await estat();
   comprova('↻ canvia només el seu exercici',
     e2.formules[2] !== e.formules[2] && e2.formules.filter((f, i) => i !== 2).join() === e.formules.filter((f, i) => i !== 2).join());
-  comprova('↻ queda a l\'adreça', /&r=0,0,1,0,0$/.test(e2.hash), e2.hash);
+  comprova('↻ queda a l\'adreça', /&r=0,0,1,0,0(&|$)/.test(e2.hash), e2.hash);
   const tex = await llegeixBaixada(pag, '#baixa');
   comprova('«Baixa» dona exN.tex amb el codi que es veu', tex.nom === 'ex1.tex' && tex.text === e2.codi, tex.nom);
   comprova('després de baixar-lo, el número passa al següent', (await estat()).baixa === 'Baixa ex2.tex');
@@ -149,6 +149,59 @@ const llegeixBaixada = async (pag, selector) => {
   comprova('al mòbil, la pàgina no es desplaça de costat', m.ample <= m.finestra, `${m.ample} > ${m.finestra}`);
   comprova('al mòbil, cap fórmula es parteix en dues línies', m.linies.every(h => h < 110), m.linies.join());
   comprova('la barra de baix no tapa el final de la pàgina', !m.tapat);
+
+  console.log('Solucions');
+  await mob.close();
+  await pag.setViewportSize({ width: 1280, height: 900 });
+  await pag.goto(EINA + '#n=5&set=Z&div=1&opo=1&pot=1&par=1&seed=sol1&g=2&fit=3');
+  e = await estat();
+  comprova('cada exercici té «Veure els passos», i en mode «cap» cap casella «resolt»',
+    await pag.locator('#full details.veure').count() === 5 && await pag.locator('[data-res]').count() === 0 && !e.codi.includes('flalign'));
+  await pag.click('[data-sol="guiades"]');
+  await pag.click('[data-k="2"]');
+  e = await estat();
+  const g = await pag.evaluate(() => ({
+    resolts: [...document.querySelectorAll('#full .carta')].map(c => c.classList.contains('resolt')),
+    linies: document.querySelectorAll('#full .carta.resolt .passos .linia').length,
+    caselles: document.querySelectorAll('[data-res]').length
+  }));
+  comprova('guiades: «resol els 2 primers» els resol (al full i al .tex)',
+    g.resolts.join() === 'true,true,false,false,false' && g.linies > 2 && g.caselles === 5 &&
+    (e.codi.match(/\\begin\{flalign\*\}/g) || []).length === 2 && /&sol=guiades&.*&res=0,1(&|$)/.test(e.hash), JSON.stringify(g));
+  await pag.click('#full .carta:nth-child(4) [data-res]');
+  e = await estat();
+  comprova('guiades: la casella «resolt» d\'una targeta l\'afegeix', /&res=0,1,3(&|$)/.test(e.hash) && (e.codi.match(/flalign\*\}/g) || []).length === 6, e.hash);
+  await pag.emulateMedia({ media: 'print' });
+  const imp2 = await pag.evaluate(() => [...document.querySelectorAll('#full .carta')].map(c =>
+    [...c.querySelectorAll('.passos')].some(x => x.offsetParent !== null) ? 1 : 0).join(''));
+  comprova('guiades: a la impressió, només els resolts porten la resolució', imp2 === '11010', imp2);
+  await pag.emulateMedia({ media: 'screen' });
+  await pag.click('[data-sol="solucionari"]');
+  e = await estat();
+  const vis = id => pag.evaluate(i => getComputedStyle(document.getElementById(i)).display !== 'none', id);
+  comprova('solucionari: hi ha «Baixa ex3-sol.tex» i «PDF solucions», i exN.tex és el de sempre',
+    await vis('baixa-sol') && await vis('pdf-sol') && await pag.textContent('#baixa-sol') === 'Baixa ex3-sol.tex' && !e.codi.includes('flalign'));
+  const ex3 = await llegeixBaixada(pag, '#baixa');
+  comprova('després de baixar ex3.tex, el solucionari continua sent el del 3', ex3.nom === 'ex3.tex' &&
+    await pag.textContent('#baixa') === 'Baixa ex4.tex' && await pag.textContent('#baixa-sol') === 'Baixa ex3-sol.tex');
+  const sol = await llegeixBaixada(pag, '#baixa-sol');
+  comprova('«Baixa ex3-sol.tex» dona el solucionari sencer', sol.nom === 'ex3-sol.tex' && sol.text.startsWith('% ex3-sol.tex') &&
+    sol.text.includes('\\textbf{Solucions}') && (sol.text.match(/\\begin\{flalign\*\}/g) || []).length === 5 &&
+    sol.text.includes('% per refer aquest full: index.html#') && sol.text.includes('&fit=3&'), sol.text.slice(0, 200));
+  await pag.check('#nomes');
+  comprova('«només els resultats»: una línia per exercici', !(await pag.textContent('#codi-sol')).includes('flalign'));
+  await pag.uncheck('#nomes');
+  await pag.evaluate(() => document.body.classList.add('imprimeix-solucions'));
+  await pag.emulateMedia({ media: 'print' });
+  const imp3 = await pag.evaluate(() => ({
+    sol: [...document.querySelectorAll('#full .sol-imp')].filter(x => x.offsetParent !== null).length,
+    titol: getComputedStyle(document.getElementById('full'), '::before').content
+  }));
+  comprova('«PDF solucions»: cada exercici amb la resolució, i el títol', imp3.sol === 5 && imp3.titol.includes('Solucions'), JSON.stringify(imp3));
+  await pag.evaluate(() => document.body.classList.remove('imprimeix-solucions'));
+  await pag.emulateMedia({ media: 'screen' });
+  const imp4 = await pag.evaluate(() => [...document.querySelectorAll('#full .sol-imp')].filter(x => x.offsetParent !== null).length);
+  comprova('sense «PDF solucions», la resolució del solucionari no surt a la pantalla', imp4 === 0, imp4);
 
   comprova('cap error a la consola', !errors.length, errors.join(' | '));
   await nav.close();

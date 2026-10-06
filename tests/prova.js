@@ -174,6 +174,83 @@ function revisa(etq, p, e) {
   return r;
 }
 
+/* ── El solucionari: tot el que ha de complir la resolució d'un exercici ──────
+   Cada línia es torna a llegir amb el lector independent (mateix valor que
+   l'enunciat, valors dins del conjunt), i l'ordre dels passos es comprova
+   amb les regles del professor (todo.md §5) escrites aquí pel seu compte. */
+const PREC_PROVA = { '+': 1, '-': 1, '*': 2, ':': 2 };
+const totsNodes = (n) => [n].concat(n.t === 'bin' ? totsNodes(n.l).concat(totsNodes(n.r)) : n.a ? totsNodes(n.a) : []);
+/** El focus: el primer grup (en ordre de lectura) que no en té cap altre a dins. */
+function focusProva(T) {
+  const grups = [];
+  (function recorre(n, pare, costat) {
+    if (n.t === 'bin') {
+      if (pare && (pare.t !== 'bin' || PREC_PROVA[n.op] < PREC_PROVA[pare.op] || (PREC_PROVA[n.op] === PREC_PROVA[pare.op] && costat === 'r'))) grups.push(n);
+      recorre(n.l, n, 'l'); recorre(n.r, n, 'r');
+    } else if (n.a) recorre(n.a, n);
+  })(T, null);
+  return grups.find((g) => !grups.some((h) => h !== g && totsNodes(g).includes(h))) || T;
+}
+/** El que toca fer a T: simplificar; i, dins del focus, −(−a), potències, · i :, la regla dels signes, + i −. */
+function esperat(T, unaOp) {
+  const bruts = totsNodes(T).filter((n) => n.t === 'val' && n.brut);
+  if (bruts.length) return { tipus: 'simplifica', nodes: bruts };
+  const F = totsNodes(focusProva(T)), v = (n) => n.t === 'val';
+  const nivells = [
+    ['signes', F.filter((n) => n.t === 'neg' && v(n.a)), true],
+    ['potencia', F.filter((n) => n.t === 'pow' && v(n.a)), true],
+    ['producte', F.filter((n) => n.t === 'bin' && (n.op === '*' || n.op === ':') && v(n.l) && v(n.r)), true],
+    ['signes', F.filter((n) => n.t === 'bin' && (n.op === '+' || n.op === '-') && v(n.r) && n.r.n < 0).map((n) => n.r), false]
+  ];
+  for (const [tipus, nodes, unaSola] of nivells) if (nodes.length) return { tipus, nodes: unaOp && unaSola ? nodes.slice(0, 1) : nodes };
+  const s = F.find((n) => n.t === 'bin' && v(n.l) && v(n.r));
+  return { tipus: s.l.d !== s.r.d ? 'mcm' : 'suma', nodes: [s] };
+}
+/** Treu les marques de «destaca l'operació»: {\underbrace{…}_{}} al TeX i <u class="dest">…</u> a l'HTML. */
+function sensDestacats(tex) {
+  for (let i; (i = tex.indexOf('{\\underbrace{')) >= 0;) {
+    let j = i + 13, d = 1;
+    for (; d && j < tex.length; j++) { if (tex[j] === '{') d++; else if (tex[j] === '}') d--; }
+    if (tex.slice(j, j + 4) !== '_{}}') throw new Error('\\underbrace mal tancat');
+    tex = tex.slice(0, i) + tex.slice(i + 13, j - 1) + tex.slice(j + 4);
+  }
+  return tex;
+}
+function revisaResolucio(etq, p, e) {
+  const li = p.set === 'N' || !p.int ? 'N' : p.set;
+  const linies = {};
+  for (const gra of ['prio', 'op']) {
+    const r = Motor.resolucio(e.arbre, { gra }), ps = r.passos, nom = `${etq} [${gra}]`;
+    linies[gra] = r.tex.length;
+    if (r.tex[0] !== e.tex) falla(`${nom}: la primera línia no és l'enunciat`);
+    for (let k = 0; k < r.tex.length; k++) {
+      if (k && r.tex[k] === r.tex[k - 1]) falla(`${nom}: dues línies iguals, ${r.tex[k]}`);
+      if (linealHtml(r.html[k]) !== linealTex(r.tex[k])) falla(`${nom}: l'HTML no diu el mateix que el TeX a ${r.tex[k]}`);
+      let l;
+      try { l = llegeix(r.tex[k]); } catch (x) { falla(`${nom}: línia incorrecta «${r.tex[k]}» (${x.message})`); continue; }
+      if (l.valor[0] !== BigInt(e.valor.n) || l.valor[1] !== BigInt(e.valor.d)) falla(`${nom}: «${r.tex[k]}» val ${l.valor} i l'enunciat ${e.valor.n}/${e.valor.d}`);
+      if (!l.passos.slice(0, -1).every((x) => enConjunt(li, x))) falla(`${nom}: un valor fora del conjunt a «${r.tex[k]}»`);
+      if (k === r.tex.length - 1 && (['+', '-', '*', ':'].some((o) => l.compte[o]) || l.compte.potencies)) falla(`${nom}: l'última línia no és un sol valor: ${r.tex[k]}`);
+      if (k < ps.length - 1) {
+        const x = esperat(ps[k].arbre, gra === 'op'), m = ps[k].marques;
+        if (ps[k + 1].tipus !== x.tipus || m.size !== x.nodes.length || !x.nodes.every((n) => m.has(n)))
+          falla(`${nom}: després de «${r.tex[k]}» tocava ${x.tipus} (${x.nodes.length}) i s'ha fet ${ps[k + 1].tipus} (${m.size})`);
+      }
+    }
+    if (r.tex.length > 4 * totsNodes(e.arbre).length) falla(`${nom}: massa línies (${r.tex.length})`);
+    if (gra === 'prio') {                                  // «destaca l'operació»: les mateixes línies, amb marques
+      const d = Motor.resolucio(e.arbre, { gra, dest: 1 });
+      // (\mathopen{} només canvia l'espai: amb una part destacada, també va darrere d'un −)
+      // (\mathopen{} només és espai: davant d'una part destacada, entre claus, ja no cal)
+      const net = (t) => t.replace(/\\mathopen\{\}/g, '');
+      const tex = d.tex.map((t) => net(sensDestacats(t))), html = d.html.map((h) => h.replace(/<u class="dest">|<\/u>/g, ''));
+      if (tex.join('|') !== r.tex.map(net).join('|') || html.join('|') !== r.html.join('|')) falla(`${nom}: destacar canvia les línies`);
+      if (d.tex.some((t, k) => (k < d.tex.length - 1) !== t.includes('\\underbrace'))) falla(`${nom}: una línia sense destacar o l'última destacada`);
+    }
+  }
+  if (linies.op < linies.prio) falla(`${etq}: «una operació» té menys línies que «per prioritat»`);
+}
+
 const base = { n: 5, esp: 'mitja', sim: 'petit', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1 };
 const etiqueta = (p) => `${p.set} int=${p.int} fin=${p.fin} div=${p.div} pot=${p.pot} par=${p.par} opo=${p.opo} forca=${p.forca} grad=${p.grad || 0}` +
   (p.g >= 2 ? ` g=${p.g}` : '');
@@ -226,6 +303,7 @@ for (let g = 1; g <= Motor.GENERADOR; g++)
           if (e.error) { falla(`${etq}: l'exercici ${i + 1} no surt`); h.update('error|'); continue; }
           ant.add(e.tex); h.update(canonic(e.arbre) + '|');
           revisa(etq, p, e);
+          revisaResolucio(etq, p, e);
         }
         empremtes[etq] = h.digest('hex').slice(0, 16);
       }
@@ -376,6 +454,73 @@ if (Motor.valida({ ...base, set: 'N', opo: 1 }).ok) falla('oposat amb ℕ hauria
 if (Motor.valida({ ...base, set: 'Z', int: 0, fin: 1, opo: 1 }).ok) falla('oposat sense «intermedis» hauria de ser impossible');
 if (Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 0 }).ok) falla('ℚ només final sense parèntesis hauria de ser impossible');
 if (!Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 1 }).ok) falla('ℚ només final amb divisions i parèntesis és possible');
+
+/* ── 10. Solucionari: les decisions del professor, exemple a exemple ────────
+   Estricte (primer els parèntesis, d'un en un); + i − d'una en una; la línia
+   de la regla dels signes; amb fraccions, el comú denominador (m.c.m.). */
+{
+  const N = (v) => ({ t: 'num', v }), F = (p, q) => ({ t: 'frac', p, q }), O = (a) => ({ t: 'neg', a }),
+    P = (a, k) => ({ t: 'pow', a, k }), B = (op, l, r) => ({ t: 'bin', op, l, r });
+  const casos = [
+    [B('+', B('*', N(3), B('-', N(5), N(2))), B(':', P(N(4), 2), N(8))), {}, '3·(5-2)+4^{2}:8 | 3·3+4^{2}:8 | 3·3+16:8 | 9+2 | 11'],
+    [B('*', B('+', N(2), N(3)), B('+', N(4), N(5))), {}, '(2+3)·(4+5) | 5·(4+5) | 5·9 | 45'],
+    [B('+', B('-', B('+', O(N(3)), N(5)), N(8)), N(4)), {}, '-3+5-8+4 | 2-8+4 | -6+4 | -2'],
+    [B('+', B('-', N(5), O(N(3))), O(N(8))), {}, '5-(-3)+(-8) | 5+3-8 | 8-8 | 0'],
+    [B('+', F(1, 2), F(1, 3)), {}, '\\frac{1}{2}+\\frac{1}{3} | \\frac{3}{6}+\\frac{2}{6} | \\frac{5}{6}'],
+    [B('+', F(1, 6), F(1, 3)), {}, '\\frac{1}{6}+\\frac{1}{3} | \\frac{1}{6}+\\frac{2}{6} | \\frac{3}{6} | \\frac{1}{2}'],
+    [B('+', F(1, 6), F(1, 3)), { simp: 0 }, '\\frac{1}{6}+\\frac{1}{3} | \\frac{1}{6}+\\frac{2}{6} | \\frac{1}{2}'],
+    [B('+', N(3), F(1, 2)), {}, '3+\\frac{1}{2} | \\frac{6}{2}+\\frac{1}{2} | \\frac{7}{2}'],
+    [B(':', F(1, 2), F(3, 4)), {}, '\\frac{1}{2}:\\frac{3}{4} | \\frac{4}{6} | \\frac{2}{3}'],
+    [B(':', O(B('+', N(4), N(6))), N(2)), {}, '-(4+6):2 | -10:2 | -5'],
+    [B('*', O(B('-', N(2), N(5))), N(4)), {}, '-(2-5)·4 | -(-3)·4 | 3·4 | 12'],
+    [P(O(N(2)), 3), {}, '(-2)^{3} | -8'],
+    [P(B('+', N(3), N(1)), 2), {}, '(3+1)^{2} | 4^{2} | 16'],
+    [B('+', B('*', N(2), N(3)), B('*', N(4), N(5))), {}, '2·3+4·5 | 6+20 | 26'],
+    [B('+', B('*', N(2), N(3)), B('*', N(4), N(5))), { gra: 'op' }, '2·3+4·5 | 6+4·5 | 6+20 | 26']
+  ];
+  for (const [arbre, op, esperades] of casos) {
+    const linies = Motor.resolucio(arbre, op).tex.map((l) => l.replace(/\\cdot /g, '·').replace(/\s+/g, '')).join(' | ');
+    if (linies !== esperades) falla(`solucionari ${JSON.stringify(op)}: ${linies}  (esperat: ${esperades})`);
+  }
+}
+
+/* ── 11. Els fitxers de solucions ─────────────────────────────────────────── */
+{
+  // Amb les solucions, exN.tex (mode «Cap») no canvia ni un byte: el de referència és d'abans del solucionari.
+  const versio = (t) => t.replace(/(«Operacions combinades 1r ESO») v[\d.]+/g, '$1 VERSIO');
+  const ESTATS = [
+    { n: 5, esp: 'mitja', sim: 'petit', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1, vs: 0, grad: 0, g: 1 },
+    { n: 10, esp: 'petit', sim: 'gran', set: 'Z', int: 1, fin: 1, div: 1, opo: 1, pot: 1, par: 1, forca: 1, vs: 1, grad: 1, g: 2 },
+    { n: 8, esp: 'gran', sim: 'mitja', set: 'Q', int: 1, fin: 1, div: 1, opo: 1, pot: 1, par: 1, forca: 0, vs: 0, grad: 0, g: 2 },
+    { n: 6, esp: 'mitja', sim: 'petit', set: 'Q', int: 0, fin: 1, div: 1, opo: 0, pot: 1, par: 1, forca: 1, vs: 0, grad: 0 }
+  ];
+  let ref = '', ambSol = '';
+  const fulls = ESTATS.map((p, k) => {
+    const ant = new Set(), ex = [];
+    for (let i = 0; i < p.n; i++) { const e = Motor.exercici(p, 'referencia' + k, i, k % 2, ant); ant.add(e.tex); ex.push(e); }
+    const m = { num: k + 1, seed: 'referencia' + k, adreca: '#referencia' + k };
+    ref += Motor.fitxerTex(ex, p, m);
+    ambSol += Motor.fitxerTex(ex, p, m, { mode: 'solucionari', resolts: [0, 1] });
+    return { p, ex, m };
+  });
+  if (versio(ref) !== versio(fs.readFileSync(path.join(__dirname, 'referencia-cap.tex'), 'utf8'))) falla('exN.tex (mode Cap) ha canviat respecte de tests/referencia-cap.tex');
+  if (ambSol !== ref) falla('amb el mode «solucionari», exN.tex ha de ser el de sempre');
+  // Guiades: només els exercicis triats porten la resolució, amb poc espai; la resta, igual que sempre
+  const { p, ex, m } = fulls[2];                         // espai «gran»: els resolts, «petit»
+  const g = Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [2, 0] });
+  const compta = (t, re) => (t.match(re) || []).length;
+  if (compta(g, /\\begin\{flalign\*\}/g) !== 2 || !g.includes('\\allowdisplaybreaks') || !g.includes(' · resolts: 1, 3\n')) falla('guiades: resolucions');
+  if (compta(g, /\\item /g) !== p.n || compta(g, /\\vspace\{1\.5cm\}/g) !== 2 || compta(g, /\\vspace\{5cm\}/g) !== p.n - 2) falla('guiades: espais o ítems');
+  const sense = (t) => t.split('\n').filter((l) => !/^(&=|\\begin\{flalign|\\end\{flalign|\\allowdisplaybreaks|% llavor|\\par\\vspace)/.test(l)).join('\n');
+  if (sense(g) !== sense(Motor.fitxerTex(ex, p, m))) falla('guiades: els enunciats han de ser els mateixos');
+  // El solucionari: tots resolts, amb la mateixa numeració; «només resultats», una línia per exercici
+  const s = Motor.fitxerSolucionari(ex, p, m, {});
+  if (!s.startsWith(`% ex${m.num}-sol.tex — solucionari de ex${m.num}.tex`) || !s.includes('\\textbf{Solucions}') ||
+      compta(s, /\\item /g) !== p.n || compta(s, /\\begin\{flalign\*\}/g) !== p.n) falla('solucionari: format');
+  const r = Motor.fitxerSolucionari(ex, p, m, { nomes: 1, dest: 1 });
+  if (compta(r, /\\item /g) !== p.n || r.includes('flalign') || r.includes('underbrace') ||
+      !ex.every((e) => r.includes(`\\item $\\displaystyle ${e.tex}=`))) falla('solucionari: només resultats');
+}
 
 console.log(`${combos} combinacions (i ${combosTotes} amb força i gradual), ${total} exercicis, ${errors} errors`);
 process.exit(errors ? 1 : 0);

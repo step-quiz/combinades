@@ -25,6 +25,28 @@ els que es veuen menys els d'un sol nombre: `(−3)` i `(½)²` no compten, i `(
 És el *generador 2* (`g=2` a l'adreça). Els enllaços d'abans, sense `g`, es continuen fent amb el generador 1 i
 donen exactament el mateix full que quan els vas desar.
 
+## Solucions
+
+Al panell, **Solucions** té tres modes:
+
+- **cap**: el full de sempre.
+- **guiades**: alguns exercicis del full surten resolts pas a pas, com a model. Es trien amb la casella
+  «resolt» de cada targeta o amb «Resol els primers 1, 2, 3». A l'`exN.tex` i a la impressió, els resolts porten
+  la resolució a sota (i poc espai); la resta, com sempre.
+- **solucionari**: l'`exN.tex` no canvia, i a la barra de baix apareixen **Baixa exN-sol.tex** (tots els
+  exercicis resolts, amb la mateixa numeració; al `main.tex`, `\input{exN-sol.tex}`) i **PDF solucions**.
+
+La resolució segueix l'ordre de l'aula:
+- primer els parèntesis, d'un en un: el més interior i, si n'hi ha diversos, el de més a l'esquerra;
+- dins de cada un, i després a tota l'expressió: les potències, després · i :, i després + i −, d'una en una;
+- abans de les sumes i restes, una línia amb la regla dels signes: `5 − (−3) + (−8) = 5 + 3 − 8`;
+- amb fraccions, una línia amb el comú denominador (el m.c.m.), `1/2 + 1/3 = 3/6 + 2/6 = 5/6`, i, si el resultat
+  es pot simplificar, una més: `= 3/6 = 1/2`.
+
+Opcions: *per prioritat* (totes les operacions del mateix nivell en una línia) o *una operació per pas*;
+*simplifica les fraccions en una línia a part*; *destaca l'operació de la línia següent* (`\underbrace`); i, al
+solucionari, *només els resultats*. Cada targeta té **Veure els passos**, en qualsevol mode.
+
 ## La carpeta de fulls
 
 Es prepara un sol cop. A la columna de configuració, l'apartat **Entorn** baixa els tres fitxers:
@@ -59,7 +81,7 @@ més petita (només aquella): abans es partia en dues línies.
 ## Proves
 
 ```
-node tests/prova.js       # la lògica: uns 24.000 exercicis, cap dependència (uns 20 s)
+node tests/prova.js       # la lògica i el solucionari: uns 24.000 exercicis, cap dependència (uns 35 s)
 node tests/compila.js     # compila fulls de debò amb el main.tex (cal pdflatex)
 node tests/navegador.js   # l'eina en un navegador de debò (cal Playwright)
 ```
@@ -69,7 +91,9 @@ Totes tres acaben amb codi 1 si alguna cosa falla, i GitHub les passa soles a ca
 `tests/prova.js` torna a llegir el TeX de cada exercici amb un analitzador independent i en recalcula el valor.
 Comprova els conjunts (ℕ/ℤ/ℚ, intermedis i resultat), «força que apareguin», que hi surti cada operació demanada
 (també la resta i l'oposat), que la previsualització digui el mateix que el TeX i que cada parèntesi sigui més gran
-que els que té a dins. Ho fa per a totes les combinacions d'opcions possibles, també les graduals.
+que els que té a dins. Ho fa per a totes les combinacions d'opcions possibles, també les graduals. De cada
+resolució, comprova que cada línia valgui el mateix que l'enunciat, que l'ordre dels passos sigui el de l'aula
+(escrit a la prova pel seu compte) i que l'`exN.tex` normal no canviï ni un byte (`tests/referencia-cap.tex`).
 
 **Empremtes.** `tests/empremtes.json` fixa quins exercicis surten per a cada combinació d'opcions i cada generador.
 Si un canvi al codi canvia els exercicis, els fulls desats a l'adreça ja no tornarien a sortir iguals, i la prova ho
@@ -101,6 +125,7 @@ tex/                 main.tex, headers.tex, defs.tex (font única)
 eines/entorn.py      regenera assets/entorn.js
 tests/prova.js       proves de la lògica (Node)
 tests/empremtes.json els exercicis de cada combinació, fixats
+tests/referencia-cap.tex  un exN.tex de cada mena: el mode «cap» no ha de canviar
 tests/compila.js     compilació de debò (pdflatex)
 tests/navegador.js   proves amb navegador (Playwright)
 todo.md              estat, revisió i feina pendent
