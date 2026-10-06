@@ -194,30 +194,30 @@ const llegeixBaixada = async (pag, selector) => {
     JSON.stringify(cz).slice(0, 300));
   comprova('centrat: el .tex porta un array per exercici resolt, i l\'adreça ho recorda',
     (e.codi.match(/^\\item \$\\begin\{array\}\[t\]/gm) || []).length === 2 && !e.codi.includes('flalign') && /&cen=1(&|$)/.test(e.hash), e.hash);
-  // «Destaca la següent operació», també amb «centrat»: en blau fosc i subratllat, al .tex i a la web
+  // «Destaca la següent operació», també amb «centrat»: en blau fosc i dins d'una caixa, al .tex (\boxed) i a la web
   await pag.check('#dest');
   e = await estat();
-  const czd = await taules(), blau = await pag.evaluate(() => [...document.querySelectorAll('#full td.dest')].map(t => {
-    const c = getComputedStyle(t);
-    return `${c.color}|${c.borderBottomStyle}`;
-  }));
-  comprova('centrat i destaca: les taules del motor, amb les cel·les que es calculen en blau fosc i subratllades',
+  // Les caixes: el color del text i les quatre vores, del mateix color que el text
+  const caixes = (sel) => pag.evaluate((s) => [...document.querySelectorAll(s)].map((el) => {
+    const c = getComputedStyle(el);
+    return `${c.color}|${[c.borderTopStyle, c.borderRightStyle, c.borderBottomStyle, c.borderLeftStyle].join(',')}|${c.borderTopColor === c.color}`;
+  }), sel);
+  const czd = await taules(), blau = await caixes('#full td.dest > .caixa');
+  comprova('centrat i destaca: les taules del motor, amb el que es calcula en una caixa blau fosc (una cel·la per operació)',
     czd.every(([m, t], i) => t === Motor.centrada(exz[i].arbre, { gra: 'prio', simp: 1, dest: 1 }).html) &&
-    blau.length > 0 && blau.every(x => x === 'rgb(0, 0, 139)|solid'), blau.slice(0, 3).join(' '));
-  comprova('centrat i destaca: el .tex defineix el blau i el fa servir',
-    e.codi.includes('\\providecolor{darkblue}{RGB}{0,0,139}') && e.codi.includes('\\color{darkblue}') && e.codi.includes('\\multispan'), e.codi.slice(0, 400));
+    blau.length > 0 && blau.every(x => x === 'rgb(0, 0, 139)|solid,solid,solid,solid|true'), blau.slice(0, 3).join(' '));
+  comprova('centrat i destaca: el .tex defineix el blau i fa les caixes amb \\boxed (cap subratllat)',
+    e.codi.includes('\\providecolor{darkblue}{RGB}{0,0,139}') && e.codi.includes('\\color{darkblue}\\boxed{') && !e.codi.includes('\\leaders') && !e.codi.includes('\\underline'), e.codi.slice(0, 400));
   await pag.uncheck('#cen');
-  const linia = await pag.evaluate(() => [...document.querySelectorAll('#full .carta.resolt u.dest')].map(u => {
-    const c = getComputedStyle(u);
-    return `${c.color}|${c.borderBottomStyle}`;
-  }));
+  const linia = await caixes('#full .carta.resolt .dest.caixa');
   e = await estat();
-  comprova('destaca, sense centrat: en blau fosc i subratllat, a la web i al .tex ({\\color{darkblue}\\underline{…}})',
-    linia.length > 0 && linia.every(x => x === 'rgb(0, 0, 139)|solid') && e.codi.includes('{\\color{darkblue}\\underline{') && e.codi.includes('flalign'),
+  comprova('destaca, sense centrat: en blau fosc i dins d\'una caixa, a la web i al .tex ({\\color{darkblue}\\boxed{…}})',
+    linia.length > 0 && linia.every(x => x === 'rgb(0, 0, 139)|solid,solid,solid,solid|true') && e.codi.includes('{\\color{darkblue}\\boxed{') &&
+    !e.codi.includes('\\underline') && e.codi.includes('flalign'),
     linia.slice(0, 3).join(' '));
   const fosc = await nova({ viewport: { width: 1280, height: 900 }, colorScheme: 'dark' });
   await fosc.goto(EINA + '#n=5&set=Z&div=1&opo=1&pot=1&par=1&seed=sol1&g=2&sol=guiades&res=0,1&dest=1');
-  const blauFosc = await fosc.evaluate(() => getComputedStyle(document.querySelector('#full u.dest')).color);
+  const blauFosc = await fosc.evaluate(() => getComputedStyle(document.querySelector('#full .dest.caixa')).color);
   comprova('destaca, amb el fons fosc: un blau clar, que es llegeix', blauFosc === 'rgb(147, 197, 253)', blauFosc);
   await fosc.close();
   // Al solucionari, amb «centrat», cada exercici és una taula a la web
@@ -278,7 +278,10 @@ const llegeixBaixada = async (pag, selector) => {
   await pag.click('[data-iesp="gran"]');
   const cols = await pag.evaluate(() => getComputedStyle(document.querySelector('#full .igualtats')).gridTemplateColumns.split(' ').length);
   e = await estat();
-  comprova('«Completa la igualtat»: 4 nombres i espai gran, en 2 columnes (a la web i al .tex)', cols === 2 && e.codi.includes('\\begin{tabular}{@{}*{2}'), String(cols));
+  const ratlla = await pag.evaluate(() => getComputedStyle(document.querySelector('#full .igualtats')).backgroundImage);
+  comprova('«Completa la igualtat»: 4 nombres i espai gran, en 2 columnes separades per una línia discontínua (a la web i al .tex)',
+    cols === 2 && /linear-gradient/.test(ratlla) && e.codi.includes('\\begin{tabular}{@{}p{\\dimexpr(\\linewidth-6mm-.4pt)/2\\relax}@{\\hspace{3mm}\\lower') &&
+    e.codi.includes('\\xleaders'), `${cols} ${ratlla}`);
   await pag.click('[data-act="comb"]');
   comprova('tornant a «Operacions combinades», hi ha el seu full, igual que abans', JSON.stringify((await estat()).formules) === JSON.stringify(comb));
   const mi = await nova({ viewport: { width: 390, height: 844 } });

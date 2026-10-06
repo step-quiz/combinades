@@ -15,8 +15,9 @@
        va en blocs) és més ampla que la línia, cap bloc és més alt que la
        pàgina, i els blocs d'una resolució fan el mateix ample.
    I «Completa la igualtat»: el full i el solucionari, amb 3 i 4 nombres i
-   cada espai (amb 4 nombres i espai gran, el cas més ample), sense errors
-   ni «Overfull»: cada igualtat cap a la seva columna.
+   cada espai (amb 4 nombres i espai gran, el cas més ample), en dues
+   columnes separades per la línia discontínua, sense errors ni «Overfull»:
+   cada igualtat cap a la seva columna.
    Treballa en una carpeta temporal: no deixa res a l'arbre. Acaba amb codi 1
    si alguna cosa falla.
    =========================================================================== */
@@ -125,7 +126,7 @@ try {
     const m = { num: 1, seed: 'compila', adreca: '#prova', versio: Motor.VERSIO };
     for (const [nom, cos] of [['el full', Igualtats.fitxerTex(f, m)], ['el solucionari', Igualtats.fitxerSolucionari(f, m)]]) {
       const r = compila(carpeta, cos);
-      comprova(`${nombres} nombres, espai ${esp}, ${Igualtats.columnes(f.p)} columnes: ${nom} compila sense errors ni «Overfull»`,
+      comprova(`${nombres} nombres, espai ${esp}, ${Igualtats.COLUMNES} columnes: ${nom} compila sense errors ni «Overfull»`,
         r.estat === 0 && !/Overfull \\[hv]box/.test(r.log), (r.log.match(/^!.*$/m) || r.log.match(/Overfull \\[hv]box.*/) || [''])[0]);
     }
   }

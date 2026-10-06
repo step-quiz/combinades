@@ -161,8 +161,8 @@
       h += `<p class="exemple"><i>Exemple:</i> <span class="ombra">${ex.ns.join('<span class="buit"></span>')}<span class="buit"></span>= ${ex.t}</span>`
         + ` → ${Igualtats.solucioHtml(ex)}</p>`;
     }
-    // Les mateixes columnes que al .tex: 3 o, si no hi caben (4 nombres i molt d'espai), 2
-    h += `<div class="igualtats" style="--cols:${Igualtats.columnes(f.p)}">${f.items.map(cartaIgualtat).join('')}</div>`;
+    // Com al .tex: en dues columnes, separades per una línia discontínua (style.css)
+    h += `<div class="igualtats">${f.items.map(cartaIgualtat).join('')}</div>`;
     return { h, f, ok: f.items.every(x => !x.error) };
   }
 

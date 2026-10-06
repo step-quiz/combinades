@@ -8,8 +8,9 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.6: una activitat nova, «Completa la igualtat» (§7). Sobre la v0.5 («destaca la següent operació» en
-blau fosc i subratllat, les solucions a la web i fora el PDF del navegador, §2.9), la v0.4 (la disposició
+**Versió:** v0.7: «destaca» amb una caixa (`\boxed`) en lloc del subratllat (§2.9) i «Completa la igualtat» en 2
+columnes, separades per una línia discontínua (§7). Sobre la v0.6 (una activitat nova, «Completa la igualtat», §7),
+la v0.5 («destaca la següent operació» en blau fosc, les solucions a la web i fora el PDF del navegador, §2.9), la v0.4 (la disposició
 «centrat», §2.8), la v0.3 (el solucionari pas a pas, §2) i la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
 **Generador:** els fulls nous es fan amb el generador 2 (`g=2` a l'adreça): parèntesis segons el pla del
 professor (§5). Les adreces sense `g` (v0.1) es refan amb el generador 1, sense cap canvi.
@@ -55,7 +56,7 @@ Fet:
 - Solucionari pas a pas (§2): modes cap · guiades · solucionari, `exN-sol.tex`, «Veure els passos»; al solucionari,
   totes les resolucions a la web.
 - Disposició «centrat» (§2.8): signes alineats en columna i cada resultat centrat sota el que substitueix.
-- «Destaca la següent operació» (§2.9): en blau fosc i subratllat, també amb «centrat».
+- «Destaca la següent operació» (§2.9): en blau fosc i dins d'una caixa (`\boxed`), també amb «centrat».
 - Activitat «Completa la igualtat» (§7).
 
 ---
@@ -69,7 +70,8 @@ Fet:
   parèntesi i la potència en una sola línia; amb l'ordre estricte, són dues: `= 3·3+4²:8 = 3·3+16:8`.
 - Les línies van en un **`flalign*`** (amsmath) i no en un `align*`: `align*` les centrava al mig del full, lluny de
   l'enunciat; així comencen just a sota.
-- «Destaca l'operació»: a la v0.3, `{\underbrace{…}_{}}`; des de la v0.5, en blau fosc i subratllat (§2.9). Sempre
+- «Destaca l'operació»: a la v0.3, `{\underbrace{…}_{}}`; a la v0.5 i la v0.6, en blau fosc i subratllat; des de la
+  v0.7, en blau fosc i dins d'una caixa, `\boxed` (§2.9). Sempre
   entre claus: si no, TeX tractava el destacat com un operador i el − o el + que el seguia es componia com un
   signe («−6» en lloc de «− 6»).
 - Codi: `passos()`, `resolucio()` i `fitxerSolucionari()` a `motor.js` (secció «el solucionari»); la interfície, a
@@ -223,8 +225,10 @@ centrat sota la part que substitueix i el «=» al final de cada línia, menys d
   (3 pt; 6 pt al costat d'una línia amb fraccions): així dues línies amb fraccions no es toquen mai.
 - **Web:** una taula amb `colspan`, que es desplaça sola si no hi cap (mòbil). En una targeta resolta, la taula
   substitueix l'enunciat (n'és la primera fila).
-- **Destaca** (v0.5, §2.9): les cel·les del que es calcula, en blau, i a sota una fila amb una ratlla blava de punta a
-  punta de les seves columnes (com `\cline`, però de color; amb fraccions, 2 pt més avall, que no les toqui).
+- **Destaca** (§2.9): des de la v0.7, el que es calcula va en una sola cel·la (`\multicolumn`) que ocupa totes les
+  seves columnes, en blau i dins d'una caixa (`\boxed`): el resultat de la línia següent hi queda centrat a sota. Les
+  línies invisibles dels blocs (vegeu més avall) porten la mateixa caixa, perquè les columnes facin el mateix ample.
+  (A la v0.5 i la v0.6, cada cel·la en blau i, a sota, una fila amb una ratlla blava, com un `\cline` de color.)
 - **Blocs:** un `array` no es parteix entre pàgines, i amb «destaca» una resolució de ℚ de 16 línies va fer un 104 %
   de la pàgina (1 de 12.000). Una resolució de més de 12 línies va en blocs, un `array` sota l'altre, i la pàgina es
   pot partir entre dos blocs. Perquè les columnes facin el mateix ample a tots els blocs, cadascun porta les línies
@@ -237,11 +241,12 @@ centrat sota la part que substitueix i el «=» al final de cada línia, menys d
 Ho va demanar el professor:
 - **Fora «Copia el TeX», «PDF» i «PDF solucions»**, que no farà servir mai. També tot el que només hi servia: el CSS
   d'impressió i l'encongiment de les fórmules que no cabien al paper.
-- **«Destaca la següent operació»**: en blau fosc (`darkblue`, #00008B) i subratllat. Al `.tex`,
-  `{\color{darkblue}\underline{…}}`; el fitxer defineix el color (`\providecolor`, cal `xcolor`, que carrega
+- **«Destaca la següent operació»**: en blau fosc (`darkblue`, #00008B) i dins d'una caixa (des de la v0.7; abans,
+  subratllat: el professor va preferir la caixa). Al `.tex`, `{\color{darkblue}\boxed{…}}` (`\boxed` és d'amsmath,
+  i el marc també surt blau); el fitxer defineix el color (`\providecolor`, cal `xcolor`, que carrega
   `headers.tex`), només si destaca res. A la web, el mateix blau (amb el fons fosc, un blau clar, `#93c5fd`).
   Ara també funciona amb «centrat» (§2.8). Un cas especial: si el que es simplifica és la base d'una potència,
-  `(−4/4)²`, la cel·la és tota la potència i la base es destaca a dins, com a la línia normal, sense ratlla.
+  `(−4/4)²`, la cel·la és tota la potència i la base es destaca a dins, com a la línia normal.
 - **«Centrat» a la web**: al solucionari, cada exercici surt resolt a la pàgina (abans només es veia al «PDF
   solucions»), centrat si es tria; amb «només els resultats», `enunciat = resultat`.
 
@@ -287,7 +292,8 @@ Ho va demanar el professor:
 
 - **Sense PDF del navegador** (octubre de 2026): el professor no el fa servir, ni «Copia el TeX». El PDF és el de
   LaTeX. (Fins a la v0.4, la web tenia «PDF» i «PDF solucions», d'impressió del navegador: vegeu l'historial.)
-- **«Destaca la següent operació»** (octubre de 2026): en blau fosc (`darkblue`) i subratllat, també amb «centrat».
+- **«Destaca la següent operació»** (octubre de 2026): en blau fosc (`darkblue`) i dins d'una caixa (`\boxed`), també
+  amb «centrat». Primer va ser subratllat; el professor va demanar la caixa.
 - **«Completa la igualtat»** (octubre de 2026): les respostes del professor, a §7.
 - Carpeta d'extracció: `_uploads` (amb «s»), com el workflow d'`exam2bat`.
 - **Parèntesis (generador 2, octubre de 2026).** Com a màxim 3 per exercici, i el 3 improbable. Compten tots els que
@@ -380,8 +386,9 @@ L'activitat que va proposar el professor, amb el seu full d'exemple: «Completa 
 - **Símbols, amb caselles** (parèntesis, ², √, divisions); + − · sempre. L'enunciat només diu els triats.
 - **Dificultat, com el seu full:** de cada 9, 5 només amb + − · :, 3 amb parèntesis i 1 amb ² o √ (si no hi ha
   parèntesis, o ni ² ni √, aquesta part passa a les fàcils), barrejades.
-- **De 3 a 15 igualtats** (9 per defecte), en **3 columnes** (2 si no hi caben: 4 nombres amb espai mitjà o gran,
-  o 3 nombres amb espai gran).
+- **De 3 a 15 igualtats** (9 per defecte). Primer anaven en 3 columnes; des de la v0.7, en **2 columnes** separades
+  per una **línia vertical discontínua**, perquè en 3 el full quedava massa atapeït (ho va demanar el professor). El
+  solucionari i la web, igual.
 - **L'`exN.tex`** porta l'enunciat i un **exemple nou a cada full** (ombrejat, resolt, amb parèntesis).
 - **Solucions:** la més senzilla de cada igualtat, a `exN-sol.tex` i a la web.
 - **Espai per escriure:** petit / mitjà / gran (entre els nombres, davant del primer i del «=», i entre files).
@@ -392,7 +399,12 @@ L'activitat que va proposar el professor, amb el seu full d'exemple: «Completa 
   parèntesis; 2, ² o √. S'escriu amb els parèntesis que calen amb la prioritat de sempre, també a la dreta d'una
   operació de la mateixa prioritat, a + (b + c): així el text es calcula exactament com l'arbre.
 - El **pla** de cada full (quin nivell porta cada igualtat) només depèn de la llavor i de les opcions: ↻ canvia la
-  igualtat, no el nivell. Generador `ig=1` a l'adreça; empremtes a `tests/empremtes.json`.
+  igualtat, no el nivell.
+- Les **2 columnes** (`graella()`): una `tabular` de dues columnes `p{}`, i la línia discontínua al separador: a cada
+  fila, un `\vbox` amb `\xleaders` que fa l'alçada de la fila (el puntal de la taula, `\@arstrutbox`, que `defs.tex`
+  allarga amb `\arraystretch`, més l'espai de sota), de manera que els trossos de totes les files fan una sola línia.
+  Sense cap paquet de més, com tots els `exN.tex`. Amb un nombre senar d'igualtats, l'última fila porta la segona
+  cel·la buida: si no, la línia no hi passaria. A la web, una ratlla de fons al mig de l'espai entre columnes. Generador `ig=1` a l'adreça; empremtes a `tests/empremtes.json`.
 - Proves: `tests/prova.js` §13 (i el lector i el cercador independents, abans de les empremtes), `tests/compila.js`
   i `tests/navegador.js`.
 
