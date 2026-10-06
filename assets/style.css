@@ -64,6 +64,8 @@ pre { overflow: auto; background: var(--sf); border: 1px solid var(--bd); paddin
 .cap .num { background: var(--ac); color: var(--on); padding: 2px 8px; border-radius: 3px; font-weight: 600; }
 .cap small { margin-left: auto; }
 .ext { font-size: .68rem; border: 1px dashed var(--bd); border-radius: 4px; padding: 1px 6px; }
+.cap .res { display: inline-flex; gap: 4px; align-items: center; }
+.cos { min-width: 0; }
 
 /* ── Les fórmules ── Una fórmula no es parteix mai en dues línies (un «−»
    sol al final d'una línia es llegiria com una resta): si no hi cap, la
@@ -74,9 +76,24 @@ pre { overflow: auto; background: var(--sf); border: 1px solid var(--bd); paddin
   font-variant-numeric: lining-nums tabular-nums;
   white-space: nowrap; overflow-x: auto;
 }
-.math .op { margin: 0 var(--sop, .22em); }
+.math .op, .linia .op { margin: 0 var(--sop, .22em); }
+
+/* ── La resolució ── Les línies «= …», amb la mateixa lletra que l'enunciat. */
+.linia {
+  font-size: 1.2rem; line-height: 1.9;
+  font-family: 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', 'Latin Modern Roman', 'Times New Roman', serif;
+  font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap; overflow-x: auto;
+}
+.passos { padding: 0 0 6px; }
+details.veure summary { font: .7rem monospace; color: var(--mu); cursor: pointer; }
+.sol-imp { display: none; }
+/* La part que es calcula a la línia següent («destaca l'operació») */
+u.dest { text-decoration: none; border-bottom: .09em solid currentColor; padding-bottom: .05em; }
+#opsol { margin-top: 4px; }
+#primers { margin: 6px 0; font-size: .85rem; }
 /* Potència: s'enlaira sense alterar l'alçada de la línia */
-.math sup { font-size: .62em; line-height: 0; vertical-align: 0; position: relative; top: -.75em; margin-left: .04em; }
+.math sup, .linia sup { font-size: .62em; line-height: 0; vertical-align: 0; position: relative; top: -.75em; margin-left: .04em; }
 .pg { display: inline-flex; align-items: center; }
 .pb { font-size: 1.9em; font-weight: 200; line-height: .7; margin: 0 .03em; }
 .fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .85em; margin: 0 .15em; }
@@ -95,7 +112,7 @@ footer {
 /* ── Impressió: el full de l'alumne i res més ── */
 @media print {
   @page { size: A4; margin: 2cm 1.8cm; }
-  header, aside, footer, details, .avis, h2, .cap button, .cap small, .ext { display: none !important; }
+  header, aside, footer, details, .avis, h2, .cap button, .cap small, .cap .res, .ext { display: none !important; }
   body { background: #fff; color: #000; }
   main { display: block; padding: 0; }
   .carta { border: 0; background: none; padding: 0; margin: 0; break-inside: avoid; display: flex; align-items: baseline; gap: .6em; }
@@ -103,4 +120,13 @@ footer {
   .cap .num { background: none; color: #000; font: 700 1.1rem serif; padding: 0; }
   .cap .num::after { content: ")"; }
   .math { padding: 0 0 var(--esp); overflow: visible; font-size: calc(1.35rem * var(--encaix, 1)); }
+  .linia { overflow: visible; font-size: calc(1.2rem * var(--encaix, 1)); }
+  /* Guiades: un exercici resolt no necessita espai per escriure-hi; el petit, després de la resolució */
+  .carta.resolt .math { padding-bottom: 0; }
+  .carta.resolt .passos { padding-bottom: 1.5cm; }
+  /* «PDF solucions»: el mateix full, amb la resolució (o el resultat) de cada exercici */
+  body.imprimeix-solucions #full::before { content: "Solucions"; display: block; font: 700 1.1rem serif; margin-bottom: .8em; }
+  body.imprimeix-solucions .math { padding-bottom: 0; }
+  body.imprimeix-solucions .sol-imp { display: block; padding-bottom: .9cm; }
+  body.imprimeix-solucions .carta.resolt .passos:not(.sol-imp) { display: none; }
 }

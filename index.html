@@ -30,6 +30,15 @@
   <div class="grup" id="grad"><button data-grad="0" title="Tots els exercicis tenen tots els extres marcats">immediata</button><button data-grad="1" title="Els primers exercicis en tenen pocs o cap; els 2 últims, tots">gradual</button></div>
   <label><input type="checkbox" id="forca"> força que apareguin</label>
   <label title="Usa \vspace* al .tex: l'espai no es perd a dalt de pàgina"><input type="checkbox" id="vs"> conserva l'espai a dalt de pàgina</label>
+  <h3>Solucions</h3>
+  <div class="grup" id="sol"><button data-sol="cap" title="El full de sempre, sense solucions">cap</button><button data-sol="guiades" title="Alguns exercicis del full surten resolts pas a pas, com a model">guiades</button><button data-sol="solucionari" title="Un fitxer a part, exN-sol.tex, amb tots els exercicis resolts">solucionari</button></div>
+  <div id="opsol">
+    <div class="fila" id="primers">Resol els primers <span class="grup"><button data-k="0" title="Cap">0</button><button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button></span></div>
+    <div class="grup" id="gra"><button data-gra="prio" title="A cada línia, totes les operacions del mateix nivell">per prioritat</button><button data-gra="op" title="A cada línia, una sola operació">una operació per pas</button></div>
+    <label><input type="checkbox" id="simp"> simplifica les fraccions en una línia a part</label>
+    <label><input type="checkbox" id="dest"> destaca l'operació de la línia següent</label>
+    <label id="nomes-l"><input type="checkbox" id="nomes"> només els resultats</label>
+  </div>
   <p><button id="tot">Genera-ho tot</button></p>
   <div class="entorn">
     <h2>Entorn</h2>
@@ -39,13 +48,14 @@
 </aside>
 <section><h2>Full</h2><div id="full"></div>
   <details><summary>Veure el codi TeX</summary><pre id="codi"></pre></details>
+  <details id="codi-sol-d"><summary>Veure el codi TeX del solucionari</summary><pre id="codi-sol"></pre></details>
   <p class="avis">El PDF és el d'impressió del navegador; per al PDF compilat amb LaTeX, baixa el .tex.</p>
 </section>
 </main>
 <footer>
   <span id="recompte"></span>
   <span class="grup"><label>Fitxer núm. <input type="number" id="fit" min="1" max="99"></label>
-  <button id="baixa"></button><button id="copia">Copia el TeX</button><button id="pdf">PDF</button></span>
+  <button id="baixa"></button><button id="baixa-sol"></button><button id="copia">Copia el TeX</button><button id="pdf">PDF</button><button id="pdf-sol">PDF solucions</button></span>
 </footer>
 <script src="assets/entorn.js"></script>
 <script src="assets/motor.js"></script>
