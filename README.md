@@ -47,6 +47,23 @@ Opcions: *per prioritat* (totes les operacions del mateix nivell en una línia) 
 *simplifica les fraccions en una línia a part*; *destaca l'operació de la línia següent* (`\underbrace`); i, al
 solucionari, *només els resultats*. Cada targeta té **Veure els passos**, en qualsevol mode.
 
+**centrat: els signes en columna** canvia la disposició: els signes d'operació queden alineats en columna,
+cada resultat va centrat sota el que substitueix i el «=» és al final de cada línia (menys de l'última):
+
+```
+2 + 3 · (5 − 2)² + 8 =
+2 + 3 ·    3²    + 8 =
+2 + 3 ·    9     + 8 =
+2 +     27       + 8 =
+     29          + 8 =
+           37
+```
+
+Al `.tex`, cada resolució és un `array` (LaTeX estàndard): una columna per a cada nombre, operador i parèntesi
+de l'enunciat, i `\multicolumn` per als resultats. Amb *centrat*, *destaca* queda desactivat (ja es veu què es
+calcula). Un `array` no es parteix entre pàgines: la resolució més llarga que s'ha trobat (ℚ, amb tots els
+extres) ocupa un 96 % de la pàgina.
+
 ## La carpeta de fulls
 
 Es prepara un sol cop. A la columna de configuració, l'apartat **Entorn** baixa els tres fitxers:
@@ -81,7 +98,7 @@ més petita (només aquella): abans es partia en dues línies.
 ## Proves
 
 ```
-node tests/prova.js       # la lògica i el solucionari: uns 24.000 exercicis, cap dependència (uns 35 s)
+node tests/prova.js       # la lògica i el solucionari: uns 24.000 exercicis, cap dependència (uns 40 s)
 node tests/compila.js     # compila fulls de debò amb el main.tex (cal pdflatex)
 node tests/navegador.js   # l'eina en un navegador de debò (cal Playwright)
 ```

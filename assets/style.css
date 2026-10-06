@@ -76,7 +76,7 @@ pre { overflow: auto; background: var(--sf); border: 1px solid var(--bd); paddin
   font-variant-numeric: lining-nums tabular-nums;
   white-space: nowrap; overflow-x: auto;
 }
-.math .op, .linia .op { margin: 0 var(--sop, .22em); }
+.math .op, .linia .op, table.centrat .op { margin: 0 var(--sop, .22em); }
 
 /* ── La resolució ── Les línies «= …», amb la mateixa lletra que l'enunciat. */
 .linia {
@@ -88,12 +88,25 @@ pre { overflow: auto; background: var(--sf); border: 1px solid var(--bd); paddin
 .passos { padding: 0 0 6px; }
 details.veure summary { font: .7rem monospace; color: var(--mu); cursor: pointer; }
 .sol-imp { display: none; }
+body.mesura .sol-imp { display: block; }      /* un moment, per mesurar-la (encaixaAlPaper) */
+/* «Centrat»: una columna per a cada nombre, operador i parèntesi de l'enunciat */
+.taula { overflow-x: auto; }
+table.centrat {
+  border-collapse: collapse; font-size: 1.2rem; line-height: 1.9;
+  font-family: 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', 'Latin Modern Roman', 'Times New Roman', serif;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+table.centrat td { padding: 0; text-align: center; vertical-align: baseline; white-space: nowrap; }
+table.centrat td.igual { padding: 0 var(--sop, .22em); }
+/* Un parèntesi gran sol a la seva cel·la: la caixa ha de contenir tot el traç (si no, a la impressió,
+   el d'una primera línia a dalt de pàgina sortia retallat al peu de la pàgina d'abans) */
+table.centrat .pb { line-height: 1; }
 /* La part que es calcula a la línia següent («destaca l'operació») */
 u.dest { text-decoration: none; border-bottom: .09em solid currentColor; padding-bottom: .05em; }
 #opsol { margin-top: 4px; }
 #primers { margin: 6px 0; font-size: .85rem; }
 /* Potència: s'enlaira sense alterar l'alçada de la línia */
-.math sup, .linia sup { font-size: .62em; line-height: 0; vertical-align: 0; position: relative; top: -.75em; margin-left: .04em; }
+.math sup, .linia sup, table.centrat sup { font-size: .62em; line-height: 0; vertical-align: 0; position: relative; top: -.75em; margin-left: .04em; }
 .pg { display: inline-flex; align-items: center; }
 .pb { font-size: 1.9em; font-weight: 200; line-height: .7; margin: 0 .03em; }
 .fr { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .85em; margin: 0 .15em; }
@@ -121,6 +134,8 @@ footer {
   .cap .num::after { content: ")"; }
   .math { padding: 0 0 var(--esp); overflow: visible; font-size: calc(1.35rem * var(--encaix, 1)); }
   .linia { overflow: visible; font-size: calc(1.2rem * var(--encaix, 1)); }
+  .taula { overflow: visible; }
+  table.centrat { font-size: calc(1.2rem * var(--encaix, 1)); }
   /* Guiades: un exercici resolt no necessita espai per escriure-hi; el petit, després de la resolució */
   .carta.resolt .math { padding-bottom: 0; }
   .carta.resolt .passos { padding-bottom: 1.5cm; }
@@ -129,4 +144,5 @@ footer {
   body.imprimeix-solucions .math { padding-bottom: 0; }
   body.imprimeix-solucions .sol-imp { display: block; padding-bottom: .9cm; }
   body.imprimeix-solucions .carta.resolt .passos:not(.sol-imp) { display: none; }
+  body.imprimeix-solucions .carta.centrat .math { display: none; }   /* la taula ja comença amb l'enunciat */
 }

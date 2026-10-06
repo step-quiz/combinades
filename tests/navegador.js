@@ -203,6 +203,64 @@ const llegeixBaixada = async (pag, selector) => {
   const imp4 = await pag.evaluate(() => [...document.querySelectorAll('#full .sol-imp')].filter(x => x.offsetParent !== null).length);
   comprova('sense «PDF solucions», la resolució del solucionari no surt a la pantalla', imp4 === 0, imp4);
 
+  console.log('Centrat');
+  const pz = { n: 5, esp: 'mitja', sim: 'petit', set: 'Z', int: 1, fin: 1, div: 1, opo: 1, pot: 1, par: 1, forca: 1, vs: 0, grad: 0, g: 2 };
+  const exz = [], antz = new Set();
+  for (let i = 0; i < 5; i++) { const x = Motor.exercici(pz, 'sol1', i, 0, antz); antz.add(x.tex); exz.push(x); }
+  await pag.goto(EINA + '#n=5&set=Z&div=1&opo=1&pot=1&par=1&seed=sol1&g=2&sol=guiades&res=0,1');
+  await pag.check('#cen');
+  e = await estat();
+  const cz = await pag.evaluate(() => ({
+    resolts: [...document.querySelectorAll('#full .carta.resolt')].map(c => [c.querySelectorAll('.math').length,
+      ((c.querySelector('.passos table.centrat') || {}).outerHTML || '').replace(/<\/?tbody>/g, '')]),   // (el navegador hi afegeix el tbody)
+    veure: document.querySelectorAll('#full details.veure table.centrat').length,
+    dest: document.getElementById('dest').disabled
+  }));
+  comprova('centrat: cada resolt és una taula (la del motor, amb l\'enunciat a dalt) i «destaca» es desactiva',
+    cz.resolts.length === 2 && cz.resolts.every(([m, t], i) => m === 0 && t === Motor.centrada(exz[i].arbre, { gra: 'prio', simp: 1, dest: 0 }).html) &&
+    cz.veure === 3 && cz.dest, JSON.stringify(cz).slice(0, 300));
+  comprova('centrat: el .tex porta un array per exercici resolt, i l\'adreça ho recorda',
+    (e.codi.match(/^\\item \$\\begin\{array\}\[t\]/gm) || []).length === 2 && !e.codi.includes('flalign') && /&cen=1(&|$)/.test(e.hash), e.hash);
+  await pag.uncheck('#cen');
+  comprova('sense centrat, «destaca» torna a funcionar', !(await pag.isDisabled('#dest')) && (await estat()).codi.includes('flalign'));
+  // El «PDF solucions» d'un solucionari centrat: la taula substitueix l'enunciat, i cap no surt del paper
+  await pag.setViewportSize({ width: 658, height: 900 });
+  let maxTaula = 0, malament = '';
+  for (const s of [0, 1, 2, 18]) {
+    await pag.goto(EINA + `#n=10&esp=petit&sim=gran&set=Q&div=1&opo=1&pot=1&par=1&seed=ample${s}&g=2&sol=solucionari&cen=1`);
+    await pag.evaluate(() => document.body.classList.add('imprimeix-solucions'));
+    await pag.emulateMedia({ media: 'print' });
+    const r = await pag.evaluate(() => ({
+      enunciats: [...document.querySelectorAll('#full .math')].filter(x => x.offsetParent !== null).length,
+      taules: [...document.querySelectorAll('#full .sol-imp table.centrat')].filter(x => x.offsetParent !== null).map(t => t.getBoundingClientRect().right)
+    }));
+    if (r.enunciats || r.taules.length !== 10) malament = JSON.stringify(r);
+    maxTaula = Math.max(maxTaula, ...r.taules);
+    await pag.evaluate(() => document.body.classList.remove('imprimeix-solucions'));
+    await pag.emulateMedia({ media: 'screen' });
+  }
+  comprova('centrat, «PDF solucions»: una taula per exercici, sense l\'enunciat repetit', !malament, malament);
+  comprova('centrat, «PDF solucions»: les taules més amples (ℚ, símbols «gran») caben al paper', maxTaula <= 658, Math.round(maxTaula) + ' px');
+  // I el mecanisme, sigui quina sigui la lletra del sistema: amb la lletra a 24 px, moltes taules passen de 600 px, i
+  // les del «PDF solucions» (que no es veuen a la pantalla) també s'han d'encongir, just el que cal
+  await pag.addStyleTag({ content: 'html { font-size: 24px }' });
+  await pag.evaluate(() => window.dispatchEvent(new HashChangeEvent('hashchange')));      // l'eina es torna a pintar
+  const enc = await pag.evaluate(() => [...document.querySelectorAll('#full .sol-imp')].map(x => {
+    x.style.display = 'block';
+    const t = x.querySelector('table.centrat'), r = document.createRange();
+    r.selectNodeContents(t);
+    const ample = r.getBoundingClientRect().width;
+    x.style.display = '';
+    return [Math.round(ample), parseFloat(t.style.getPropertyValue('--encaix')) || 1];
+  }));
+  comprova('centrat, «PDF solucions»: una taula que no cap al paper s\'encongeix, encara que no es vegi a la pantalla',
+    enc.some(([a]) => a > 600) && enc.every(([a, k]) => Math.abs(Math.min(a, 600) - a * k) < 2), JSON.stringify(enc));
+  await pag.setViewportSize({ width: 390, height: 844 });
+  await pag.goto(EINA + '#n=4&esp=petit&sim=gran&set=Q&div=1&opo=1&pot=1&par=1&seed=ample18&g=2&sol=guiades&res=0,1,2,3&cen=1');
+  const mc = await pag.evaluate(() => ({ ample: document.documentElement.scrollWidth, finestra: document.documentElement.clientWidth }));
+  comprova('centrat, al mòbil: una taula ampla es desplaça ella sola, no la pàgina', mc.ample <= mc.finestra, `${mc.ample} > ${mc.finestra}`);
+  await pag.setViewportSize({ width: 1280, height: 900 });
+
   comprova('cap error a la consola', !errors.length, errors.join(' | '));
   await nav.close();
   console.log(`\n${ok} correctes, ${ko} errors`);

@@ -15,9 +15,9 @@
 
   const PER_DEFECTE = {
     n: 5, esp: 'mitja', sim: 'petit', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1, fit: 1, vs: 0, grad: 0,
-    sol: 'cap', gra: 'prio', simp: 1, dest: 0, nomes: 0                     // les solucions
+    sol: 'cap', gra: 'prio', simp: 1, dest: 0, nomes: 0, cen: 0             // les solucions
   };
-  const CASELLES = ['int', 'fin', 'div', 'opo', 'pot', 'par', 'forca', 'vs', 'simp', 'dest', 'nomes'];
+  const CASELLES = ['int', 'fin', 'div', 'opo', 'pot', 'par', 'forca', 'vs', 'simp', 'dest', 'nomes', 'cen'];
   const NOM_EXTRE = { div: '÷', par: '( )', pot: 'xⁿ', opo: '−a' };
   const MEMORIA = 'combinades';                               // la clau de localStorage
   const $ = id => document.getElementById(id);
@@ -110,12 +110,15 @@
      l'amplada es pot mesurar aquí. */
   const AMPLE_PAPER = 600;
   function encaixaAlPaper(full) {
-    full.querySelectorAll('.math, .linia').forEach(m => {
+    // La resolució del «PDF solucions» no es veu a la pantalla: per mesurar-la, es mostra un moment.
+    document.body.classList.add('mesura');
+    full.querySelectorAll('.math, .linia, table.centrat').forEach(m => {
       const r = document.createRange();
       r.selectNodeContents(m);
       const ample = r.getBoundingClientRect().width;
       if (ample > AMPLE_PAPER) m.style.setProperty('--encaix', (AMPLE_PAPER / ample).toFixed(3));
     });
+    document.body.classList.remove('mesura');
   }
 
   const marca = (atribut, valor) => document.querySelectorAll(`[data-${atribut}]`)
@@ -123,7 +126,7 @@
   const mostra = (id, si) => { $(id).style.display = si ? '' : 'none'; };
 
   /** Les opcions de les solucions, per al motor. */
-  const solucions = () => ({ mode: S.sol, resolts: RES, gra: S.gra, simp: S.simp, dest: S.dest, nomes: S.nomes });
+  const solucions = () => ({ mode: S.sol, resolts: RES, gra: S.gra, simp: S.simp, dest: S.dest, nomes: S.nomes, cen: S.cen });
 
   /** Les línies «= …» d'una resolució (sense l'enunciat). */
   const linies = r => r.html.slice(1).map(l => `<div class="linia">= ${l}</div>`).join('');
@@ -131,22 +134,27 @@
   /** Una targeta del full: l'enunciat i, segons el mode, la resolució. */
   function carta(e, i) {
     const guiades = S.sol === 'guiades', resolt = guiades && RES.includes(i);
+    // «Centrat»: la resolució és una taula que comença amb l'enunciat (també la del «PDF solucions»,
+    // si no és «només els resultats»: llavors, a la impressió, la taula substitueix l'enunciat)
+    const taula = S.cen && !(S.sol === 'solucionari' && S.nomes);
     const nom = k => k === 'par' && e.params.parentesis > 1 ? `${NOM_EXTRE.par}×${e.params.parentesis}` : NOM_EXTRE[k];
     const extres = S.grad && e.params
       ? `<span class="ext">${Motor.EXTRES.filter(k => e.params[k]).map(nom).join(' · ') || 'sense extres'}</span>` : '';
-    let h = `<div class="carta${resolt ? ' resolt' : ''}"><div class="cap"><span class="num">${i + 1}</span>`
+    let h = `<div class="carta${resolt ? ' resolt' : ''}${taula ? ' centrat' : ''}"><div class="cap"><span class="num">${i + 1}</span>`
       + `<button data-r="${i}" title="Un altre" aria-label="Un altre exercici ${i + 1}">↻</button>${extres}`
       + (guiades ? `<label class="res"><input type="checkbox" data-res="${i}"${resolt ? ' checked' : ''}> resolt</label>` : '')
       + `<small>${seed}:${i}:${R[i]}</small></div>`;
     if (e.error) return h + `<p class="err">${e.error}</p></div>`;
-    const r = Motor.resolucio(e.arbre, solucions());
-    h += `<div class="cos"><div class="math">${resolt ? r.html[0] : e.html}</div>`;
+    const op = solucions(), r = Motor.resolucio(e.arbre, op);
+    const passos = S.cen ? `<div class="taula">${Motor.centrada(e.arbre, op).html}</div>` : linies(r);
+    h += '<div class="cos">';
+    if (!(resolt && S.cen)) h += `<div class="math">${resolt ? r.html[0] : e.html}</div>`;   // centrat: ja és a la taula
     // Resolt (guiades): la resolució surt al full i s'imprimeix. Si no, es pot mirar, però no s'imprimeix.
-    if (resolt) h += `<div class="passos">${linies(r)}</div>`;
-    else h += `<details class="veure"><summary>Veure els passos</summary><div class="passos">${linies(r)}</div></details>`;
+    if (resolt) h += `<div class="passos">${passos}</div>`;
+    else h += `<details class="veure"><summary>Veure els passos</summary><div class="passos">${passos}</div></details>`;
     // Solucionari: el que surt al «PDF solucions»
     if (S.sol === 'solucionari') {
-      h += `<div class="passos sol-imp">${+S.nomes ? `<div class="linia">= ${r.html[r.html.length - 1]}</div>` : linies(r)}</div>`;
+      h += `<div class="passos sol-imp">${+S.nomes ? `<div class="linia">= ${r.html[r.html.length - 1]}</div>` : passos}</div>`;
     }
     return h + '</div></div>';
   }
@@ -170,6 +178,9 @@
     mostra('opsol', S.sol !== 'cap');
     mostra('primers', S.sol === 'guiades');
     mostra('nomes-l', S.sol === 'solucionari');
+    // Amb «centrat», cada resultat ja surt sota el que substitueix: «destaca» no hi té sentit
+    $('dest').disabled = !!S.cen;
+    $('dest').parentNode.title = S.cen ? 'Amb «centrat», cada resultat ja surt sota el que substitueix' : '';
 
     // El full
     const P = Object.assign({}, S, { g });          // les opcions per al motor

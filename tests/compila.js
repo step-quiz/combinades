@@ -6,10 +6,13 @@
    Per a ℕ, ℤ i ℚ, amb totes les opcions i els símbols «gran» (el cas més
    ample), fa 40 exercicis, els compila amb tex/main.tex com ho faria el
    professor (el full normal, un full amb exercicis resolts com a model, el
-   solucionari amb l'operació destacada i el de «només resultats») i comprova:
-     - compila sense cap error ni cap «Overfull \hbox»;
+   solucionari amb l'operació destacada, el de «només resultats» i, amb la
+   disposició «centrat», el full i el solucionari) i comprova:
+     - compila sense cap error ni cap «Overfull \hbox» o «\vbox»;
      - cap fórmula, ni cap línia d'una resolució, és més ampla que la línia
-       del full (LaTeX la partiria en dues o sortiria del marge).
+       del full (LaTeX la partiria en dues o sortiria del marge);
+     - cap resolució «centrat» (un array, que no es pot partir) és més ampla
+       que la línia o més alta que la pàgina.
    Treballa en una carpeta temporal: no deixa res a l'arbre. Acaba amb codi 1
    si alguna cosa falla.
    =========================================================================== */
@@ -56,14 +59,16 @@ try {
     const fitxers = {
       'el full': tex,
       'el full amb resolts (guiades)': Motor.fitxerTex(exs, q, m0, { mode: 'guiades', resolts: [0, 1, 2, 3, 4], dest: 1 }),
+      'el full amb resolts, centrat': Motor.fitxerTex(exs, q, m0, { mode: 'guiades', resolts: [0, 1, 2, 3, 4], cen: 1 }),
       'el solucionari (destacat)': Motor.fitxerSolucionari(exs, q, m0, { dest: 1 }),
       'el solucionari (una operació per pas)': Motor.fitxerSolucionari(exs, q, m0, { gra: 'op' }),
+      'el solucionari centrat (una operació per pas)': Motor.fitxerSolucionari(exs, q, m0, { cen: 1, gra: 'op' }),
       'el solucionari (només resultats)': Motor.fitxerSolucionari(exs, q, m0, { nomes: 1 })
     };
     for (const [nom, cos] of Object.entries(fitxers)) {
       const r = compila(carpeta, cos);
-      comprova(`${nom}: compila sense errors ni «Overfull»`, r.estat === 0 && !/Overfull \\hbox/.test(r.log),
-        (r.log.match(/^!.*$/m) || r.log.match(/Overfull \\hbox.*/) || [''])[0]);
+      comprova(`${nom}: compila sense errors ni «Overfull»`, r.estat === 0 && !/Overfull \\[hv]box/.test(r.log),
+        (r.log.match(/^!.*$/m) || r.log.match(/Overfull \\[hv]box.*/) || [''])[0]);
     }
 
     // Amplada de cada fórmula, mesurada amb el mateix espai entre símbols, contra l'amplada de la línia.
@@ -87,6 +92,19 @@ try {
     comprova(`les ${linies.length} línies de les resolucions caben a la línia`, ml.estat === 0 && al.length === linies.length && al.every(([a, l]) => a <= l),
       `${al.length} mesures; la més ampla: ${pl[0]}pt de ${pl[1]}pt`);
     console.log(`        la més ampla fa el ${Math.round(100 * pl[0] / pl[1])} % de la línia`);
+
+    // I cada resolució «centrat»: un array, que no es pot partir ni de costat ni de pàgina.
+    const arrays = [];
+    for (const e of exs) for (const gra of ['prio', 'op']) arrays.push(Motor.centrada(e.arbre, { gra }).tex);
+    const cc = principiDeLlista(p) + '\\item ' + arrays.map(a => `\\setbox0\\hbox{$${a}$}` +
+      '\\typeout{AMPLE=\\the\\wd0;ALT=\\the\\dimexpr\\ht0+\\dp0\\relax;LINIA=\\the\\linewidth;PAGINA=\\the\\textheight}').join('\n') + '\n\\end{enumerate}\n';
+    const mc = compila(carpeta, cc);
+    const ac = [...mc.log.matchAll(/AMPLE=([\d.]+)pt;ALT=([\d.]+)pt;LINIA=([\d.]+)pt;PAGINA=([\d.]+)pt/g)].map(x => x.slice(1).map(parseFloat));
+    const maxim = i => ac.reduce((a, x) => Math.max(a, x[i] / x[i + 2]), 0);
+    comprova(`les ${arrays.length} resolucions «centrat» caben a la línia i a la pàgina`,
+      mc.estat === 0 && ac.length === arrays.length && ac.every(([a, h, l, pg]) => a <= l && h <= pg),
+      `${ac.length} mesures; la més ampla, el ${Math.round(100 * maxim(0))} %; la més alta, el ${Math.round(100 * maxim(1))} % de la pàgina`);
+    console.log(`        la més ampla fa el ${Math.round(100 * maxim(0))} % de la línia; la més alta, el ${Math.round(100 * maxim(1))} % de la pàgina`);
   }
 } finally {
   fs.rmSync(carpeta, { recursive: true, force: true });
