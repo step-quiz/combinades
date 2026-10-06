@@ -48,7 +48,7 @@ La resolució segueix l'ordre de l'aula:
 
 Opcions: *per prioritat* (totes les operacions del mateix nivell en una línia) o *una operació per pas*;
 *simplifica les fraccions en una línia a part*; **destaca la següent operació**: a cada línia, el que es calcula
-a la següent surt en blau fosc i subratllat (a la web i al `.tex`, `{\color{darkblue}\underline{…}}`); i, al
+a la següent surt en blau fosc i dins d'una caixa (a la web i al `.tex`, `{\color{darkblue}\boxed{…}}`); i, al
 solucionari, *només els resultats*. Els exercicis que no surten resolts tenen **Veure els passos**.
 
 El blau, el `.tex` mateix el defineix (`\providecolor{darkblue}{RGB}{0,0,139}`): només cal el paquet `xcolor`,
@@ -68,8 +68,8 @@ cada resultat va centrat sota el que substitueix i el «=» és al final de cada
 
 Es veu igual a la web (una taula) i al `.tex`, on cada resolució és un `array` (LaTeX estàndard): una columna
 per a cada nombre, operador i parèntesi de l'enunciat, i `\multicolumn` per als resultats. Amb *destaca*, el que
-es calcula surt en blau i amb una ratlla blava a sota de les seves columnes, de punta a punta: el resultat de la
-línia següent hi va centrat a sota.
+es calcula surt en blau i dins d'una caixa (`\boxed`) que ocupa totes les seves columnes: el resultat de la línia
+següent hi va centrat a sota.
 
 Un `array` no es parteix entre pàgines, i una resolució llarga de ℚ pot fer més d'una pàgina. Per això, una
 resolució de més de 12 línies va en blocs (un `array` sota l'altre, amb les mateixes columnes) i la pàgina es
@@ -93,8 +93,9 @@ Uns nombres en ordre i un resultat, i l'alumnat hi posa els símbols que falten 
   necessita ² o √, barrejades. El programa prova totes les maneres de posar-hi els símbols, o sigui que sap què
   necessita cadascuna; ↻ canvia la igualtat, però no la dificultat.
 - **L'`exN.tex`:** l'enunciat (només amb els símbols triats), un exemple resolt (ombrejat, amb parèntesis) i les
-  igualtats en 3 columnes, o 2 si no hi caben (4 nombres i espai gran). **`exN-sol.tex`:** la solució més senzilla
-  de cada igualtat (la de menys parèntesis, ² i √); qualsevol altra de correcta també val.
+  igualtats en 2 columnes, separades per una línia vertical discontínua (LaTeX estàndard: cap paquet de més).
+  **`exN-sol.tex`:** la solució més senzilla de cada igualtat (la de menys parèntesis, ² i √), al mateix lloc que la
+  seva igualtat; qualsevol altra de correcta també val.
 
 ## La carpeta de fulls
 

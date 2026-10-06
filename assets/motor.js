@@ -20,7 +20,7 @@
 var Motor = (function () {
   'use strict';
 
-  const VERSIO = 'v0.6';
+  const VERSIO = 'v0.7';
 
   /* La versió del GENERADOR va a l'adreça (g=…), perquè un full desat surti
      sempre amb el generador amb què es va fer. Les adreces sense g són de la
@@ -239,9 +239,10 @@ var Motor = (function () {
     potencia: (base, k) => `${base}^{${k}}`,
     // Davant d'un \left( cal \mathopen{}: si no, TeX hi deixa un espai fi, «− (».
     oposat: s => '-' + (s.startsWith('\\left(') ? '\\mathopen{}' : '') + s,
-    // La part que es calcula a la línia següent: en blau fosc (BLAU) i subratllada. Entre
-    // claus, perquè TeX la tracti com un sol nombre: el − o el + que la segueix és una resta.
-    destaca: s => `{\\color{darkblue}\\underline{${s}}}`,
+    // La part que es calcula a la línia següent: en blau fosc (BLAU) i dins d'una caixa
+    // (\boxed, d'amsmath). Entre claus, perquè TeX la tracti com un sol nombre: el − o
+    // el + que la segueix és una resta.
+    destaca: s => `{\\color{darkblue}\\boxed{${s}}}`,
     // «Centrat»: cada parèntesi, cada operador i cada − d'un oposat, sols a la seva columna.
     // Entre {} perquè TeX hi posi els mateixos espais que dins de la fórmula.
     meitats: meitatsTex,
@@ -256,7 +257,7 @@ var Motor = (function () {
     parentesi: parentesiHtml,
     potencia: potenciaHtml,
     oposat: s => '−' + s,
-    destaca: s => `<u class="dest">${s}</u>`,
+    destaca: s => `<span class="dest caixa">${s}</span>`,
     meitats: meitatsHtml,
     operadorSol: op => HTML.operador(op),
     menys: '−'
@@ -763,51 +764,36 @@ var Motor = (function () {
   }
 
   /** La resolució en disposició «centrat»: tex, un array de LaTeX (o uns quants,
-      un sota l'altre: blocs); html, una taula; files, els trossos de cada línia
+      un sota l'altre: blocs); html, una taula; files, les cel·les de cada línia
       ({tex, html}). Amb op.dest, el que es calcula a la línia següent surt en
-      blau fosc i subratllat. */
+      blau fosc i dins d'una caixa (\boxed). */
   function centrada(arbre, op) {
     op = op || {};
     const ps = passos(arbre, op), col = { n: 0, span: new Map() };
     columnes(ps[0].arbre, true, false, col);
     const N = col.n;
+    // «Destaca»: els trossos seguits que es destaquen (el que es calcula a la línia següent) van junts, en una
+    // sola cel·la que ocupa totes les seves columnes, perquè la caixa els envolti tots. El resultat de la línia
+    // següent hi queda centrat a sota.
+    const ajunta = ts => ts.reduce((out, t) => {
+      const u = out[out.length - 1];
+      if (t.dest && u && u.dest) out[out.length - 1] = Object.assign({}, u, { b: t.b, s: u.s + t.s });
+      else out.push(t);
+      return out;
+    }, []);
     const files = ps.map(p => {
       const m = +op.dest ? p.marques : null;
-      const f = { tex: trossos(p.arbre, TEX, true, false, col.span, m), html: trossos(p.arbre, HTML, true, false, col.span, m) };
+      const tex = trossos(p.arbre, TEX, true, false, col.span, m), html = trossos(p.arbre, HTML, true, false, col.span, m);
       // Els trossos cobreixen les N columnes, en ordre i sense encavalcar-se
-      if (f.tex.some((t, i) => t.a !== (i ? f.tex[i - 1].b : 0) || t.b <= t.a) || f.tex[f.tex.length - 1].b !== N)
+      if (tex.some((t, i) => t.a !== (i ? tex[i - 1].b : 0) || t.b <= t.a) || tex[tex.length - 1].b !== N)
         throw new Error('centrat: les columnes no quadren');
-      return f;
+      return { tex: ajunta(tex), html: ajunta(html) };
     });
     const ultima = k => k === files.length - 1;
-    // Una cel·la. \displaystyle, com a la fórmula sencera: fraccions, exponents i \left( de la mateixa mida
-    const cel = ({ a, b, s, dest }) => {
-      if (dest) s = '\\color{darkblue}' + s;
-      if (/\\frac|\^|\\left/.test(s)) s = '\\displaystyle ' + s;
-      return b - a > 1 ? `\\multicolumn{${b - a}}{@{}c@{}}{${s}}` : s;
-    };
-    // El subratllat de «destaca»: una fila amb una ratlla blau fosc sota les columnes que es calculen
-    // (com \cline, però de color), de punta a punta: el resultat de la línia següent hi va centrat a sota.
-    const subratllat = f => {
-      const trams = [];
-      f.tex.forEach(t => {
-        if (!t.dest) return;
-        const u = trams[trams.length - 1];
-        if (u && u[1] === t.a) u[1] = t.b; else trams.push([t.a, t.b]);
-      });
-      if (!trams.length) return '';
-      let c = 0;
-      const cels = [];
-      trams.forEach(([a, b]) => {
-        if (a > c) cels.push(`\\multispan{${a - c}}`);
-        // (el color, entre claus: si no, xcolor el desfà després del \cr i el \noalign queda fora de lloc)
-        cels.push(`\\multispan{${b - a}}{\\color{darkblue}\\leaders\\hrule height .4pt\\hfill}`);
-        c = b;
-      });
-      // La ratlla va just sota la línia: si hi ha fraccions o parèntesis alts, una mica més avall, que no les toqui
-      const fons = f.tex.some(t => /\\frac|\\Big|\\bigg|\\Bigg/.test(t.s));
-      return `${fons ? '\\noalign{\\vskip 2pt}' : ''}\n${cels.join('&')}\\cr`;
-    };
+    // El contingut d'una cel·la. \displaystyle, com a la fórmula sencera: fraccions, exponents i \left( de la
+    // mateixa mida. La destacada, en blau fosc i dins d'una caixa (\boxed ja és \displaystyle).
+    const dins = ({ s, dest }) => (dest ? `\\color{darkblue}\\boxed{${s}}` : /\\frac|\^|\\left/.test(s) ? '\\displaystyle ' + s : s);
+    const cel = c => (c.b - c.a > 1 ? `\\multicolumn{${c.b - c.a}}{@{}c@{}}{${dins(c)}}` : dins(c));
     // Entre dues línies, un espai fix (\noalign): així una línia amb fraccions no toca mai la del costat
     const fr = k => files[k].tex.some(t => t.s.includes('\\frac'));
     const espai = k => (fr(k) || fr(k + 1) ? 6 : 3);
@@ -815,7 +801,7 @@ var Motor = (function () {
     // Una línia invisible i sense alçada: només hi compta l'amplada de cada cel·la. Amb \multispan (sense la
     // plantilla de l'array, que hi posaria el puntal), la fila no ocupa gens d'alçada.
     const fantasma = k => files[k].tex.concat(ultima(k) ? [] : [{ a: N, b: N + 1, s: '{}={}' }])
-      .map(({ a, b, s }) => `\\multispan{${b - a}}$${/\\frac|\^|\\left/.test(s) ? '\\displaystyle' : ''}\\hphantom{${s}}$`).join('&') + '\\cr\n';
+      .map(c => `\\multispan{${c.b - c.a}}$\\hphantom{${dins(c)}}$`).join('&') + '\\cr\n';
     // Un array no es parteix entre pàgines, i una resolució llarga de ℚ pot passar d'una pàgina: amb més de 12
     // línies, va en blocs, un array sota l'altre, i la pàgina es pot partir entre dos blocs. Perquè les columnes
     // facin el mateix ample a tots els blocs, cadascun porta, invisibles, les línies dels altres.
@@ -825,15 +811,16 @@ var Motor = (function () {
       let b = `\\begin{array}[t]{@{}*{${N + 1}}{c@{}}}\n`;
       for (let k = p; k < q; k++) {
         b += linia(k);
-        if (k < q - 1) b += ` \\\\${subratllat(files[k])}\\noalign{\\vskip ${espai(k)}pt}\n`;
-        else if (nb > 1) b += ` \\\\${ultima(k) ? '' : subratllat(files[k])}\n` + files.map((f, j) => (j < p || j >= q ? fantasma(j) : '')).join('');
+        if (k < q - 1) b += ` \\\\\\noalign{\\vskip ${espai(k)}pt}\n`;
+        else if (nb > 1) b += ' \\\\\n' + files.map((f, j) => (j < p || j >= q ? fantasma(j) : '')).join('');
         else b += '\n';
       }
       blocs.push(b + '\\end{array}');
     }
     // Entre dos blocs, el mateix espai que entre dues línies (menys l'1 pt de \lineskip que hi posa TeX)
     const tex = blocs.map((b, j) => (j ? `$\\\\[${espai(j * mida - 1) - 1}pt]\n$` : '') + b).join('');
-    const td = ({ a, b, s, dest }) => `<td${dest ? ' class="dest"' : ''}${b - a > 1 ? ` colspan="${b - a}"` : ''}>${s}</td>`;
+    const td = ({ a, b, s, dest }) =>
+      `<td${dest ? ' class="dest"' : ''}${b - a > 1 ? ` colspan="${b - a}"` : ''}>${dest ? `<span class="caixa">${s}</span>` : s}</td>`;
     const html = '<table class="centrat">'
       + files.map((f, k) => `<tr>${f.html.map(td).join('')}${ultima(k) ? '' : '<td class="igual">=</td>'}</tr>`).join('')
       + '</table>';

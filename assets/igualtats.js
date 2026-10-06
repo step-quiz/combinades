@@ -222,12 +222,9 @@ var Igualtats = (function () {
   const SIMBOL_TEX = { '(': '(', ')': ')', '+': '+', '-': '-', '*': '\\cdot', ':': ':', '²': '{}^{2}', '√': '\\sqrt{\\ }' };
   const SIMBOL_HTML = { '(': '(', ')': ')', '+': '+', '-': '−', '*': '·', ':': ':', '²': '<sup>2</sup>', '√': '<span class="arrel">√<span>&nbsp;</span></span>' };
 
-  /** Quantes columnes: 3, com al full del professor; 2 si 3 no hi caben (4 nombres i espai gran).
-      L'amplada d'una igualtat, en mm: els buits, 2 mm per xifra i «= 100». */
-  function columnes(p) {
-    const ample = (p.nombres + .6) * ESPAIS[p.esp].buit + 2.2 * p.nombres + 11;
-    return ample <= 54 ? 3 : 2;
-  }
+  /** Les igualtats van en 2 columnes (en 3, el full quedava massa atapeït), separades per una línia
+      vertical discontínua. També les solucions, cadascuna al mateix lloc que la seva igualtat. */
+  const COLUMNES = 2;
 
   /** Una igualtat per completar: els nombres amb un buit entre cada dos (i davant del primer i del «=»). */
   const perCompletarTex = (x, p) => {
@@ -241,11 +238,20 @@ var Igualtats = (function () {
       + desc + '\n' + (m.adreca ? `% per refer aquest full: index.html${m.adreca}\n` : '');
   }
 
-  /** Una graella de c columnes amb les cel·les (text TeX), una fila darrere l'altra. */
-  function graella(cels, c, fila) {
+  /** Una graella de 2 columnes amb les cel·les (text TeX), una fila darrere l'altra (fila: l'espai de sota
+      cada fila, en mm), i entre les dues columnes una línia vertical discontínua. Sense cap paquet de més:
+      a cada fila, la línia és un tros de l'alçada de la fila (el puntal de la taula, que defs.tex pot
+      allargar amb \arraystretch, més l'espai de sota), i els trossos de totes les files fan una sola línia.
+      Si en surt un nombre senar, l'última fila porta la segona cel·la buida: també hi passa la línia. */
+  function graella(cels, fila) {
     const files = [];
-    for (let i = 0; i < cels.length; i += c) files.push(cels.slice(i, i + c).join(' & '));
-    return `\\noindent\\begin{tabular}{@{}*{${c}}{p{${c === 3 ? '.31' : '.47'}\\linewidth}}@{}}\n`
+    for (let i = 0; i < cels.length; i += COLUMNES) files.push(`${cels[i]} & ${cels[i + 1] || ''}`);
+    const puntal = '\\csname @arstrutbox\\endcsname';
+    const ratlla = `\\lower\\dimexpr\\dp${puntal}+${fila}mm\\relax`
+      + `\\vbox to\\dimexpr\\ht${puntal}+\\dp${puntal}+${fila}mm\\relax`
+      + '{\\xleaders\\vbox to 6pt{\\hrule width .4pt height 3pt\\vfil}\\vfill}';
+    const ample = '\\dimexpr(\\linewidth-6mm-.4pt)/2\\relax';
+    return `\\noindent\\begin{tabular}{@{}p{${ample}}@{\\hspace{3mm}${ratlla}\\hspace{3mm}}p{${ample}}@{}}\n`
       + files.join(` \\\\[${fila}mm]\n`) + '\n\\end{tabular}\n';
   }
 
@@ -258,7 +264,7 @@ var Igualtats = (function () {
       s += `\\noindent\\textit{Exemple:}\\quad\\colorbox{gray!25}{$${ex.ns.join('\\hspace{4mm}')}\\hspace{4mm}=\\ ${ex.t}$}`
         + `\\quad$\\rightarrow$\\quad$${ex.solucio.tex}=${ex.t}$\\par\\bigskip\n`;
     }
-    return s + graella(f.items.map(x => (x.error ? '' : perCompletarTex(x, p))), columnes(p), ESPAIS[p.esp].fila);
+    return s + graella(f.items.map(x => (x.error ? '' : perCompletarTex(x, p))), ESPAIS[p.esp].fila);
   }
 
   /** exN-sol.tex: cada igualtat, amb la solució més senzilla. */
@@ -266,7 +272,7 @@ var Igualtats = (function () {
     const p = f.p;
     return capcalera(`ex${m.num}-sol.tex`, p, m, true)
       + '\\noindent\\textbf{Solucions}\\par\\medskip\n'
-      + graella(f.items.map(x => (x.error ? '' : `$${x.solucio.tex}=${x.t}$`)), 3, 4);
+      + graella(f.items.map(x => (x.error ? '' : `$${x.solucio.tex}=${x.t}$`)), 4);
   }
 
   /* ---------------------------------------------------------------- la web */
@@ -281,7 +287,7 @@ var Igualtats = (function () {
   const solucioHtml = x => `${x.solucio.html} = ${x.t}`;
 
   const M = {
-    GENERADOR, CFG, ESPAIS, opcions, resol, pla, igualtat, exemple, full, columnes, simbols,
+    GENERADOR, CFG, ESPAIS, COLUMNES, opcions, resol, pla, igualtat, exemple, full, simbols,
     escriuText: a => escriu(a, TEXT), fitxerTex, fitxerSolucionari, enunciatHtml, perCompletarHtml, solucioHtml
   };
   if (typeof module !== 'undefined') module.exports = M;

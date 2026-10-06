@@ -100,27 +100,30 @@ table.centrat td { padding: 0; text-align: center; vertical-align: baseline; whi
 table.centrat td.igual { padding: 0 var(--sop, .22em); }
 /* Un parèntesi gran sol a la seva cel·la: la caixa ha de contenir tot el traç */
 table.centrat .pb { line-height: 1; }
-/* «Destaca»: a la taula, la cel·la sencera, perquè la ratlla vagi de punta a punta del que es calcula */
-table.centrat td.dest { color: var(--dest); border-bottom: .09em solid currentColor; }
-/* La part que es calcula a la línia següent («destaca la següent operació»): en blau fosc i subratllada */
-/* (inline-block: si no, la ratlla anava a l'altura de la lletra i travessava el denominador d'una fracció) */
-u.dest { display: inline-block; line-height: 1.2; color: var(--dest); text-decoration: none; border-bottom: .09em solid currentColor; padding-bottom: .05em; }
-u.dest .fr { line-height: 1.9; }      /* les fraccions, com a fora */
+/* «Destaca la següent operació»: el que es calcula a la línia següent, en blau fosc i dins d'una caixa (com el
+   \boxed del .tex). inline-block: la caixa envolta també les fraccions senceres. A la taula de «centrat», les
+   cel·les seguides que es destaquen són una de sola, i la caixa és a dins. */
+.dest { color: var(--dest); }
+.caixa { display: inline-block; line-height: 1.2; border: .07em solid currentColor; padding: .08em .2em; }
+.caixa .fr { line-height: 1.9; }      /* les fraccions, com a fora */
 #opsol { margin-top: 4px; }
 #act { margin-bottom: 10px; }
 #act button { flex: 1 1 auto; }
 
-/* ── «Completa la igualtat» ── L'enunciat, l'exemple i les igualtats, en tres columnes */
+/* ── «Completa la igualtat» ── L'enunciat, l'exemple i les igualtats, en dues columnes */
 .enunciat { margin: 0 0 8px; }
 .exemple { margin: 0 0 16px; }
 .exemple .ombra { background: var(--bd); padding: 2px 8px; border-radius: 3px; }
 .simb { white-space: nowrap; }
-.igualtats { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 10px; }
-@media (max-width: 1000px) { .igualtats { grid-template-columns: repeat(min(var(--cols, 3), 2), minmax(0, 1fr)); } }
-@media (max-width: 560px) { .igualtats { grid-template-columns: minmax(0, 1fr); } }
+/* Com al .tex, separades per una línia vertical discontínua, al mig de l'espai entre les dues columnes */
+.igualtats {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px;
+  background: linear-gradient(var(--mu) 50%, transparent 0) center top / 1px 8px repeat-y;
+}
+@media (max-width: 560px) { .igualtats { grid-template-columns: minmax(0, 1fr); background: none; } }
 .igualtats .carta { margin: 0; }
 /* Els buits on l'alumnat escriu els símbols: l'espai triat (petit, mitjà, gran), proporcional al del
-   .tex (en mm) però més estret, perquè a la pantalla hi càpiguen tres igualtats per fila */
+   .tex (en mm) però més estret, perquè a la pantalla les dues igualtats de cada fila hi càpiguen bé */
 .buit { display: inline-block; width: calc(var(--buit, 10mm) * .55); }
 .exemple .buit { width: 3mm; }
 .exemple .op { margin: 0 .22em; }
