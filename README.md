@@ -1,10 +1,12 @@
 # Operacions combinades · 1r ESO
 
-Web estàtica (HTML + CSS + JS, sense dependències ni build) que genera fulls d'operacions combinades
-i els lliura com a `exN.tex` (només el cos: el teu `main.tex` fa `\input{ex1.tex}`). El PDF, el fas tu compilant-lo amb LaTeX.
+Web estàtica (HTML + CSS + JS, sense dependències ni build) que genera fulls de dues activitats,
+**Operacions combinades** i **Completa la igualtat**, i els lliura com a `exN.tex` (només el cos: el teu
+`main.tex` fa `\input{ex1.tex}`). El PDF, el fas tu compilant-lo amb LaTeX.
 
 ## Ús
-Obre `index.html` amb doble clic. Tria operacions (1–10), espai, conjunt (ℕ/ℤ/ℚ) i opcions.
+Obre `index.html` amb doble clic. A dalt del panell tries l'activitat. A «Operacions combinades», tria operacions
+(1–10), espai, conjunt (ℕ/ℤ/ℚ) i opcions.
 Cada ↻ regenera un exercici; «Genera-ho tot» en fa un full nou.
 
 **L'adreça (`#…`) guarda el full.** Desa l'enllaç i tornaràs a tenir els mateixos exercicis, també si l'obres
@@ -73,6 +75,27 @@ Un `array` no es parteix entre pàgines, i una resolució llarga de ℚ pot fer 
 resolució de més de 12 línies va en blocs (un `array` sota l'altre, amb les mateixes columnes) i la pàgina es
 pot partir entre dos blocs.
 
+## Completa la igualtat
+
+Uns nombres en ordre i un resultat, i l'alumnat hi posa els símbols que falten perquè la igualtat sigui certa:
+
+```
+1   2   5  = 15     →     (1 + 2) · 5 = 15
+```
+
+- **Regles:** els nombres (de 0 a 9) en l'ordre donat, tots i una sola vegada, sense ajuntar xifres (1 i 2 no fan
+  12) i sense cap − davant del primer; cap valor, ni pel camí, negatiu ni de més de 100; divisions exactes; ² i √
+  només damunt d'un nombre, i √ només d'un quadrat perfecte (√9 = 3).
+- **Al panell:** quantes igualtats (de 3 a 15; per defecte 9), 3 o 4 nombres per igualtat, quins símbols es poden
+  fer servir (+ − · sempre; parèntesis, ², √ i divisions, a triar), l'espai per escriure (petit / mitjà / gran) i
+  les solucions (cap, amb «Veure la solució» a cada igualtat, o solucionari).
+- **Dificultat, com el full del professor:** de cada 9, 5 surten només amb + − · :, 3 necessiten parèntesis i 1
+  necessita ² o √, barrejades. El programa prova totes les maneres de posar-hi els símbols, o sigui que sap què
+  necessita cadascuna; ↻ canvia la igualtat, però no la dificultat.
+- **L'`exN.tex`:** l'enunciat (només amb els símbols triats), un exemple resolt (ombrejat, amb parèntesis) i les
+  igualtats en 3 columnes, o 2 si no hi caben (4 nombres i espai gran). **`exN-sol.tex`:** la solució més senzilla
+  de cada igualtat (la de menys parèntesis, ² i √); qualsevol altra de correcta també val.
+
 ## La carpeta de fulls
 
 Es prepara un sol cop. A la columna de configuració, l'apartat **Entorn** baixa els tres fitxers:
@@ -140,7 +163,8 @@ No deixa cap fitxer a l'arbre.
 ## Estructura
 ```
 index.html           pàgina única
-assets/motor.js      model, generador, validador, renderitzadors (sense DOM)
+assets/motor.js      operacions combinades: model, generador, validador, renderitzadors (sense DOM)
+assets/igualtats.js  completa la igualtat: cercador, generador i .tex (sense DOM)
 assets/app.js        interfície
 assets/style.css     estil (clar/fosc)
 assets/entorn.js     GENERAT: main/headers/defs incrustats

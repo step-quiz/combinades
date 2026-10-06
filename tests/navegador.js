@@ -23,7 +23,7 @@ function carregaPlaywright() {
   }
 }
 const { chromium } = carregaPlaywright();
-const Motor = require('../assets/motor.js');
+const Motor = require('../assets/motor.js'), Igualtats = require('../assets/igualtats.js');
 const arrel = path.resolve(__dirname, '..');
 const EINA = 'file://' + path.join(arrel, 'index.html');
 
@@ -232,6 +232,60 @@ const llegeixBaixada = async (pag, selector) => {
   const mc = await pag.evaluate(() => ({ ample: document.documentElement.scrollWidth, finestra: document.documentElement.clientWidth }));
   comprova('centrat, al mòbil: una taula ampla es desplaça ella sola, no la pàgina', mc.ample <= mc.finestra, `${mc.ample} > ${mc.finestra}`);
   await pag.setViewportSize({ width: 1280, height: 900 });
+
+  console.log('Completa la igualtat');
+  await pag.setViewportSize({ width: 1280, height: 900 });
+  await pag.goto(EINA + '#n=5&seed=igu1&fit=2');
+  const comb = (await estat()).formules;
+  await pag.click('[data-act="igu"]');
+  e = await estat();
+  const fi = Igualtats.full({ n: 9, nombres: 3, par: 1, pot: 1, arr: 1, div: 1, esp: 'mitja' }, 'ig:igu1', []);
+  const web = () => pag.evaluate(() => ({
+    cartes: document.querySelectorAll('#full .igualtat').length,
+    enunciat: document.querySelector('#full .enunciat').textContent,
+    enunciatHtml: document.querySelector('#full .enunciat').innerHTML,
+    exemple: document.querySelector('#full .exemple').textContent.replace(/\s+/g, ' '),
+    igualtats: [...document.querySelectorAll('#full .igualtat .math')].map(m => m.textContent.replace(/\s+/g, '')),
+    veure: document.querySelectorAll('#full .igualtat details.veure').length,
+    solucions: [...document.querySelectorAll('#full .igualtat .passos .linia')].filter(l => !l.closest('details:not([open])')).length,
+    panell: getComputedStyle(document.getElementById('op-igu')).display !== 'none' && getComputedStyle(document.getElementById('op-comb')).display === 'none'
+  }));
+  let w = await web();
+  comprova('«Completa la igualtat»: el full del motor, amb l\'enunciat, l\'exemple i «Veure la solució» a cada igualtat',
+    w.panell && w.cartes === 9 && w.veure === 9 && w.solucions === 0 && w.enunciat.startsWith('Completa escrivint (, ), +, −, ·, :, 2, √') && w.enunciatHtml.includes('<sup>2</sup>') &&
+    w.exemple.includes(`${fi.exemple.t} → `) && w.igualtats.join('|') === fi.items.map(x => `${x.ns.join('')}=${x.t}`).join('|'), JSON.stringify(w).slice(0, 300));
+  comprova('«Completa la igualtat»: el .tex és el del motor, i l\'adreça ho recorda',
+    e.codi === Igualtats.fitxerTex(fi, { num: 2, seed: 'igu1', adreca: e.hash, versio: Motor.VERSIO }) &&
+    /[#&]act=igu(&|$)/.test(e.hash) && /&ig=1(&|$)/.test(e.hash) && /&ri=0,0,0,0,0,0,0,0,0(&|$)/.test(e.hash), e.hash);
+  await pag.click('#full .igualtat:nth-child(3) [data-ri]');
+  const w2 = await web();
+  comprova('«Completa la igualtat»: ↻ canvia només la seva igualtat',
+    w2.igualtats[2] !== w.igualtats[2] && w2.igualtats.filter((x, i) => i !== 2).join() === w.igualtats.filter((x, i) => i !== 2).join() &&
+    /&ri=0,0,1,0,0,0,0,0,0(&|$)/.test((await estat()).hash));
+  await pag.click('[data-isol="solucionari"]');
+  w = await web();
+  const solIg = await llegeixBaixada(pag, '#baixa-sol');
+  comprova('«Completa la igualtat», solucionari: les solucions a la vista i exN-sol.tex',
+    w.veure === 0 && w.solucions === 9 && solIg.nom === 'ex2-sol.tex' && solIg.text.startsWith('% ex2-sol.tex — solucionari de ex2.tex — «Completa la igualtat»') &&
+    (solIg.text.match(/\$[^$]*=\d+\$/g) || []).length === 9, solIg.text.slice(0, 200));
+  await pag.uncheck('#ipar');
+  await pag.uncheck('#iarr');
+  w = await web();
+  e = await estat();
+  comprova('«Completa la igualtat»: sense parèntesis ni arrels, l\'enunciat no els diu', !w.enunciat.includes('(') && !w.enunciat.includes('√') &&
+    w.enunciatHtml.includes('<sup>2</sup>') && /&ipar=0&/.test(e.hash) && !e.codi.includes('$($') && !e.codi.includes('\\sqrt{\\ }'), w.enunciat);
+  await pag.click('[data-inom="4"]');
+  await pag.click('[data-iesp="gran"]');
+  const cols = await pag.evaluate(() => getComputedStyle(document.querySelector('#full .igualtats')).gridTemplateColumns.split(' ').length);
+  e = await estat();
+  comprova('«Completa la igualtat»: 4 nombres i espai gran, en 2 columnes (a la web i al .tex)', cols === 2 && e.codi.includes('\\begin{tabular}{@{}*{2}'), String(cols));
+  await pag.click('[data-act="comb"]');
+  comprova('tornant a «Operacions combinades», hi ha el seu full, igual que abans', JSON.stringify((await estat()).formules) === JSON.stringify(comb));
+  const mi = await nova({ viewport: { width: 390, height: 844 } });
+  await mi.goto(EINA + '#act=igu&inom=4&iesp=gran&seed=igu2');
+  const mm = await mi.evaluate(() => ({ ample: document.documentElement.scrollWidth, finestra: document.documentElement.clientWidth }));
+  comprova('«Completa la igualtat», al mòbil: la pàgina no es desplaça de costat', mm.ample <= mm.finestra, `${mm.ample} > ${mm.finestra}`);
+  await mi.close();
 
   comprova('cap error a la consola', !errors.length, errors.join(' | '));
   await nav.close();

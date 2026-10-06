@@ -107,6 +107,25 @@ table.centrat td.dest { color: var(--dest); border-bottom: .09em solid currentCo
 u.dest { display: inline-block; line-height: 1.2; color: var(--dest); text-decoration: none; border-bottom: .09em solid currentColor; padding-bottom: .05em; }
 u.dest .fr { line-height: 1.9; }      /* les fraccions, com a fora */
 #opsol { margin-top: 4px; }
+#act { margin-bottom: 10px; }
+#act button { flex: 1 1 auto; }
+
+/* ── «Completa la igualtat» ── L'enunciat, l'exemple i les igualtats, en tres columnes */
+.enunciat { margin: 0 0 8px; }
+.exemple { margin: 0 0 16px; }
+.exemple .ombra { background: var(--bd); padding: 2px 8px; border-radius: 3px; }
+.simb { white-space: nowrap; }
+.igualtats { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 1000px) { .igualtats { grid-template-columns: repeat(min(var(--cols, 3), 2), minmax(0, 1fr)); } }
+@media (max-width: 560px) { .igualtats { grid-template-columns: minmax(0, 1fr); } }
+.igualtats .carta { margin: 0; }
+/* Els buits on l'alumnat escriu els símbols: l'espai triat (petit, mitjà, gran), proporcional al del
+   .tex (en mm) però més estret, perquè a la pantalla hi càpiguen tres igualtats per fila */
+.buit { display: inline-block; width: calc(var(--buit, 10mm) * .55); }
+.exemple .buit { width: 3mm; }
+.exemple .op { margin: 0 .22em; }
+.igualtat .math { font-size: 1.25rem; }
+.arrel > span { border-top: .07em solid currentColor; padding: 0 .08em; }
 #primers { margin: 6px 0; font-size: .85rem; }
 /* Potència: s'enlaira sense alterar l'alçada de la línia */
 .math sup, .linia sup, table.centrat sup { font-size: .62em; line-height: 0; vertical-align: 0; position: relative; top: -.75em; margin-left: .04em; }

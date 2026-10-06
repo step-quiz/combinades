@@ -20,7 +20,7 @@
 var Motor = (function () {
   'use strict';
 
-  const VERSIO = 'v0.5';
+  const VERSIO = 'v0.6';
 
   /* La versió del GENERADOR va a l'adreça (g=…), perquè un full desat surti
      sempre amb el generador amb què es va fer. Les adreces sense g són de la
@@ -918,7 +918,7 @@ var Motor = (function () {
     return s + '\\end{enumerate}\n';
   }
 
-  const M = { VERSIO, GENERADOR, ESPAIS, SIMBOLS, EXTRES, valida, opcions, exercici, passos, resolucio, centrada, fitxerTex, fitxerSolucionari };
+  const M = { VERSIO, GENERADOR, ESPAIS, SIMBOLS, EXTRES, atzar, valida, opcions, exercici, passos, resolucio, centrada, fitxerTex, fitxerSolucionari };
   if (typeof module !== 'undefined') module.exports = M;
   return M;
 })();

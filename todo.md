@@ -8,9 +8,9 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.5: «destaca la següent operació» en blau fosc i subratllat (també amb «centrat»), les solucions a la
-web i fora el PDF del navegador i «Copia el TeX» (§2.9). Sobre la v0.4 (la disposició «centrat», §2.8), la v0.3 (el
-solucionari pas a pas, §2) i la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
+**Versió:** v0.6: una activitat nova, «Completa la igualtat» (§7). Sobre la v0.5 («destaca la següent operació» en
+blau fosc i subratllat, les solucions a la web i fora el PDF del navegador, §2.9), la v0.4 (la disposició
+«centrat», §2.8), la v0.3 (el solucionari pas a pas, §2) i la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
 **Generador:** els fulls nous es fan amb el generador 2 (`g=2` a l'adreça): parèntesis segons el pla del
 professor (§5). Les adreces sense `g` (v0.1) es refan amb el generador 1, sense cap canvi.
 **Proves:** `node tests/prova.js` → per a cada generador, 82 combinacions × 100 exercicis i les 328 combinacions
@@ -23,13 +23,17 @@ byte a byte que abans (`tests/referencia-cap.tex`). «Centrat»: de cada resoluc
 llegir (cada fila diu el mateix que la línia, cap signe no canvia de columna, cap resultat no ocupa una columna
 nova; els blocs d'una resolució llarga porten, invisibles, les línies dels altres) i l'exemple del professor,
 columna a columna. «Destaca» amb «centrat»: en blau, just el que es destaca a la línia normal, i la ratlla a sota.
+«Completa la igualtat» (§7): 32 combinacions (3 i 4 nombres, cada combinació de símbols) amb empremta, i 160 fulls
+revisats sencers: cada solució es torna a llegir amb un lector propi (regles i símbols permesos), i què necessita
+cada igualtat es torna a buscar provant totes les cadenes possibles; el pla de cada full; determinisme i ↻.
 **LaTeX:** `node tests/compila.js` compila 40 exercicis de ℕ, de ℤ i de ℚ amb totes les opcions i símbols «gran»,
 en full normal, guiades, solucionari (destacat i «una operació»), «només resultats» i «centrat» (guiades destacat
 i solucionari): sense errors ni «Overfull». La fórmula més ampla fa el 54 % de la línia; la línia de resolució més
 ampla, el 59 %; la resolució «centrat» més ampla, el 63 %, i el bloc més alt, el 65 % de la pàgina; els blocs d'una
-resolució llarga fan el mateix ample. (També compilat pel professor amb el seu `capsalera.tex`.)
-**Interfície:** `node tests/navegador.js` (Chromium, 40 comprovacions: adreça i generador, ↻, baixades, mòbil,
-guiades, solucionari, «centrat» i «destaca», també amb el fons fosc).
+resolució llarga fan el mateix ample. «Completa la igualtat»: el full i el solucionari, amb 3 i 4 nombres i cada
+espai, sense «Overfull» (cada igualtat cap a la seva columna). (També compilat pel professor amb el seu `capsalera.tex`.)
+**Interfície:** `node tests/navegador.js` (Chromium, 48 comprovacions: adreça i generador, ↻, baixades, mòbil,
+guiades, solucionari, «centrat» i «destaca», també amb el fons fosc, i «Completa la igualtat»).
 Falta mirar-la a Firefox, a Safari i en un mòbil de debò.
 
 Fet:
@@ -52,6 +56,7 @@ Fet:
   totes les resolucions a la web.
 - Disposició «centrat» (§2.8): signes alineats en columna i cada resultat centrat sota el que substitueix.
 - «Destaca la següent operació» (§2.9): en blau fosc i subratllat, també amb «centrat».
+- Activitat «Completa la igualtat» (§7).
 
 ---
 
@@ -283,6 +288,7 @@ Ho va demanar el professor:
 - **Sense PDF del navegador** (octubre de 2026): el professor no el fa servir, ni «Copia el TeX». El PDF és el de
   LaTeX. (Fins a la v0.4, la web tenia «PDF» i «PDF solucions», d'impressió del navegador: vegeu l'historial.)
 - **«Destaca la següent operació»** (octubre de 2026): en blau fosc (`darkblue`) i subratllat, també amb «centrat».
+- **«Completa la igualtat»** (octubre de 2026): les respostes del professor, a §7.
 - Carpeta d'extracció: `_uploads` (amb «s»), com el workflow d'`exam2bat`.
 - **Parèntesis (generador 2, octubre de 2026).** Com a màxim 3 per exercici, i el 3 improbable. Compten tots els que
   es veuen menys els d'un sol nombre o fracció: `(−3)` i `(½)²` no compten; `(−(2+3))` en té dos.
@@ -355,3 +361,40 @@ Dades de 16.400 exercicis del generador 1 (totes les combinacions; «força» ma
 2. El codi nou només s'aplica amb `g ≥ 2` (a `motor.js`, `GENERADOR` és l'última). Els fulls nous i «Genera-ho tot»
    fan servir l'última, i un enllaç desat continua amb la seva fins que es prem «Genera-ho tot».
 3. `tests/empremtes.json` vigila tots els generadors. Un generador 3 seguiria el mateix camí.
+
+---
+
+## 7. «Completa la igualtat» (fet, v0.6)
+
+L'activitat que va proposar el professor, amb el seu full d'exemple: «Completa escrivint ( , ) , + , − , · , : ,
+², √ per aconseguir que les igualtats siguin certes. Exemple: 1 2 5 = 15 → (1 + 2) · 5 = 15».
+
+**Les seves respostes (octubre de 2026):**
+- A la **mateixa pàgina**: a dalt del panell es tria l'activitat; comparteixen l'Entorn, el «Fitxer núm.» i les
+  baixades (`exN.tex`, `exN-sol.tex`).
+- **Regles de base:** els nombres en ordre, tots i una vegada; sense ajuntar xifres, ni − davant del primer, ni
+  valors negatius pel camí; divisions exactes; √ només de quadrats perfectes.
+- **3 o 4 nombres** per igualtat, a triar. Nombres de **0 a 9** i resultat **fins a 100** (els valors de pel camí,
+  també: ho vaig decidir jo, perquè el càlcul sigui mental).
+- **² i √ només damunt d'un nombre** (3², √9), no d'un parèntesi.
+- **Símbols, amb caselles** (parèntesis, ², √, divisions); + − · sempre. L'enunciat només diu els triats.
+- **Dificultat, com el seu full:** de cada 9, 5 només amb + − · :, 3 amb parèntesis i 1 amb ² o √ (si no hi ha
+  parèntesis, o ni ² ni √, aquesta part passa a les fàcils), barrejades.
+- **De 3 a 15 igualtats** (9 per defecte), en **3 columnes** (2 si no hi caben: 4 nombres amb espai mitjà o gran,
+  o 3 nombres amb espai gran).
+- **L'`exN.tex`** porta l'enunciat i un **exemple nou a cada full** (ombrejat, resolt, amb parèntesis).
+- **Solucions:** la més senzilla de cada igualtat, a `exN-sol.tex` i a la web.
+- **Espai per escriure:** petit / mitjà / gran (entre els nombres, davant del primer i del «=», i entre files).
+
+**Com està fet:** `assets/igualtats.js` (pur, sense DOM, com `motor.js`, i amb el seu atzar amb llavor).
+- El **cercador** fa tots els arbres possibles amb els nombres en ordre i els símbols permesos, amb les regles, i
+  per a cada resultat en guarda la solució més senzilla i el **nivell** que necessita: 0, només + − · :; 1,
+  parèntesis; 2, ² o √. S'escriu amb els parèntesis que calen amb la prioritat de sempre, també a la dreta d'una
+  operació de la mateixa prioritat, a + (b + c): així el text es calcula exactament com l'arbre.
+- El **pla** de cada full (quin nivell porta cada igualtat) només depèn de la llavor i de les opcions: ↻ canvia la
+  igualtat, no el nivell. Generador `ig=1` a l'adreça; empremtes a `tests/empremtes.json`.
+- Proves: `tests/prova.js` §13 (i el lector i el cercador independents, abans de les empremtes), `tests/compila.js`
+  i `tests/navegador.js`.
+
+**Pendent:** provar-la a l'aula; decidir si cal un control de dificultat al panell (ara, sempre la barreja del seu
+full) i si les igualtats amb el 0, que tenen moltes solucions (0 0 7 = 0 en té moltes), són massa fàcils.
