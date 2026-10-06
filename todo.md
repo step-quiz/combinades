@@ -26,7 +26,7 @@ en full normal, guiades, solucionari (destacat i «una operació»), «només re
 solucionari): sense errors ni «Overfull». La fórmula més ampla fa el 54 % de la línia; la línia de resolució més
 ampla, el 59 %; i la resolució «centrat» més ampla, el 63 % (i la més alta, el 93 % de la pàgina). (També compilat
 pel professor amb el seu `capsalera.tex`.)
-**Interfície:** `node tests/navegador.js` (Chromium, 42 comprovacions: adreça i generador, ↻, baixades, impressió, mòbil,
+**Interfície:** `node tests/navegador.js` (Chromium, 43 comprovacions: adreça i generador, ↻, baixades, impressió, mòbil,
 guiades, solucionari i «centrat»).
 Falta mirar-la a Firefox, a Safari i en un mòbil de debò.
 

@@ -225,25 +225,36 @@ const llegeixBaixada = async (pag, selector) => {
   comprova('sense centrat, «destaca» torna a funcionar', !(await pag.isDisabled('#dest')) && (await estat()).codi.includes('flalign'));
   // El «PDF solucions» d'un solucionari centrat: la taula substitueix l'enunciat, i cap no surt del paper
   await pag.setViewportSize({ width: 658, height: 900 });
-  let maxTaula = 0, malament = '', encongides = 0;
-  for (const s of [0, 1, 2, 18]) {                  // ample18 té una taula de més de 600 px: s'ha d'encongir
+  let maxTaula = 0, malament = '';
+  for (const s of [0, 1, 2, 18]) {
     await pag.goto(EINA + `#n=10&esp=petit&sim=gran&set=Q&div=1&opo=1&pot=1&par=1&seed=ample${s}&g=2&sol=solucionari&cen=1`);
     await pag.evaluate(() => document.body.classList.add('imprimeix-solucions'));
     await pag.emulateMedia({ media: 'print' });
     const r = await pag.evaluate(() => ({
       enunciats: [...document.querySelectorAll('#full .math')].filter(x => x.offsetParent !== null).length,
-      taules: [...document.querySelectorAll('#full .sol-imp table.centrat')].filter(x => x.offsetParent !== null).map(t => t.getBoundingClientRect().right),
-      encongides: [...document.querySelectorAll('#full .sol-imp table.centrat')].filter(t => t.style.getPropertyValue('--encaix')).length
+      taules: [...document.querySelectorAll('#full .sol-imp table.centrat')].filter(x => x.offsetParent !== null).map(t => t.getBoundingClientRect().right)
     }));
-    encongides += r.encongides;
     if (r.enunciats || r.taules.length !== 10) malament = JSON.stringify(r);
     maxTaula = Math.max(maxTaula, ...r.taules);
     await pag.evaluate(() => document.body.classList.remove('imprimeix-solucions'));
     await pag.emulateMedia({ media: 'screen' });
   }
   comprova('centrat, «PDF solucions»: una taula per exercici, sense l\'enunciat repetit', !malament, malament);
-  comprova('centrat, «PDF solucions»: les taules més amples (ℚ, símbols «gran») s\'encongeixen i caben al paper',
-    maxTaula <= 658 && encongides > 0, `${Math.round(maxTaula)} px; ${encongides} encongides`);
+  comprova('centrat, «PDF solucions»: les taules més amples (ℚ, símbols «gran») caben al paper', maxTaula <= 658, Math.round(maxTaula) + ' px');
+  // I el mecanisme, sigui quina sigui la lletra del sistema: amb la lletra a 24 px, moltes taules passen de 600 px, i
+  // les del «PDF solucions» (que no es veuen a la pantalla) també s'han d'encongir, just el que cal
+  await pag.addStyleTag({ content: 'html { font-size: 24px }' });
+  await pag.evaluate(() => window.dispatchEvent(new HashChangeEvent('hashchange')));      // l'eina es torna a pintar
+  const enc = await pag.evaluate(() => [...document.querySelectorAll('#full .sol-imp')].map(x => {
+    x.style.display = 'block';
+    const t = x.querySelector('table.centrat'), r = document.createRange();
+    r.selectNodeContents(t);
+    const ample = r.getBoundingClientRect().width;
+    x.style.display = '';
+    return [Math.round(ample), parseFloat(t.style.getPropertyValue('--encaix')) || 1];
+  }));
+  comprova('centrat, «PDF solucions»: una taula que no cap al paper s\'encongeix, encara que no es vegi a la pantalla',
+    enc.some(([a]) => a > 600) && enc.every(([a, k]) => Math.abs(Math.min(a, 600) - a * k) < 2), JSON.stringify(enc));
   await pag.setViewportSize({ width: 390, height: 844 });
   await pag.goto(EINA + '#n=4&esp=petit&sim=gran&set=Q&div=1&opo=1&pot=1&par=1&seed=ample18&g=2&sol=guiades&res=0,1,2,3&cen=1');
   const mc = await pag.evaluate(() => ({ ample: document.documentElement.scrollWidth, finestra: document.documentElement.clientWidth }));
