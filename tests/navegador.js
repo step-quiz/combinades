@@ -369,8 +369,8 @@ const llegeixBaixada = async (pag, selector) => {
   comprova('«Completa la igualtat»: 4 nombres i espai gran, en 2 columnes separades per una línia discontínua (a la web i al .tex)',
     cols === 2 && /linear-gradient/.test(ratlla) && e.codi.includes('\\begin{tabular}{@{}p{\\dimexpr(\\linewidth-6mm-.4pt)/2\\relax}@{\\hspace{3mm}\\lower') &&
     e.codi.includes('\\xleaders'), `${cols} ${ratlla}`);
-  comprova('«Completa la igualtat»: sense «Crea el PDF» (només és per a les operacions combinades)',
-    await pag.evaluate(() => getComputedStyle(document.getElementById('pdf')).display === 'none'));
+  comprova('«Completa la igualtat»: també amb «Crea el PDF»',
+    await pag.evaluate(() => getComputedStyle(document.getElementById('pdf')).display !== 'none' && !document.getElementById('pdf').disabled));
   await pag.click('[data-act="comb"]');
   comprova('tornant a «Operacions combinades», hi ha el seu full, igual que abans', JSON.stringify((await estat()).formules) === JSON.stringify(comb));
   const mi = await nova({ viewport: { width: 390, height: 844 } });
@@ -426,8 +426,21 @@ const llegeixBaixada = async (pag, selector) => {
   f = await fulls('#n=10&esp=mitja&set=N&div=1&par=1&pot=1&seed=pdf1&g=2');
   comprova('PDF sense solucions: 10 exercicis, sense «Solucions», A4 i sense vessar',
     f.nums.length === 10 && !f.titols.includes('Solucions') && f.a4 && f.vessa === 0 && f.pagines === f.n, JSON.stringify(f).slice(0, 300));
-  f = await fulls('#act=igu&seed=igu1');
-  comprova('PDF: per a «Completa la igualtat», no hi ha fulls (ho diu)', f.n === 0 && /Crea el PDF/.test(f.msg || ''), JSON.stringify(f).slice(0, 200));
+  f = await fulls('#act=igu&seed=igu1&isol=solucionari');
+  const ig = await (async () => {
+    const p = await nova({ viewport: { width: 1000, height: 900 } });
+    await p.goto('file://' + path.join(arrel, 'imprimir.html') + '#act=igu&seed=igu1&isol=solucionari');
+    await p.waitForSelector('body[data-llest]');
+    const r = await p.evaluate(() => [...document.querySelectorAll('.fila-ig .ig')].filter(x => x.textContent).map(x => x.querySelector('.math').textContent.replace(/\s+/g, '')));
+    await p.close();
+    return r;
+  })();
+  const fiPdf = Igualtats.full({ n: 9, nombres: 3, par: 1, pot: 1, arr: 1, div: 1, esp: 'mitja' }, 'ig:igu1', []);
+  comprova('PDF de «Completa la igualtat»: A4, la capçalera, les igualtats del motor i les solucions en un full a part',
+    f.n === 2 && f.a4 && f.vessa === 0 && f.pagines === 2 && f.capcalera[0] && f.titols[1] === 'Solucions' &&
+    ig.slice(0, 9).join('|') === fiPdf.items.map(x => `${x.ns.join('')}=${x.t}`).join('|') && ig.length === 18, JSON.stringify(f).slice(0, 200) + ig.join('|'));
+  f = await fulls('#act=igu&inom=4&iesp=gran&in=12&seed=igu2');
+  comprova('PDF de «Completa la igualtat», 12 igualtats grans: sense solucions, A4 i sense vessar', f.titols.every(t => !t) && f.a4 && f.vessa === 0 && f.pagines === f.n, JSON.stringify(f).slice(0, 200));
 
   console.log('Panell');
   // Una pestanya nova (sense res desat): tres passos; plegats, en diuen el resum

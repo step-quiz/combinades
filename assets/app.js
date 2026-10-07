@@ -275,7 +275,7 @@
     $('baixa-sol').textContent = `Baixa ex${numSol}-sol.tex`;
     $('baixa').disabled = $('baixa-sol').disabled = !ok;
     mostra('baixa-sol', solucionari); mostra('codi-sol-d', solucionari);
-    mostra('pdf', S.act === 'comb'); $('pdf').disabled = !ok;     // els fulls A4, només de les operacions combinades
+    $('pdf').disabled = !ok;     // els fulls A4
     $('segell').textContent = Motor.VERSIO;
     desa();
   }
