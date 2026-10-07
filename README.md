@@ -5,9 +5,20 @@ Web estàtica (HTML + CSS + JS, sense dependències ni build) que genera fulls d
 `main.tex` fa `\input{ex1.tex}`). El PDF, el fas tu compilant-lo amb LaTeX.
 
 ## Ús
-Obre `index.html` amb doble clic. A dalt del panell tries l'activitat. A «Operacions combinades», tria operacions
-(1–10), espai, conjunt (ℕ/ℤ/ℚ) i opcions.
-Cada ↻ regenera un exercici; «Genera-ho tot» en fa un full nou.
+Obre `index.html` amb doble clic. A dalt del panell tries l'activitat. La configuració va en tres passos, en
+l'ordre en què es fa un full; cadascun es plega i, plegat, en diu el resum (el navegador recorda quins tens oberts):
+
+1. **Exercicis:** quantes operacions (1–10), els nombres (ℕ naturals, ℤ enters, ℚ fraccions; amb ℤ i ℚ, on hi pot
+   haver negatius o fraccions i si n'hi ha d'haver sempre), les operacions que hi surten a més de + − ·
+   (divisions, parèntesis, potències, oposats) i la dificultat: *totes iguals* o *de fàcil a difícil*.
+2. **Aspecte del full:** l'espai per resoldre cada operació, l'espai entre els signes i si l'espai es manté a dalt
+   d'una pàgina (`\vspace*`).
+3. **Solucions:** cap, *exemples resolts* dins del mateix full o un *solucionari* a part (vegeu més avall).
+
+Les opcions que depenen d'una altra només surten quan serveixen: «on hi pot haver negatius», amb ℤ o ℚ;
+«simplifica les fraccions», amb ℚ; com es veu la resolució, només si n'hi ha. «Entorn» (els fitxers de la
+carpeta) va plegat a baix: es baixa un sol cop.
+Cada ↻ regenera un exercici; **↻ Full nou**, al costat del títol del full, el fa tot de nou.
 
 **L'adreça (`#…`) guarda el full.** Desa l'enllaç i tornaràs a tenir els mateixos exercicis, també si l'obres
 en una pestanya on ja tens l'eina oberta. El `.tex` porta l'adreça escrita a la tercera línia:
@@ -29,13 +40,13 @@ donen exactament el mateix full que quan els vas desar.
 
 ## Solucions
 
-Al panell, **Solucions** té tres modes:
+Al panell, el pas **Solucions** té tres opcions (a l'adreça, `sol=cap|guiades|solucionari`):
 
-- **cap**: el full de sempre.
-- **guiades**: alguns exercicis del full surten resolts pas a pas, com a model. Es trien amb la casella
-  «resolt» de cada targeta o amb «Resol els primers 1, 2, 3». A la web i a l'`exN.tex`, els resolts porten la
-  resolució a sota (i poc espai); la resta, com sempre.
-- **solucionari**: l'`exN.tex` no canvia, i a la barra de baix apareix **Baixa exN-sol.tex** (tots els
+- **Cap**: el full de sempre.
+- **Exemples resolts** (`guiades`): alguns exercicis del full surten resolts pas a pas, com a model. Per defecte,
+  el primer; es trien amb «Quants? Els primers 1, 2, 3» o amb la casella «resolt» de cada targeta. A la web i a
+  l'`exN.tex`, els resolts porten la resolució a sota (i poc espai); la resta, com sempre.
+- **Solucionari**: l'`exN.tex` no canvia, i a la barra de baix apareix **Baixa exN-sol.tex** (tots els
   exercicis resolts, amb la mateixa numeració; al `main.tex`, `\input{exN-sol.tex}`). A la web, cada exercici
   surt resolt, tal com al solucionari.
 
@@ -46,7 +57,8 @@ La resolució segueix l'ordre de l'aula:
 - amb fraccions, una línia amb el comú denominador (el m.c.m.), `1/2 + 1/3 = 3/6 + 2/6 = 5/6`, i, si el resultat
   es pot simplificar, una més: `= 3/6 = 1/2`.
 
-Opcions: *per prioritat* (totes les operacions del mateix nivell en una línia) o *una operació per pas*;
+Opcions: a cada línia, *totes les del mateix nivell* (`gra=prio`: totes les potències, o totes les · i : que es
+poden fer, en una línia; `2·3 + 4·5 = 6 + 20 = 26`) o *una sola operació* (`gra=op`: `= 6 + 4·5 = 6 + 20 = 26`);
 *simplifica les fraccions en una línia a part*; **destaca la següent operació**: a cada línia, el que es calcula
 a la següent surt en blau fosc i dins d'una caixa (a la web i al `.tex`, `{\color{darkblue}\boxed{…}}`); i, al
 solucionari, *només els resultats*. Els exercicis que no surten resolts tenen **Veure els passos**.

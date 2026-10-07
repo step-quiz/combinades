@@ -12,59 +12,93 @@
 <aside>
   <h2>Configuració</h2>
   <div class="grup" id="act"><button data-act="comb">Operacions combinades</button><button data-act="igu">Completa la igualtat</button></div>
+  <!-- Tres passos, en l'ordre en què es fa un full: què hi surt, com es veu i les solucions. Cada pas es plega i,
+       plegat, en diu el resum. Les opcions que depenen d'una altra només surten quan serveixen. -->
   <div id="op-comb">
-  <label class="fila">Operacions <input type="number" id="n" min="1" max="10"></label>
-  <h3>Espai entre operacions</h3>
-  <div class="grup" id="esp">
-    <button data-esp="petit">petit</button><button data-esp="mitja">mitjà</button><button data-esp="gran">gran</button>
-  </div>
-  <h3>Espai entre símbols</h3>
-  <div class="grup" id="sim"><button data-sim="petit">petit</button><button data-sim="mitja">mitjà</button><button data-sim="gran">gran</button></div>
-  <h3>Conjunt</h3>
-  <div class="grup" id="set"><button data-set="N">ℕ</button><button data-set="Z">ℤ</button><button data-set="Q">ℚ</button></div>
-  <div id="onviuen"><label><input type="checkbox" id="int"> intermedis</label> <label><input type="checkbox" id="fin"> resultat final</label></div>
-  <h3>Opcions</h3>
-  <label><input type="checkbox" id="div"> divisions</label>
-  <label><input type="checkbox" id="opo"> oposat d'un nombre</label>
-  <label><input type="checkbox" id="pot"> potències</label>
-  <label><input type="checkbox" id="par"> parèntesis</label>
-  <h3>Com s'hi incorporen</h3>
-  <div class="grup" id="grad"><button data-grad="0" title="Tots els exercicis tenen tots els extres marcats">immediata</button><button data-grad="1" title="Els primers exercicis en tenen pocs o cap; els 2 últims, tots">gradual</button></div>
-  <label><input type="checkbox" id="forca"> força que apareguin</label>
-  <label title="Usa \vspace* al .tex: l'espai no es perd a dalt de pàgina"><input type="checkbox" id="vs"> conserva l'espai a dalt de pàgina</label>
-  <h3>Solucions</h3>
-  <div class="grup" id="sol"><button data-sol="cap" title="El full de sempre, sense solucions">cap</button><button data-sol="guiades" title="Alguns exercicis del full surten resolts pas a pas, com a model">guiades</button><button data-sol="solucionari" title="Un fitxer a part, exN-sol.tex, amb tots els exercicis resolts">solucionari</button></div>
-  <div id="opsol">
-    <div class="fila" id="primers">Resol els primers <span class="grup"><button data-k="0" title="Cap">0</button><button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button></span></div>
-    <div class="grup" id="gra"><button data-gra="prio" title="A cada línia, totes les operacions del mateix nivell">per prioritat</button><button data-gra="op" title="A cada línia, una sola operació">una operació per pas</button></div>
-    <label title="Els signes d'operació alineats en columna, cada resultat centrat sota el que substitueix i el «=» al final de cada línia"><input type="checkbox" id="cen"> centrat: els signes en columna</label>
-    <label><input type="checkbox" id="simp"> simplifica les fraccions en una línia a part</label>
-    <label title="En blau fosc i dins d'una caixa: el que es calcula a la línia següent"><input type="checkbox" id="dest"> destaca la següent operació</label>
-    <label id="nomes-l"><input type="checkbox" id="nomes"> només els resultats</label>
-  </div>
+    <details class="pas" id="pas-ex" open>
+      <summary><b>1 · Exercicis</b><span class="resum" id="resum-ex"></span></summary>
+      <label class="fila">Quantes operacions <input type="number" id="n" min="1" max="10"></label>
+      <h3>Nombres</h3>
+      <div class="grup seg" id="set"><button data-set="N">ℕ naturals</button><button data-set="Z">ℤ enters</button><button data-set="Q">ℚ fraccions</button></div>
+      <div class="sub" id="onviuen">
+        <p class="ajuda" id="onviuen-que"></p>
+        <label><input type="checkbox" id="int"> als càlculs del mig</label>
+        <label><input type="checkbox" id="fin"> al resultat</label>
+        <label title="Si no, per atzar, un exercici pot sortir sense cap"><input type="checkbox" id="forca"> <span id="forca-que"></span></label>
+      </div>
+      <h3>Operacions</h3>
+      <p class="ajuda">Sempre hi ha +, − i ·. A més:</p>
+      <label><input type="checkbox" id="div"> divisions</label>
+      <label><input type="checkbox" id="par"> parèntesis</label>
+      <label><input type="checkbox" id="pot"> potències</label>
+      <label><input type="checkbox" id="opo"> oposats: −(…)</label>
+      <h3>Dificultat</h3>
+      <div class="grup seg" id="grad"><button data-grad="0">totes iguals</button><button data-grad="1">de fàcil a difícil</button></div>
+      <p class="ajuda" id="grad-que"></p>
+    </details>
+    <details class="pas" id="pas-asp">
+      <summary><b>2 · Aspecte del full</b><span class="resum" id="resum-asp"></span></summary>
+      <h3>Espai per resoldre cada operació</h3>
+      <div class="grup seg" id="esp"><button data-esp="petit">petit</button><button data-esp="mitja">mitjà</button><button data-esp="gran">gran</button></div>
+      <h3>Espai entre els signes</h3>
+      <div class="grup seg" id="sim"><button data-sim="petit">petit</button><button data-sim="mitja">mitjà</button><button data-sim="gran">gran</button></div>
+      <label title="Al .tex, \vspace* en lloc de \vspace"><input type="checkbox" id="vs"> manté l'espai encara que l'operació quedi a dalt d'una pàgina</label>
+    </details>
+    <details class="pas" id="pas-sol">
+      <summary><b>3 · Solucions</b><span class="resum" id="resum-sol"></span></summary>
+      <div class="opcions" id="sol">
+        <button data-sol="cap"><b>Cap</b><small>El full per a l'alumnat, sense solucions.</small></button>
+        <button data-sol="guiades"><b>Exemples resolts</b><small>Alguns exercicis del mateix full surten resolts pas a pas, com a model.</small></button>
+        <button data-sol="solucionari"><b>Solucionari</b><small>Un fitxer a part, exN-sol.tex, amb tots els exercicis resolts.</small></button>
+      </div>
+      <div class="sub" id="primers">
+        <div class="fila">Quants? Els primers <span class="grup"><button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button></span></div>
+        <p class="ajuda">O marca «resolt» a l'exercici que vulguis.</p>
+      </div>
+      <label class="sub" id="nomes-l"><input type="checkbox" id="nomes"> només el resultat de cada exercici</label>
+      <div id="opsol">
+        <h3>A cada línia de la resolució, es fan</h3>
+        <div class="grup seg" id="gra"><button data-gra="prio">totes les del mateix nivell</button><button data-gra="op">una sola operació</button></div>
+        <p class="ajuda exemple" id="gra-que"></p>
+        <label title="Els signes d'operació alineats en columna, cada resultat centrat sota el que substitueix i el «=» al final de cada línia"><input type="checkbox" id="cen"> signes en columna (centrat)</label>
+        <label title="En blau fosc i dins d'una caixa: el que es calcula a la línia següent"><input type="checkbox" id="dest"> destaca l'operació següent (caixa blava)</label>
+        <label id="simp-l"><input type="checkbox" id="simp"> simplifica les fraccions en una línia a part</label>
+      </div>
+    </details>
   </div>
   <div id="op-igu">
-  <label class="fila">Igualtats <input type="number" id="in" min="3" max="15"></label>
-  <h3>Nombres per igualtat</h3>
-  <div class="grup" id="inom"><button data-inom="3">3</button><button data-inom="4">4</button></div>
-  <h3>Símbols (sempre + − ·)</h3>
-  <label><input type="checkbox" id="ipar"> parèntesis ( )</label>
-  <label><input type="checkbox" id="ipot"> quadrats ²</label>
-  <label><input type="checkbox" id="iarr"> arrels √</label>
-  <label><input type="checkbox" id="idiv"> divisions :</label>
-  <h3>Espai per escriure</h3>
-  <div class="grup" id="iesp"><button data-iesp="petit">petit</button><button data-iesp="mitja">mitjà</button><button data-iesp="gran">gran</button></div>
-  <h3>Solucions</h3>
-  <div class="grup" id="isol"><button data-isol="cap" title="Cada igualtat té «Veure la solució»">cap</button><button data-isol="solucionari" title="Les solucions a la vista i exN-sol.tex">solucionari</button></div>
+    <details class="pas" id="pas-iex" open>
+      <summary><b>1 · Igualtats</b><span class="resum" id="resum-iex"></span></summary>
+      <label class="fila">Quantes igualtats <input type="number" id="in" min="3" max="15"></label>
+      <h3>Nombres a cada igualtat</h3>
+      <div class="grup seg" id="inom"><button data-inom="3">3</button><button data-inom="4">4</button></div>
+      <h3>Símbols</h3>
+      <p class="ajuda">Sempre hi ha +, − i ·. A més:</p>
+      <label><input type="checkbox" id="ipar"> parèntesis ( )</label>
+      <label><input type="checkbox" id="ipot"> quadrats ²</label>
+      <label><input type="checkbox" id="iarr"> arrels √</label>
+      <label><input type="checkbox" id="idiv"> divisions :</label>
+    </details>
+    <details class="pas" id="pas-iasp">
+      <summary><b>2 · Aspecte del full</b><span class="resum" id="resum-iasp"></span></summary>
+      <h3>Espai per escriure els símbols</h3>
+      <div class="grup seg" id="iesp"><button data-iesp="petit">petit</button><button data-iesp="mitja">mitjà</button><button data-iesp="gran">gran</button></div>
+    </details>
+    <details class="pas" id="pas-isol">
+      <summary><b>3 · Solucions</b><span class="resum" id="resum-isol"></span></summary>
+      <div class="opcions" id="isol">
+        <button data-isol="cap"><b>Cap</b><small>Al full, sense solucions. A la web, cada igualtat té «Veure la solució».</small></button>
+        <button data-isol="solucionari"><b>Solucionari</b><small>Un fitxer a part, exN-sol.tex, amb la solució de cada igualtat.</small></button>
+      </div>
+    </details>
   </div>
-  <p><button id="tot">Genera-ho tot</button></p>
-  <div class="entorn">
-    <h2>Entorn</h2>
+  <details class="pas entorn" id="entorn">
+    <summary><b>Entorn</b><span class="resum">main.tex · headers.tex · defs.tex</span></summary>
     <p class="avis">Els fitxers de la carpeta de fulls. Es baixen un sol cop: el teu main.tex fa \input{exN.tex}.</p>
     <div class="grup"><button data-entorn="main">main.tex</button><button data-entorn="headers">headers.tex</button><button data-entorn="defs">defs.tex</button></div>
-  </div>
+  </details>
 </aside>
-<section><h2>Full</h2><div id="full"></div>
+<section><div class="cap-full"><h2>Full</h2><button id="tot" title="Fa tots els exercicis de nou">↻ Full nou</button></div><div id="full"></div>
   <details><summary>Veure el codi TeX</summary><pre id="codi"></pre></details>
   <details id="codi-sol-d"><summary>Veure el codi TeX del solucionari</summary><pre id="codi-sol"></pre></details>
 </section>

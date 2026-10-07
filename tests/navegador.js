@@ -47,6 +47,8 @@ const llegeixBaixada = async (pag, selector) => {
     return p;
   };
   const pag = await nova({ viewport: { width: 1280, height: 900 }, acceptDownloads: true });
+  // Els passos del panell es pleguen: per fer servir tots els controls, s'obren (el navegador ho recorda)
+  const obreTot = async (p) => { await p.evaluate(() => document.querySelectorAll('aside details').forEach(d => { d.open = true; })); await p.waitForTimeout(50); };
   const estat = () => pag.evaluate(() => ({
     hash: location.hash,
     cartes: document.querySelectorAll('#full .carta').length,
@@ -60,6 +62,7 @@ const llegeixBaixada = async (pag, selector) => {
 
   console.log('Arrencada');
   await pag.goto(EINA);
+  await obreTot(pag);
   let e = await estat();
   comprova('surt un full de 5 exercicis', e.cartes === 5, e.cartes);
   comprova('el segell diu la versió del motor', await pag.textContent('#segell') === Motor.VERSIO);
@@ -289,6 +292,54 @@ const llegeixBaixada = async (pag, selector) => {
   const mm = await mi.evaluate(() => ({ ample: document.documentElement.scrollWidth, finestra: document.documentElement.clientWidth }));
   comprova('«Completa la igualtat», al mòbil: la pàgina no es desplaça de costat', mm.ample <= mm.finestra, `${mm.ample} > ${mm.finestra}`);
   await mi.close();
+
+  console.log('Panell');
+  // Una pestanya nova (sense res desat): tres passos; plegats, en diuen el resum
+  const pn = await nova({ viewport: { width: 1280, height: 900 } });
+  await pn.goto(EINA + '#n=5&set=N&seed=panell&g=2');
+  const panell = () => pn.evaluate(() => {
+    const vis = id => getComputedStyle(document.getElementById(id)).display !== 'none';
+    const txt = id => document.getElementById(id).textContent;
+    return {
+      oberts: [...document.querySelectorAll('#op-comb details, #entorn')].map(d => `${d.id}:${d.open ? 1 : 0}`).join(','),
+      resums: ['resum-ex', 'resum-asp', 'resum-sol'].map(txt),
+      onviuen: vis('onviuen') && txt('onviuen-que'), simp: vis('simp-l'), primers: vis('primers'), nomes: vis('nomes-l'), opsol: vis('opsol'),
+      k: [...document.querySelectorAll('[data-k][aria-pressed=true]')].map(b => b.dataset.k).join(),
+      resolts: document.querySelectorAll('#full .carta.resolt').length
+    };
+  });
+  let pl = await panell();
+  comprova('panell: «Exercicis» obert; «Aspecte», «Solucions» i «Entorn», plegats', pl.oberts === 'pas-ex:1,pas-asp:0,pas-sol:0,entorn:0', pl.oberts);
+  comprova('panell: el resum dels passos plegats', pl.resums[0] === '5 · ℕ · només + − ·' && pl.resums[1] === 'espai mitjà · signes: petit' && pl.resums[2] === 'cap', pl.resums.join(' | '));
+  comprova('panell: amb ℕ, ni «on hi pot haver negatius» ni «simplifica»; sense solucions, cap opció de la resolució',
+    pl.onviuen === false && !pl.simp && !pl.primers && !pl.nomes && !pl.opsol, JSON.stringify(pl));
+  await pn.click('[data-set="Z"]');
+  pl = await panell();
+  comprova('panell: amb ℤ, «on hi pot haver nombres negatius» (i el resum ho diu)', /negatius/.test(pl.onviuen) && !pl.simp && pl.resums[0].includes('ℤ'), JSON.stringify(pl));
+  await pn.click('[data-set="Q"]');
+  pl = await panell();
+  comprova('panell: amb ℚ, fraccions i «simplifica les fraccions»', /fraccions/.test(pl.onviuen) && pl.simp, JSON.stringify(pl));
+  await pn.click('#pas-sol > summary');
+  await pn.click('[data-sol="guiades"]');
+  pl = await panell();
+  comprova('panell: «Exemples resolts» en resol el primer, i en surt quants', pl.primers && pl.k === '1' && pl.resolts === 1 && pl.opsol && pl.resums[2].startsWith('1 exemple resolt'), JSON.stringify(pl));
+  await pn.click('[data-sol="solucionari"]');
+  await pn.check('#nomes');
+  pl = await panell();
+  comprova('panell: solucionari amb «només el resultat», sense les opcions de la resolució', pl.nomes && !pl.opsol && !pl.primers && pl.resums[2] === 'solucionari, només resultats', JSON.stringify(pl));
+  await pn.reload();
+  pl = await panell();
+  comprova('panell: recorda quins passos tens oberts', pl.oberts === 'pas-ex:1,pas-asp:0,pas-sol:1,entorn:0', pl.oberts);
+  comprova('panell: «↻ Full nou», al costat del títol del full', await pn.evaluate(() => !!document.querySelector('section .cap-full #tot')));
+  // Cap opció perduda: hi són tots els controls d'abans
+  const controls = ['#n', '#int', '#fin', '#forca', '#div', '#opo', '#pot', '#par', '#vs', '#cen', '#simp', '#dest', '#nomes', '#in', '#ipar', '#ipot', '#iarr', '#idiv', '#tot',
+    ...['petit', 'mitja', 'gran'].flatMap(v => [`[data-esp="${v}"]`, `[data-sim="${v}"]`, `[data-iesp="${v}"]`]), ...['N', 'Z', 'Q'].map(v => `[data-set="${v}"]`),
+    '[data-grad="0"]', '[data-grad="1"]', ...['cap', 'guiades', 'solucionari'].map(v => `[data-sol="${v}"]`), '[data-k="1"]', '[data-k="2"]', '[data-k="3"]',
+    '[data-gra="prio"]', '[data-gra="op"]', '[data-inom="3"]', '[data-inom="4"]', '[data-isol="cap"]', '[data-isol="solucionari"]',
+    '[data-entorn="main"]', '[data-entorn="headers"]', '[data-entorn="defs"]'];
+  const falten = await pn.evaluate(cs => cs.filter(c => !document.querySelector(c)), controls);
+  comprova(`panell: hi són tots els controls d'abans (${controls.length})`, !falten.length, falten.join(' '));
+  await pn.close();
 
   comprova('cap error a la consola', !errors.length, errors.join(' | '));
   await nav.close();

@@ -20,7 +20,7 @@
 var Motor = (function () {
   'use strict';
 
-  const VERSIO = 'v0.7';
+  const VERSIO = 'v0.8';
 
   /* La versió del GENERADOR va a l'adreça (g=…), perquè un full desat surti
      sempre amb el generador amb què es va fer. Les adreces sense g són de la
