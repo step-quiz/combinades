@@ -166,6 +166,64 @@
     return { h, f, ok: f.items.every(x => !x.error) };
   }
 
+  /* -------------------------------------------------------------- el panell
+     Tres passos (Exercicis, Aspecte del full, Solucions), cadascun dins d'un
+     <details>: plegat, en diu el resum. Les opcions que depenen d'una altra
+     només surten quan serveixen, i els textos d'ajuda diuen què fa la tria. */
+  const SET = { N: 'ℕ', Z: 'ℤ', Q: 'ℚ' };
+  const ESPAI = { petit: 'petit', mitja: 'mitjà', gran: 'gran' };
+  /** Quants exercicis del principi hi ha resolts (RES = 0…k−1), o −1 si és una altra tria. */
+  const primers = () => (RES.length && RES.every((x, i) => x === i) ? RES.length : -1);
+
+  function pintaPanell() {
+    // 1 · Exercicis
+    const neg = S.set === 'Z';
+    mostra('onviuen', S.set !== 'N');
+    $('onviuen-que').textContent = neg ? 'On hi pot haver nombres negatius?' : 'On hi pot haver fraccions (i negatius)?';
+    $('forca-que').textContent = neg ? 'que n\'hi hagi sempre algun' : 'que n\'hi hagi sempre alguna';
+    $('opo').disabled = S.set === 'N';
+    $('opo').parentNode.title = S.set === 'N' ? "L'oposat necessita ℤ o ℚ" : '';
+    $('grad-que').textContent = S.grad
+      ? 'Els primers exercicis porten poques operacions de les marcades (o cap); els 2 últims, totes.'
+      : 'Tots els exercicis porten totes les operacions marcades.';
+    const extres = Motor.EXTRES.filter(k => S[k] && !(k === 'opo' && S.set === 'N')).map(k => NOM_EXTRE[k]).join(' ');
+    $('resum-ex').textContent = [S.n, SET[S.set], extres || 'només + − ·', S.grad ? 'de fàcil a difícil' : ''].filter(Boolean).join(' · ');
+    // 2 · Aspecte del full
+    $('resum-asp').textContent = `espai ${ESPAI[S.esp]} · signes: ${ESPAI[S.sim]}`;
+    // 3 · Solucions
+    mostra('primers', S.sol === 'guiades');
+    marca('k', primers());
+    mostra('nomes-l', S.sol === 'solucionari');
+    mostra('opsol', S.sol !== 'cap' && !(S.sol === 'solucionari' && S.nomes));
+    mostra('simp-l', S.set === 'Q');
+    $('gra-que').innerHTML = S.gra === 'op'
+      ? 'Ex.: 2·3 + 4·5 = 6 + 4·5 = 6 + 20 = 26'
+      : 'Ex.: 2·3 + 4·5 = 6 + 20 = 26';
+    const com = S.sol === 'cap' || (S.sol === 'solucionari' && S.nomes) ? [] : [S.gra === 'op' ? 'una per línia' : '', S.cen ? 'en columna' : '', S.dest ? 'destacada' : ''];
+    const que = { cap: 'cap', guiades: `${RES.length} ${RES.length === 1 ? 'exemple resolt' : 'exemples resolts'}`, solucionari: S.nomes ? 'solucionari, només resultats' : 'solucionari' }[S.sol];
+    $('resum-sol').textContent = [que, ...com].filter(Boolean).join(' · ');
+    // «Completa la igualtat»
+    const simbols = [S.ipar && '( )', S.ipot && '²', S.iarr && '√', S.idiv && ':'].filter(Boolean).join(' ');
+    $('resum-iex').textContent = `${S.in} · ${S.inom} nombres · + − · ${simbols}`.trim();
+    $('resum-iasp').textContent = `espai ${ESPAI[S.iesp]}`;
+    $('resum-isol').textContent = S.isol;
+  }
+
+  /** Quins passos del panell són oberts: es desen al navegador (com els controls). */
+  const PASSOS = 'combinades-passos';
+  function obrePassos() {
+    let oberts = null;
+    try { oberts = JSON.parse(localStorage.getItem(PASSOS) || 'null'); } catch (e) { /* sense memòria */ }
+    document.querySelectorAll('aside details').forEach(d => {
+      if (oberts && teClau(oberts, d.id)) d.open = !!oberts[d.id];
+      d.addEventListener('toggle', () => {
+        const ara = {};
+        document.querySelectorAll('aside details').forEach(x => { ara[x.id] = x.open; });
+        try { localStorage.setItem(PASSOS, JSON.stringify(ara)); } catch (e) { /* sense memòria */ }
+      });
+    });
+  }
+
   function pinta() {
     if (S.set === 'N') S.opo = 0;               // l'oposat necessita ℤ o ℚ
     if (!S.int && !S.fin) S.int = 1;
@@ -184,12 +242,7 @@
     marca('esp', S.esp); marca('sim', S.sim); marca('set', S.set); marca('grad', S.grad);
     marca('sol', S.sol); marca('gra', S.gra);
     CASELLES.forEach(k => { $(k).checked = !!S[k]; });
-    $('onviuen').style.display = S.set === 'N' ? 'none' : '';
-    $('opo').disabled = S.set === 'N';
-    $('opo').parentNode.title = S.set === 'N' ? "L'oposat necessita ℤ o ℚ" : '';
-    mostra('opsol', S.sol !== 'cap');
-    mostra('primers', S.sol === 'guiades');
-    mostra('nomes-l', S.sol === 'solucionari');
+    pintaPanell();
 
     // El full
     const full = $('full'), deAquest = fullBaixat && fullBaixat.firma === firma();
@@ -250,7 +303,11 @@
     else if (b.dataset.set) S.set = b.dataset.set;
     else if (b.dataset.sim) S.sim = b.dataset.sim;
     else if (b.dataset.grad !== undefined) S.grad = +b.dataset.grad;
-    else if (b.dataset.sol) S.sol = b.dataset.sol;
+    else if (b.dataset.sol) {
+      S.sol = b.dataset.sol;
+      // «Exemples resolts» sense cap exercici triat no canviaria res: en resol el primer
+      if (S.sol === 'guiades' && !RES.length) RES = [0];
+    }
     else if (b.dataset.gra) S.gra = b.dataset.gra;
     else if (b.dataset.k !== undefined) RES = Array.from({ length: +b.dataset.k }, (_, i) => i);
     else if (b.dataset.r !== undefined) R[+b.dataset.r]++;
@@ -288,6 +345,7 @@
   // clic sobreescrivia l'enllaç).
   window.addEventListener('hashchange', () => { llegeix(); pinta(); });
 
+  obrePassos();
   llegeix();
   pinta();
 })();

@@ -8,8 +8,8 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.7: «destaca» amb una caixa (`\boxed`) en lloc del subratllat (§2.9) i «Completa la igualtat» en 2
-columnes, separades per una línia discontínua (§7). Sobre la v0.6 (una activitat nova, «Completa la igualtat», §7),
+**Versió:** v0.8: el panell de configuració en tres passos (§8). Sobre la v0.7 («destaca» amb una caixa, `\boxed`,
+§2.9, i «Completa la igualtat» en 2 columnes, separades per una línia discontínua, §7), la v0.6 (una activitat nova, «Completa la igualtat», §7),
 la v0.5 («destaca la següent operació» en blau fosc, les solucions a la web i fora el PDF del navegador, §2.9), la v0.4 (la disposició
 «centrat», §2.8), la v0.3 (el solucionari pas a pas, §2) i la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
 **Generador:** els fulls nous es fan amb el generador 2 (`g=2` a l'adreça): parèntesis segons el pla del
@@ -410,3 +410,30 @@ L'activitat que va proposar el professor, amb el seu full d'exemple: «Completa 
 
 **Pendent:** provar-la a l'aula; decidir si cal un control de dificultat al panell (ara, sempre la barreja del seu
 full) i si les igualtats amb el 0, que tenen moltes solucions (0 0 7 = 0 en té moltes), són massa fàcils.
+
+---
+
+## 8. El panell de configuració en tres passos (fet, v0.8)
+
+El professor el trobava un caos: unes 20 opcions seguides, sense jerarquia, i noms que no s'entenien («guiades»,
+«resol els primers 0», «per prioritat», «força que apareguin», que semblava de les «Opcions» i era dels nombres).
+Ara el panell segueix l'ordre en què es fa un full, en tres passos (`<details>`); plegat, cada pas en diu el resum:
+
+1. **Exercicis**: quantes; **nombres** (ℕ naturals, ℤ enters, ℚ fraccions) i, només amb ℤ o ℚ, «on hi pot haver
+   negatius / fraccions» (*als càlculs del mig*, *al resultat*: `int`, `fin`) i *que n'hi hagi sempre* (`forca`, que
+   és d'aquí i no de les operacions); **operacions** a més de + − · (divisions, parèntesis, potències, oposats);
+   **dificultat**: *totes iguals* o *de fàcil a difícil* (`grad`), amb una frase que diu què vol dir.
+2. **Aspecte del full**: espai per resoldre (`esp`), espai entre els signes (`sim`) i `\vspace*` (`vs`).
+3. **Solucions**: tres opcions grans, cadascuna amb el que fa: *Cap*, *Exemples resolts* (`guiades`; en triar-la
+   sense cap exercici triat, en resol el primer; «Quants? Els primers 1, 2, 3», sense el 0, que era com «Cap») i
+   *Solucionari* (amb *només el resultat*). «A cada línia de la resolució, es fan»: *totes les del mateix nivell*
+   o *una sola operació* (`gra`), amb un exemple que canvia; *signes en columna*, *destaca* i, només amb ℚ,
+   *simplifica*. Amb «només el resultat», les opcions de la resolució s'amaguen (no hi ha resolució).
+
+«Completa la igualtat», igual: *Igualtats*, *Aspecte del full*, *Solucions*. **↻ Full nou** (abans «Genera-ho
+tot») és al costat del títol del full; «Entorn», plegat a baix. El navegador recorda quins passos són oberts
+(`localStorage`, clau `combinades-passos`); per defecte, només el primer.
+
+**No canvia res més:** els mateixos controls (els mateixos `id` i `data-…`), la mateixa adreça (`#…`) i els
+mateixos fulls. `tests/navegador.js` ho comprova («Panell»: els 48 controls d'abans hi són tots).
+
