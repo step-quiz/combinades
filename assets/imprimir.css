@@ -1,0 +1,43 @@
+/* imprimir.css — Els fulls A4 per imprimir o desar com a PDF (imprimir.html). Com als fulls de inaba: cada
+   .full és un full A4 exacte (210 × 297 mm) i s'imprimeix tal com es veu, sense marges del navegador. Sobre
+   style.css (les fórmules), en negre sobre blanc i en mesures de paper (mm, pt). */
+@page { size: A4; margin: 0; }
+body.imprimir { margin: 0; background: #525659; }
+body.imprimir .barra {
+  position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  padding: 10px 16px; background: #1e293b; color: #fff; font: .8rem monospace;
+}
+body.imprimir .barra a { color: #fff; }
+body.imprimir .barra button { background: #a78bfa; color: #1e1b4b; border-color: #a78bfa; }
+body.imprimir .barra .ajuda { color: #cbd5e1; flex: 1 1 320px; }
+#fulls { padding: 8mm 0; }
+.full {
+  width: 210mm; height: 297mm; margin: 0 auto 8mm; box-sizing: border-box; overflow: hidden;
+  padding: 18mm 18mm 10mm; display: flex; flex-direction: column;
+  background: #fff; color: #000; box-shadow: 0 2px 10px rgba(0, 0, 0, .4);
+  break-after: page; page-break-after: always;
+}
+.full .contingut { flex: 1; min-height: 0; overflow: hidden; }
+.full .peu { height: 6mm; padding-top: 2mm; text-align: center; font: 9pt 'Latin Modern Roman', 'CMU Serif', 'Cambria', 'Times New Roman', serif; color: #333; }
+/* La capçalera del primer full i el títol del solucionari */
+.full .capcalera { display: flex; align-items: baseline; gap: 6mm; margin-bottom: 8mm; font-size: 12pt; white-space: nowrap; }
+.full .capcalera .ratlla { display: inline-block; border-bottom: .3mm solid #000; height: 1em; vertical-align: baseline; }
+.full .capcalera .nom { flex: 1; }
+.full .capcalera .nom .ratlla { width: calc(100% - 13mm); }
+.full .titol { font-size: 14pt; font-weight: bold; margin: 0 0 6mm; }
+/* Cada exercici: el número (com «1)» del .tex) i, al costat, l'enunciat i, si està resolt, la resolució */
+.full .exercici { display: flex; gap: 2mm; font-size: 12pt; }
+.full .exercici .num { flex: 0 0 8mm; font-weight: bold; line-height: 2.2; }
+.full .exercici .cos { min-width: 0; flex: 1; }
+.full .math { font-size: 14pt; line-height: 2.2; padding: 0; overflow: visible; }
+.full .linia { font-size: 13pt; line-height: 2; overflow: visible; }
+.full .taula { overflow: visible; }
+.full table.centrat { font-size: 13pt; line-height: 2; }
+.full .espai { flex: none; }
+@media print {
+  body.imprimir { background: none; }
+  body.imprimir .barra { display: none; }
+  #fulls { padding: 0; }
+  .full { margin: 0; box-shadow: none; }
+  .full:last-child { break-after: auto; page-break-after: auto; }
+}
