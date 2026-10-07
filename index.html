@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Operacions combinades · 1r ESO</title>
-<link rel="stylesheet" href="assets/style.css">
+<!-- ?v=…: la versió (Motor.VERSIO). Amb una versió nova, el navegador baixa de nou els fitxers i no fa servir els
+     d'abans, que pot tenir desats: si no, hi barrejava la pàgina nova amb l'estil o el JavaScript d'abans. -->
+<link rel="stylesheet" href="assets/style.css?v=0.9">
 </head>
 <body>
 <header><h1>Operacions combinades · 1r ESO</h1><span id="segell"></span></header>
@@ -19,19 +21,19 @@
       <summary><b>1 · Exercicis</b><span class="resum" id="resum-ex"></span></summary>
       <label class="fila">Quantes operacions <input type="number" id="n" min="1" max="10"></label>
       <h3>Nombres</h3>
-      <div class="grup seg" id="set"><button data-set="N">ℕ naturals</button><button data-set="Z">ℤ enters</button><button data-set="Q">ℚ fraccions</button></div>
+      <div class="grup seg" id="set"><button data-set="N" title="naturals" aria-label="ℕ, naturals">ℕ</button><button data-set="Z" title="enters" aria-label="ℤ, enters">ℤ</button><button data-set="Q" title="racionals (fraccions)" aria-label="ℚ, racionals">ℚ</button></div>
       <div class="sub" id="onviuen">
         <p class="ajuda" id="onviuen-que"></p>
         <label><input type="checkbox" id="int"> als càlculs del mig</label>
         <label><input type="checkbox" id="fin"> al resultat</label>
         <label title="Si no, per atzar, un exercici pot sortir sense cap"><input type="checkbox" id="forca"> <span id="forca-que"></span></label>
       </div>
-      <h3>Operacions</h3>
-      <p class="ajuda">Sempre hi ha +, − i ·. A més:</p>
-      <label><input type="checkbox" id="div"> divisions</label>
-      <label><input type="checkbox" id="par"> parèntesis</label>
-      <label><input type="checkbox" id="pot"> potències</label>
-      <label><input type="checkbox" id="opo"> oposats: −(…)</label>
+      <div class="extres">
+        <label><input type="checkbox" id="div"> divisions</label>
+        <label><input type="checkbox" id="par"> parèntesis</label>
+        <label><input type="checkbox" id="pot"> potències</label>
+        <label><input type="checkbox" id="opo"> oposats: −(…)</label>
+      </div>
       <h3>Dificultat</h3>
       <div class="grup seg" id="grad"><button data-grad="0">totes iguals</button><button data-grad="1">de fàcil a difícil</button></div>
       <p class="ajuda" id="grad-que"></p>
@@ -46,13 +48,13 @@
     </details>
     <details class="pas" id="pas-sol">
       <summary><b>3 · Solucions</b><span class="resum" id="resum-sol"></span></summary>
-      <div class="opcions" id="sol">
-        <button data-sol="cap"><b>Cap</b><small>El full per a l'alumnat, sense solucions.</small></button>
-        <button data-sol="guiades"><b>Exemples resolts</b><small>Alguns exercicis del mateix full surten resolts pas a pas, com a model.</small></button>
-        <button data-sol="solucionari"><b>Solucionari</b><small>Un fitxer a part, exN-sol.tex, amb tots els exercicis resolts.</small></button>
+      <div class="grup seg" id="sol">
+        <button data-sol="cap" title="El full per a l'alumnat, sense solucions">Cap</button>
+        <button data-sol="guiades" title="Alguns exercicis del full surten resolts pas a pas, com a model">Ajuda parcial</button>
+        <button data-sol="solucionari" title="Un fitxer a part, exN-sol.tex, amb tots els exercicis resolts">Solucionari</button>
       </div>
       <div class="sub" id="primers">
-        <div class="fila">Quants? Els primers <span class="grup"><button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button></span></div>
+        <div class="fila">Resolts: els primers <span class="grup"><button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button></span></div>
         <p class="ajuda">O marca «resolt» a l'exercici que vulguis.</p>
       </div>
       <label class="sub" id="nomes-l"><input type="checkbox" id="nomes"> només el resultat de cada exercici</label>
@@ -60,9 +62,14 @@
         <h3>A cada línia de la resolució, es fan</h3>
         <div class="grup seg" id="gra"><button data-gra="prio">totes les del mateix nivell</button><button data-gra="op">una sola operació</button></div>
         <p class="ajuda exemple" id="gra-que"></p>
-        <label title="Els signes d'operació alineats en columna, cada resultat centrat sota el que substitueix i el «=» al final de cada línia"><input type="checkbox" id="cen"> signes en columna (centrat)</label>
-        <label title="En blau fosc i dins d'una caixa: el que es calcula a la línia següent"><input type="checkbox" id="dest"> destaca l'operació següent (caixa blava)</label>
-        <label id="simp-l"><input type="checkbox" id="simp"> simplifica les fraccions en una línia a part</label>
+        <label title="Els signes d'operació alineats en columna, cada resultat centrat sota el que substitueix i el «=» al final de cada línia"><input type="checkbox" id="cen"> centrat seguint els símbols matemàtics</label>
+        <label title="Dins d'una caixa: el que es calcula a la línia següent. El resultat, a sota, del color de la seva caixa"><input type="checkbox" id="dest"> destaca l'operació següent</label>
+        <!-- Els dos colors de les caixes, que s'alternen línia a línia: un botó per a cadascun, i la paleta (app.js) -->
+        <div class="sub" id="colors">
+          <div class="fila">Colors <button class="mostra" data-tria="1" aria-expanded="false"><span></span></button><button class="mostra" data-tria="2" aria-expanded="false"><span></span></button></div>
+          <div class="paleta" id="paleta" role="group"></div>
+        </div>
+        <label id="simp-l" title="Un resultat que es pot simplificar, se simplifica a la línia següent"><input type="checkbox" id="simp"> simplifica fraccions a banda</label>
       </div>
     </details>
   </div>
@@ -73,7 +80,6 @@
       <h3>Nombres a cada igualtat</h3>
       <div class="grup seg" id="inom"><button data-inom="3">3</button><button data-inom="4">4</button></div>
       <h3>Símbols</h3>
-      <p class="ajuda">Sempre hi ha +, − i ·. A més:</p>
       <label><input type="checkbox" id="ipar"> parèntesis ( )</label>
       <label><input type="checkbox" id="ipot"> quadrats ²</label>
       <label><input type="checkbox" id="iarr"> arrels √</label>
@@ -86,14 +92,14 @@
     </details>
     <details class="pas" id="pas-isol">
       <summary><b>3 · Solucions</b><span class="resum" id="resum-isol"></span></summary>
-      <div class="opcions" id="isol">
-        <button data-isol="cap"><b>Cap</b><small>Al full, sense solucions. A la web, cada igualtat té «Veure la solució».</small></button>
-        <button data-isol="solucionari"><b>Solucionari</b><small>Un fitxer a part, exN-sol.tex, amb la solució de cada igualtat.</small></button>
+      <div class="grup seg" id="isol">
+        <button data-isol="cap" title="Al full, sense solucions. A la web, cada igualtat té «Veure la solució»">Cap</button>
+        <button data-isol="solucionari" title="Un fitxer a part, exN-sol.tex, amb la solució de cada igualtat">Solucionari</button>
       </div>
     </details>
   </div>
   <details class="pas entorn" id="entorn">
-    <summary><b>Entorn</b><span class="resum">main.tex · headers.tex · defs.tex</span></summary>
+    <summary><b>Entorn</b></summary>
     <p class="avis">Els fitxers de la carpeta de fulls. Es baixen un sol cop: el teu main.tex fa \input{exN.tex}.</p>
     <div class="grup"><button data-entorn="main">main.tex</button><button data-entorn="headers">headers.tex</button><button data-entorn="defs">defs.tex</button></div>
   </details>
@@ -108,9 +114,9 @@
   <span class="grup"><label>Fitxer núm. <input type="number" id="fit" min="1" max="99"></label>
   <button id="baixa"></button><button id="baixa-sol"></button></span>
 </footer>
-<script src="assets/entorn.js"></script>
-<script src="assets/motor.js"></script>
-<script src="assets/igualtats.js"></script>
-<script src="assets/app.js"></script>
+<script src="assets/entorn.js?v=0.9"></script>
+<script src="assets/motor.js?v=0.9"></script>
+<script src="assets/igualtats.js?v=0.9"></script>
+<script src="assets/app.js?v=0.9"></script>
 </body>
 </html>

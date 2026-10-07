@@ -20,7 +20,7 @@
 var Motor = (function () {
   'use strict';
 
-  const VERSIO = 'v0.8';
+  const VERSIO = 'v0.9';
 
   /* La versió del GENERADOR va a l'adreça (g=…), perquè un full desat surti
      sempre amb el generador amb què es va fer. Les adreces sense g són de la
@@ -51,6 +51,30 @@ var Motor = (function () {
     mitja: { med: '8mu', thick: '8mu', css: '.45em' },
     gran: { med: '13mu', thick: '13mu', css: '.75em' }
   };
+
+  /* Els colors de «destaca», a triar: la caixa de cada línia és d'un color i
+     el de la línia següent, de l'altre (s'alternen). Colors que es llegeixen
+     bé sobre el paper blanc. La clau va a l'adreça (c1=…&c2=…); al .tex, el
+     color de la clau, en hexadecimal. */
+  const COLORS = {
+    blaufosc: { nom: 'blau fosc', hex: '00008B' },
+    blau: { nom: 'blau', hex: '1565C0' },
+    cel: { nom: 'blau cel', hex: '0288D1' },
+    turquesa: { nom: 'turquesa', hex: '00897B' },
+    verd: { nom: 'verd', hex: '2E7D32' },
+    oliva: { nom: 'verd oliva', hex: '6B8E23' },
+    mostassa: { nom: 'mostassa', hex: 'B8860B' },
+    taronja: { nom: 'taronja', hex: 'E65100' },
+    vermell: { nom: 'vermell', hex: 'D32F2F' },
+    granat: { nom: 'granat', hex: '8B1A1A' },
+    rosa: { nom: 'rosa', hex: 'D81B60' },
+    lila: { nom: 'lila', hex: '8E24AA' },
+    violeta: { nom: 'violeta', hex: '5E35B1' },
+    marro: { nom: 'marró', hex: '795548' },
+    gris: { nom: 'gris', hex: '616161' },
+    negre: { nom: 'negre', hex: '000000' }
+  };
+  const COLORS_PER_DEFECTE = ['blaufosc', 'vermell'];
 
   const PREC = { '+': 1, '-': 1, '*': 2, ':': 2 };
 
@@ -239,10 +263,12 @@ var Motor = (function () {
     potencia: (base, k) => `${base}^{${k}}`,
     // Davant d'un \left( cal \mathopen{}: si no, TeX hi deixa un espai fi, «− (».
     oposat: s => '-' + (s.startsWith('\\left(') ? '\\mathopen{}' : '') + s,
-    // La part que es calcula a la línia següent: en blau fosc (BLAU) i dins d'una caixa
-    // (\boxed, d'amsmath). Entre claus, perquè TeX la tracti com un sol nombre: el − o
-    // el + que la segueix és una resta.
-    destaca: s => `{\\color{darkblue}\\boxed{${s}}}`,
+    // La part que es calcula a la línia següent: dins d'una caixa (\boxed, d'amsmath) del
+    // color k de la línia (destaca1 o destaca2, que defineix el fitxer: colorsTex). Entre
+    // claus, perquè TeX la tracti com un sol nombre: el − o el + que la segueix és una resta.
+    destaca: (s, k) => `{\\color{destaca${k}}\\boxed{${s}}}`,
+    // El resultat del que estava destacat a la línia d'abans, del color de la seva caixa.
+    resultat: (s, k) => `{\\color{destaca${k}}${s}}`,
     // «Centrat»: cada parèntesi, cada operador i cada − d'un oposat, sols a la seva columna.
     // Entre {} perquè TeX hi posi els mateixos espais que dins de la fórmula.
     meitats: meitatsTex,
@@ -257,7 +283,8 @@ var Motor = (function () {
     parentesi: parentesiHtml,
     potencia: potenciaHtml,
     oposat: s => '−' + s,
-    destaca: s => `<span class="dest caixa">${s}</span>`,
+    destaca: (s, k) => `<span class="dest caixa k${k}">${s}</span>`,
+    resultat: (s, k) => `<span class="k${k}">${s}</span>`,
     meitats: meitatsHtml,
     operadorSol: op => HTML.operador(op),
     menys: '−'
@@ -280,10 +307,13 @@ var Motor = (function () {
   /** Escriu l'arbre amb l'emissor E i compta a `c` el que hi surt.
       `alPrincipi`: el node és el primer símbol de l'expressió o d'un grup.
       Només allà un negatiu va sense parèntesi: −3+5, però 5·(−3).
-      Els nodes de `c.marcats` (si n'hi ha) surten destacats. */
+      «Destaca» (si c.color, el color de la línia: 1 o 2): els nodes de
+      `c.marcats`, dins d'una caixa del color de la línia; els de
+      `c.resultats`, els que surten de la caixa de la línia d'abans, de l'altre. */
   function escriu(node, E, c, alPrincipi) {
-    const s = escriuNode(node, E, c, alPrincipi);
-    return c.marcats && c.marcats.has(node) ? E.destaca(s) : s;
+    let s = escriuNode(node, E, c, alPrincipi);
+    if (c.resultats && c.resultats.has(node)) s = E.resultat(s, 3 - c.color);
+    return c.marcats && c.marcats.has(node) ? E.destaca(s, c.color) : s;
   }
 
   function escriuNode(node, E, c, alPrincipi) {
@@ -311,7 +341,7 @@ var Motor = (function () {
         const b = node.a;
         let base;
         if (b.t === 'num') base = E.nombre(b.v);
-        else if (b.t === 'val' && b.d === 1 && b.n >= 0) base = E.nombre(b.n);
+        else if (b.t === 'val' && b.d === 1 && b.n >= 0) base = escriu(b, E, c, true);   // el nombre (o el resultat, 3²)
         else if (b.t === 'bin') { c.grups++; c.parentesis++; base = E.parentesi(escriu(b, E, c, true)); }
         else {                                                 // (−3)², (2/3)², (−(2+3))²
           if (b.t === 'neg' && b.a.t === 'bin') c.parentesis++;
@@ -612,8 +642,12 @@ var Motor = (function () {
   /** Una còpia de l'arbre T on cada node de `canvien` passa per f (amb els
       fills ja copiats). L'oposat d'un valor positiu passa a ser el valor
       negatiu sense cap línia: −10 s'escriu igual. Cada node conserva l'id
-      del de l'enunciat que substitueix (la disposició «centrat» el fa servir). */
+      del de l'enunciat que substitueix (la disposició «centrat» el fa servir).
+      marques: els nodes de T que canvien (si no, els de `canvien`); resultats:
+      els nodes de la còpia que en surten (els de la mateixa id, o el valor
+      negatiu en què s'ha convertit l'oposat d'un d'ells: −(2·3) → −6). */
   function transforma(T, canvien, f, tipus, marques) {
+    const marcats = new Set(marques || canvien), ids = new Set([...marcats].map(n => n.id)), fosos = new Set();
     const copia = n => {
       let c;
       if (n.t === 'bin') c = { t: 'bin', op: n.op, l: copia(n.l), r: copia(n.r), id: n.id };
@@ -621,10 +655,14 @@ var Motor = (function () {
       else if (n.t === 'pow') c = { t: 'pow', a: copia(n.a), k: n.k, id: n.id };
       else c = Object.assign({}, n);
       if (canvien.includes(n)) c = Object.assign(f(c), { id: n.id });
-      if (c.t === 'neg' && c.a.t === 'val' && c.a.n >= 0) c = Object.assign({}, c.a, { n: -c.a.n, id: c.id });
+      if (c.t === 'neg' && c.a.t === 'val' && c.a.n >= 0) {
+        if (ids.has(c.a.id)) fosos.add(c.id);
+        c = Object.assign({}, c.a, { n: -c.a.n, id: c.id });
+      }
       return c;
     };
-    return { nou: copia(T), tipus, marques: new Set(marques || canvien) };
+    const nou = copia(T);
+    return { nou, tipus, marques: marcats, resultats: new Set(nodes(nou).filter(n => ids.has(n.id) || fosos.has(n.id))) };
   }
 
   /** La línia següent de la resolució de T. */
@@ -653,9 +691,10 @@ var Motor = (function () {
     return transforma(T, [s], n => calcula(n, simp), 'suma');
   }
 
-  /** Els passos de la resolució: [{arbre, tipus, marques}]. El primer és
-      l'enunciat; l'últim, el resultat (un sol valor). `tipus`: com s'ha
-      arribat a aquest pas; `marques`: els nodes que canvien al següent.
+  /** Els passos de la resolució: [{arbre, tipus, marques, resultats}]. El
+      primer és l'enunciat; l'últim, el resultat (un sol valor). `tipus`: com
+      s'ha arribat a aquest pas; `marques`: els nodes que canvien al següent;
+      `resultats`: els que surten de les marques del pas d'abans.
       op = {gra: 'prio'|'op', simp: true|false}. */
   function passos(arbre, op) {
     op = op || {};
@@ -668,22 +707,28 @@ var Motor = (function () {
       const p = pas(T, unaOperacio, simp);
       llista[llista.length - 1].marques = p.marques;
       T = p.nou;
-      llista.push({ arbre: T, tipus: p.tipus });
+      llista.push({ arbre: T, tipus: p.tipus, resultats: p.resultats });
     }
     return llista;
   }
 
+  /** El color de «destaca» de la línia k de la resolució (0, l'enunciat): 1, 2, 1, 2… Les caixes de la línia
+      són d'aquest color, i els resultats que en surten, a la línia següent, també. */
+  const colorLinia = k => k % 2 + 1;
+
   /** Les línies de la resolució, en TeX i en HTML; la primera és l'enunciat.
-      Amb op.dest, cada línia destaca el que es calcula a la següent. */
+      Amb op.dest, cada línia destaca el que es calcula a la següent, dins d'una
+      caixa del seu color, i el que surt de la caixa de la línia d'abans, del
+      color d'aquella caixa: 4·3·3, [4·3]·3 (1), [12·3] (2, amb el 12 de l'1), 36 (2). */
   function resolucio(arbre, op) {
     op = op || {};
     const ps = passos(arbre, op);
-    const linia = (p, E) => {
+    const linia = (p, E, k) => {
       const c = nousComptadors();
-      if (+op.dest && p.marques) c.marcats = p.marques;
+      if (+op.dest) Object.assign(c, { marcats: p.marques, resultats: p.resultats, color: colorLinia(k) });
       return escriu(p.arbre, E, c, true);
     };
-    return { tex: ps.map(p => linia(p, TEX)), html: ps.map(p => linia(p, HTML)), passos: ps };
+    return { tex: ps.map((p, k) => linia(p, TEX, k)), html: ps.map((p, k) => linia(p, HTML, k)), passos: ps };
   }
 
   /* ------------------------------------------------ la disposició «centrat»
@@ -732,30 +777,34 @@ var Motor = (function () {
 
   /** Una línia de la taula: els trossos [{a, b, s, dest}] de l'arbre n (un pas),
       cada text s a les columnes [a, b) del node de l'enunciat que substitueix.
-      dest: és d'un node de `marques`, el que es calcula a la línia següent. */
-  function trossos(n, E, alPrincipi, embolcallat, span, marques) {
-    const [a, b] = span.get(n.id), dest = !!marques && marques.has(n);
+      d: «destaca», {marques, resultats, color} de la línia (o null). dest: el
+      tros és d'un node de `marques`, el que es calcula a la línia següent. Els
+      de `resultats` porten el color de la caixa de la línia d'abans. */
+  function trossos(n, E, alPrincipi, embolcallat, span, d) {
+    const [a, b] = span.get(n.id), dest = !!d && !!d.marques && d.marques.has(n);
     if (compacte(n)) {
       // Si el que es destaca és la base d'una potència, (−4/4)² (es simplifica), la cel·la és tota la
-      // potència: la base es destaca a dins, com a la línia normal, i sense ratlla de columnes
+      // potència: la base es destaca a dins, com a la línia normal
       const c = nousComptadors();
-      if (marques && !dest) c.marcats = marques;
+      if (d) Object.assign(c, { marcats: dest ? null : d.marques, resultats: d.resultats, color: d.color });
       const s = escriu(n, E, c, alPrincipi);
       return [{ a, b, s: embolcallat ? E.parentesi(s) : s, dest }];
     }
     let t;
     if (n.t === 'bin') {
       const pl = calParentesi(n.l, n, 'l'), pr = calParentesi(n.r, n, 'r'), o = span.get(n.l.id)[1];
-      t = trossos(n.l, E, pl || alPrincipi, pl, span, marques)
-        .concat({ a: o, b: o + 1, s: E.operadorSol(n.op) }, trossos(n.r, E, pr, pr, span, marques));
+      t = trossos(n.l, E, pl || alPrincipi, pl, span, d)
+        .concat({ a: o, b: o + 1, s: E.operadorSol(n.op) }, trossos(n.r, E, pr, pr, span, d));
     } else if (n.t === 'neg') {
       const grup = n.a.t === 'bin', o = span.get(n.a.id)[0] - 1;
-      t = [{ a: o, b: o + 1, s: E.menys }].concat(trossos(n.a, E, grup, grup, span, marques));
+      t = [{ a: o, b: o + 1, s: E.menys }].concat(trossos(n.a, E, grup, grup, span, d));
     } else {                                                  // l'exponent, a l'últim tros de la base: (5−2)²
-      t = trossos(n.a, E, true, true, span, marques);
+      t = trossos(n.a, E, true, true, span, d);
       const u = t[t.length - 1];
       t[t.length - 1] = Object.assign({}, u, { s: E.potencia(u.s, n.k) });
     }
+    // Un resultat que no és d'una peça (dues fraccions passades a comú denominador): tots els seus trossos
+    if (d && d.resultats && d.resultats.has(n)) t = t.map(x => Object.assign({}, x, { s: E.resultat(x.s, 3 - d.color) }));
     if (dest) t.forEach(x => { x.dest = true; });
     if (!ambParentesis(n, alPrincipi, embolcallat)) return t;
     // Els parèntesis que li posa el pare no són seus: com a escriu, no es destaquen. Els de notació, sí.
@@ -765,8 +814,9 @@ var Motor = (function () {
 
   /** La resolució en disposició «centrat»: tex, un array de LaTeX (o uns quants,
       un sota l'altre: blocs); html, una taula; files, les cel·les de cada línia
-      ({tex, html}). Amb op.dest, el que es calcula a la línia següent surt en
-      blau fosc i dins d'una caixa (\boxed). */
+      ({tex, html}). Amb op.dest, el que es calcula a la línia següent surt dins
+      d'una caixa (\boxed) del color de la línia, i el resultat, a sota, del
+      mateix color (com a resolucio). */
   function centrada(arbre, op) {
     op = op || {};
     const ps = passos(arbre, op), col = { n: 0, span: new Map() };
@@ -781,27 +831,27 @@ var Motor = (function () {
       else out.push(t);
       return out;
     }, []);
-    const files = ps.map(p => {
-      const m = +op.dest ? p.marques : null;
-      const tex = trossos(p.arbre, TEX, true, false, col.span, m), html = trossos(p.arbre, HTML, true, false, col.span, m);
+    const files = ps.map((p, k) => {
+      const d = +op.dest ? { marques: p.marques, resultats: p.resultats, color: colorLinia(k) } : null;
+      const tex = trossos(p.arbre, TEX, true, false, col.span, d), html = trossos(p.arbre, HTML, true, false, col.span, d);
       // Els trossos cobreixen les N columnes, en ordre i sense encavalcar-se
       if (tex.some((t, i) => t.a !== (i ? tex[i - 1].b : 0) || t.b <= t.a) || tex[tex.length - 1].b !== N)
         throw new Error('centrat: les columnes no quadren');
       return { tex: ajunta(tex), html: ajunta(html) };
     });
     const ultima = k => k === files.length - 1;
-    // El contingut d'una cel·la. \displaystyle, com a la fórmula sencera: fraccions, exponents i \left( de la
-    // mateixa mida. La destacada, en blau fosc i dins d'una caixa (\boxed ja és \displaystyle).
-    const dins = ({ s, dest }) => (dest ? `\\color{darkblue}\\boxed{${s}}` : /\\frac|\^|\\left/.test(s) ? '\\displaystyle ' + s : s);
-    const cel = c => (c.b - c.a > 1 ? `\\multicolumn{${c.b - c.a}}{@{}c@{}}{${dins(c)}}` : dins(c));
+    // El contingut d'una cel·la de la línia k. \displaystyle, com a la fórmula sencera: fraccions, exponents i
+    // \left( de la mateixa mida. La destacada, dins d'una caixa del color de la línia (\boxed ja és \displaystyle).
+    const dins = ({ s, dest }, k) => (dest ? `\\color{destaca${colorLinia(k)}}\\boxed{${s}}` : /\\frac|\^|\\left/.test(s) ? '\\displaystyle ' + s : s);
+    const cel = (c, k) => (c.b - c.a > 1 ? `\\multicolumn{${c.b - c.a}}{@{}c@{}}{${dins(c, k)}}` : dins(c, k));
     // Entre dues línies, un espai fix (\noalign): així una línia amb fraccions no toca mai la del costat
     const fr = k => files[k].tex.some(t => t.s.includes('\\frac'));
     const espai = k => (fr(k) || fr(k + 1) ? 6 : 3);
-    const linia = k => files[k].tex.map(cel).join(' & ') + (ultima(k) ? '' : ' & {}={}');
+    const linia = k => files[k].tex.map(c => cel(c, k)).join(' & ') + (ultima(k) ? '' : ' & {}={}');
     // Una línia invisible i sense alçada: només hi compta l'amplada de cada cel·la. Amb \multispan (sense la
     // plantilla de l'array, que hi posaria el puntal), la fila no ocupa gens d'alçada.
     const fantasma = k => files[k].tex.concat(ultima(k) ? [] : [{ a: N, b: N + 1, s: '{}={}' }])
-      .map(c => `\\multispan{${c.b - c.a}}$\\hphantom{${dins(c)}}$`).join('&') + '\\cr\n';
+      .map(c => `\\multispan{${c.b - c.a}}$\\hphantom{${dins(c, k)}}$`).join('&') + '\\cr\n';
     // Un array no es parteix entre pàgines, i una resolució llarga de ℚ pot passar d'una pàgina: amb més de 12
     // línies, va en blocs, un array sota l'altre, i la pàgina es pot partir entre dos blocs. Perquè les columnes
     // facin el mateix ample a tots els blocs, cadascun porta, invisibles, les línies dels altres.
@@ -819,10 +869,10 @@ var Motor = (function () {
     }
     // Entre dos blocs, el mateix espai que entre dues línies (menys l'1 pt de \lineskip que hi posa TeX)
     const tex = blocs.map((b, j) => (j ? `$\\\\[${espai(j * mida - 1) - 1}pt]\n$` : '') + b).join('');
-    const td = ({ a, b, s, dest }) =>
-      `<td${dest ? ' class="dest"' : ''}${b - a > 1 ? ` colspan="${b - a}"` : ''}>${dest ? `<span class="caixa">${s}</span>` : s}</td>`;
+    const td = ({ a, b, s, dest }, k) =>
+      `<td${dest ? ' class="dest"' : ''}${b - a > 1 ? ` colspan="${b - a}"` : ''}>${dest ? `<span class="caixa k${colorLinia(k)}">${s}</span>` : s}</td>`;
     const html = '<table class="centrat">'
-      + files.map((f, k) => `<tr>${f.html.map(td).join('')}${ultima(k) ? '' : '<td class="igual">=</td>'}</tr>`).join('')
+      + files.map((f, k) => `<tr>${f.html.map(c => td(c, k)).join('')}${ultima(k) ? '' : '<td class="igual">=</td>'}</tr>`).join('')
       + '</table>';
     return { tex, html, files, blocs };
   }
@@ -830,16 +880,20 @@ var Motor = (function () {
   /* --------------------------------------------------------------- el .tex
      Només el cos: el main.tex del professor fa \input{exN.tex}. Només LaTeX
      estàndard + amsmath: cap macro de defs.tex. L'única excepció és «destaca»,
-     que pinta de blau: necessita xcolor (el carrega headers.tex), i el fitxer
-     mateix defineix el color (BLAU). m = {num, seed, adreca}; amb
+     que pinta amb dos colors: necessita xcolor (el carrega headers.tex), i el
+     fitxer mateix els defineix (colorsTex). m = {num, seed, adreca}; amb
      l'adreça (#…), el comentari del principi diu com refer el full.
-     sol = {mode, resolts, gra, simp, dest, nomes, cen}, les solucions. Amb el mode
+     sol = {mode, resolts, gra, simp, dest, nomes, cen, c1, c2}, les solucions. Amb el mode
      «guiades», els exercicis de `resolts` (índexs) porten la resolució a sota;
      amb qualsevol altre mode, exN.tex és el de sempre, byte a byte. */
 
-  /** El color de «destaca»: el darkblue de l'HTML (#00008B). \providecolor no el canvia si
-      l'entorn ja en té un amb aquest nom. */
-  const BLAU = '\\providecolor{darkblue}{RGB}{0,0,139}% «destaca»: cal xcolor (headers.tex)\n';
+  /** Els dos colors de «destaca» triats (sol.c1 i sol.c2, claus de COLORS): una que no hi és, el de per defecte. */
+  const colorsDe = sol => ['c1', 'c2'].map((k, i) => COLORS[Object.prototype.hasOwnProperty.call(COLORS, sol[k]) ? sol[k] : COLORS_PER_DEFECTE[i]]);
+
+  /** Els colors de «destaca», destaca1 i destaca2, definits al fitxer mateix (cal xcolor, que carrega headers.tex).
+      \definecolor i no \providecolor: cada fitxer pot portar uns altres colors. */
+  const colorsTex = sol => colorsDe(sol).map((c, i) => `\\definecolor{destaca${i + 1}}{HTML}{${c.hex}}`).join('')
+    + '% «destaca»: cal xcolor (headers.tex)\n';
 
   /** La segona línia del comentari: les opcions del full. */
   function descripcio(p, m) {
@@ -875,7 +929,7 @@ var Motor = (function () {
       + descripcio(p, m)
       + (resolts.size ? ` · resolts: ${[...resolts].sort((a, b) => a - b).map(i => i + 1).join(', ')}` : '') + '\n'
       + (m.adreca ? `% per refer aquest full: index.html${m.adreca}\n` : '')
-      + (resolts.size && +sol.dest ? BLAU : '')
+      + (resolts.size && +sol.dest ? colorsTex(sol) : '')
       + principiLlista(p)
       + (resolts.size ? '\\allowdisplaybreaks\n' : '');      // una resolució llarga pot partir de pàgina
     exs.forEach((e, i) => {
@@ -892,7 +946,7 @@ var Motor = (function () {
     let s = `% ex${m.num}-sol.tex — solucionari de ex${m.num}.tex — generat per «Operacions combinades 1r ESO» ${VERSIO}\n`
       + descripcio(p, m) + '\n'
       + (m.adreca ? `% per refer aquest full: index.html${m.adreca}\n` : '')
-      + (+sol.dest && !+sol.nomes ? BLAU : '')
+      + (+sol.dest && !+sol.nomes ? colorsTex(sol) : '')
       + '\\noindent\\textbf{Solucions}\\par\\medskip\n'
       + principiLlista(p)
       + '\\allowdisplaybreaks\n';
@@ -905,7 +959,8 @@ var Motor = (function () {
     return s + '\\end{enumerate}\n';
   }
 
-  const M = { VERSIO, GENERADOR, ESPAIS, SIMBOLS, EXTRES, atzar, valida, opcions, exercici, passos, resolucio, centrada, fitxerTex, fitxerSolucionari };
+  const M = { VERSIO, GENERADOR, ESPAIS, SIMBOLS, COLORS, COLORS_PER_DEFECTE, EXTRES, atzar, valida, opcions, exercici, passos, resolucio, centrada,
+    fitxerTex, fitxerSolucionari };
   if (typeof module !== 'undefined') module.exports = M;
   return M;
 })();
