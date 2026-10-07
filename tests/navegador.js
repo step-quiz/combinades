@@ -198,15 +198,16 @@ const llegeixBaixada = async (pag, selector) => {
   await pag.check('#cen');
   e = await estat();
   const taules = () => pag.evaluate(() => [...document.querySelectorAll('#full .carta.resolt')].map(c => [c.querySelectorAll('.math').length,
-    ((c.querySelector('.passos table.centrat') || {}).outerHTML || '').replace(/<\/?tbody>/g, '')]));   // (el navegador hi afegeix el tbody)
+    ((c.querySelector('.passos table.centrat') || {}).outerHTML || '').replace(/<\/?tbody>/g, '').replace(/(<td[^>]*?) style="[^"]*"/g, '$1')]));   // (el navegador hi afegeix el tbody; app.js, la mida dels marcs)
   const cz = await taules(), veure = await pag.locator('#full details.veure table.centrat').count();
   comprova('centrat: cada resolt és una taula (la del motor, amb l\'enunciat a dalt), i «Veure els passos» també',
     cz.length === 2 && cz.every(([m, t], i) => m === 0 && t === Motor.centrada(exz[i].arbre, { gra: 'prio', simp: 1, dest: 0 }).html) && veure === 3,
     JSON.stringify(cz).slice(0, 300));
   comprova('centrat: el .tex porta un array per exercici resolt, i l\'adreça ho recorda',
     (e.codi.match(/^\\item \$\\begin\{array\}\[t\]/gm) || []).length === 2 && !e.codi.includes('flalign') && /&cen=1(&|$)/.test(e.hash), e.hash);
-  // «Destaca la següent operació», també amb «centrat»: dins d'una caixa, al .tex (\boxed) i a la web, dels dos colors
-  // (per defecte, blau fosc i vermell) alternats; el resultat, a la línia següent, del color de la seva caixa
+  // «Destaca la següent operació», també amb «centrat»: dins d'una caixa dels dos colors (per defecte, blau fosc i
+  // vermell) alternats; el resultat, a la línia següent, del color de la seva caixa. Amb «centrat», cada tros a la
+  // seva columna, com sense destacar, i el marc al voltant de les cel·les de la caixa, del primer tros a l'últim
   await pag.check('#dest');
   e = await estat();
   const BLAU = 'rgb(0, 0, 139)', VERMELL = 'rgb(211, 47, 47)', VERD = 'rgb(46, 125, 50)';
@@ -219,14 +220,55 @@ const llegeixBaixada = async (pag, selector) => {
   // Els resultats, a la web: del color de la seva classe
   const resultats = () => pag.evaluate(() => [...document.querySelectorAll('#full .carta.resolt span.k1:not(.caixa), #full .carta.resolt span.k2:not(.caixa)')]
     .map(el => `${el.classList[0]}|${getComputedStyle(el).color}`));
-  const czd = await taules(), cc = await caixes('#full td.dest > .caixa'), rc = await resultats();
-  comprova('centrat i destaca: les taules del motor, amb el que es calcula en una caixa de blau fosc o de vermell (una cel·la per operació), i els resultats del seu color',
+  // Els marcs de «centrat» (el ::before de les cel·les td.marc de cada caixa): del color de la cel·la, amb la vora de
+  // dalt i la de baix, la de l'esquerra a la primera (ini) i la de la dreta a l'última (fi). Van del principi del
+  // primer tros al final de l'últim, una mica per fora, i de dalt a baix del que hi ha a dins (els mesura app.js).
+  const marcs = () => pag.evaluate(() => {
+    const caixa = r => { const x = document.createRange(); x.selectNodeContents(r); return x.getBoundingClientRect(); };
+    const out = [];
+    document.querySelectorAll('#full .carta.resolt table.centrat tr').forEach(tr => {
+      let grup = [];
+      tr.querySelectorAll('td.marc').forEach(td => {
+        grup.push(td);
+        if (!td.classList.contains('fi')) return;
+        const b = grup.map(x => getComputedStyle(x, '::before')), c = grup.map(caixa), t = grup.map(x => x.getBoundingClientRect());
+        const em = parseFloat(getComputedStyle(td).fontSize), u = grup.length - 1;
+        const esq = t[0].left + parseFloat(b[0].left), dre = t[u].right - parseFloat(b[u].right);
+        const dalt = t[0].top + parseFloat(b[0].top), baix = t[0].bottom - parseFloat(b[0].bottom);
+        out.push({
+          k: td.classList.contains('k1') ? 'k1' : 'k2', text: getComputedStyle(td).color,
+          vores: b.every((x, i) => x.borderTopStyle === 'solid' && x.borderBottomStyle === 'solid' && x.borderTopColor === getComputedStyle(grup[i]).color) &&
+            b[0].borderLeftStyle === 'solid' && b[u].borderRightStyle === 'solid' &&
+            b.slice(1).every(x => x.borderLeftStyle === 'none') && b.slice(0, -1).every(x => x.borderRightStyle === 'none'),
+          lloc: esq < c[0].left && c[0].left - esq < .5 * em && dre > c[u].right && dre - c[u].right < .5 * em &&
+            dalt < Math.min(...c.map(x => x.top)) && baix > Math.max(...c.map(x => x.bottom))
+        });
+        grup = [];
+      });
+    });
+    return out;
+  });
+  const czd = await taules(), mcs = await marcs(), rc = await resultats();
+  comprova('centrat i destaca: les taules del motor (cada tros a la seva columna) i un marc de blau fosc o de vermell al voltant de cada caixa, del primer tros a l\'últim; els resultats, del seu color',
     czd.every(([m, t], i) => t === Motor.centrada(exz[i].arbre, { gra: 'prio', simp: 1, dest: 1 }).html) &&
-    cc.length > 0 && cc.every(bona) && cc.some(x => x.startsWith('k1')) && cc.some(x => x.startsWith('k2')) &&
-    rc.length > 0 && rc.every(x => x.split('|')[1] === colorDe[x.split('|')[0]]), cc.slice(0, 3).join(' ') + ' / ' + rc.slice(0, 3).join(' '));
-  comprova('centrat i destaca: el .tex defineix els dos colors i fa les caixes amb \\boxed (cap subratllat)',
-    e.codi.includes('\\definecolor{destaca1}{HTML}{00008B}\\definecolor{destaca2}{HTML}{D32F2F}% «destaca»') && e.codi.includes('\\color{destaca1}\\boxed{') &&
-    e.codi.includes('\\color{destaca2}\\boxed{') && !e.codi.includes('\\leaders') && !e.codi.includes('\\underline'), e.codi.slice(0, 400));
+    mcs.length > 0 && mcs.every(x => x.text === colorDe[x.k] && x.vores && x.lloc) && mcs.some(x => x.k === 'k1') && mcs.some(x => x.k === 'k2') &&
+    rc.length > 0 && rc.every(x => x.split('|')[1] === colorDe[x.split('|')[0]]), JSON.stringify(mcs.slice(0, 3)) + ' / ' + rc.slice(0, 3).join(' '));
+  comprova('centrat i destaca: el .tex defineix els dos colors i fa cada caixa al voltant de les seves columnes (cap subratllat)',
+    e.codi.includes('\\definecolor{destaca1}{HTML}{00008B}\\definecolor{destaca2}{HTML}{D32F2F}% «destaca»') && e.codi.includes('\\color{destaca1}\\setbox0') &&
+    e.codi.includes('\\color{destaca2}\\setbox0') && !e.codi.includes('\\leaders') && !e.codi.includes('\\underline'), e.codi.slice(0, 400));
+  // L'exemple del professor, 3 + (4²·3:4 − 6): a «3 + 6», el 3 i el + són just sota els de «3 + (12 − 6)»
+  const alineat = await pag.evaluate((html) => {
+    const d = document.createElement('div');
+    d.className = 'carta resolt';
+    d.innerHTML = `<div class="passos"><div class="taula">${html}</div></div>`;
+    document.getElementById('full').prepend(d);
+    window.dispatchEvent(new Event('resize'));
+    const files = d.querySelectorAll('tr'), x = (f, i) => { const r = document.createRange(); r.selectNodeContents(files[f].children[i]); return Math.round(r.getBoundingClientRect().left); };
+    const res = [x(3, 0), x(4, 0), x(3, 1), x(4, 1)];
+    d.remove();
+    return res;
+  }, Motor.centrada({ t: 'bin', op: '+', l: { t: 'num', v: 3 }, r: { t: 'bin', op: '-', l: { t: 'bin', op: ':', l: { t: 'bin', op: '*', l: { t: 'pow', a: { t: 'num', v: 4 }, k: 2 }, r: { t: 'num', v: 3 } }, r: { t: 'num', v: 4 } }, r: { t: 'num', v: 6 } } }, { dest: 1 }).html);
+  comprova('centrat i destaca: a «3 + 6», el 3 i el + són just sota els de «3 + (12 − 6)»', alineat[0] === alineat[1] && alineat[2] === alineat[3], alineat.join());
   await pag.uncheck('#cen');
   const linia = await caixes('#full .carta.resolt .dest.caixa');
   e = await estat();

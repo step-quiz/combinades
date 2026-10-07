@@ -20,7 +20,7 @@
 var Motor = (function () {
   'use strict';
 
-  const VERSIO = 'v0.9';
+  const VERSIO = 'v0.10';
 
   /* La versió del GENERADOR va a l'adreça (g=…), perquè un full desat surti
      sempre amb el generador amb què es va fer. Les adreces sense g són de la
@@ -775,11 +775,14 @@ var Motor = (function () {
     col.span.set(n.id, [a, col.n]);
   }
 
-  /** Una línia de la taula: els trossos [{a, b, s, dest}] de l'arbre n (un pas),
-      cada text s a les columnes [a, b) del node de l'enunciat que substitueix.
-      d: «destaca», {marques, resultats, color} de la línia (o null). dest: el
-      tros és d'un node de `marques`, el que es calcula a la línia següent. Els
-      de `resultats` porten el color de la caixa de la línia d'abans. */
+  /** Una línia de la taula: els trossos [{a, b, s, dest, caixa, nombre}] de
+      l'arbre n (un pas), cada text s a les columnes [a, b) del node de
+      l'enunciat que substitueix. nombre: és un nombre, una fracció o una
+      potència (no un signe ni un parèntesi). d: «destaca», {marques,
+      resultats, color} de la línia (o null). dest: el tros és d'un node de
+      `marques`, el que es calcula a la línia següent; caixa, l'id d'aquest
+      node (els trossos d'una mateixa caixa). Els de `resultats` porten el
+      color de la caixa de la línia d'abans. */
   function trossos(n, E, alPrincipi, embolcallat, span, d) {
     const [a, b] = span.get(n.id), dest = !!d && !!d.marques && d.marques.has(n);
     if (compacte(n)) {
@@ -788,7 +791,7 @@ var Motor = (function () {
       const c = nousComptadors();
       if (d) Object.assign(c, { marcats: dest ? null : d.marques, resultats: d.resultats, color: d.color });
       const s = escriu(n, E, c, alPrincipi);
-      return [{ a, b, s: embolcallat ? E.parentesi(s) : s, dest }];
+      return [{ a, b, s: embolcallat ? E.parentesi(s) : s, dest, nombre: true, caixa: dest ? n.id : undefined }];
     }
     let t;
     if (n.t === 'bin') {
@@ -805,53 +808,100 @@ var Motor = (function () {
     }
     // Un resultat que no és d'una peça (dues fraccions passades a comú denominador): tots els seus trossos
     if (d && d.resultats && d.resultats.has(n)) t = t.map(x => Object.assign({}, x, { s: E.resultat(x.s, 3 - d.color) }));
-    if (dest) t.forEach(x => { x.dest = true; });
+    if (dest) t.forEach(x => { x.dest = true; x.caixa = n.id; });
     if (!ambParentesis(n, alPrincipi, embolcallat)) return t;
     // Els parèntesis que li posa el pare no són seus: com a escriu, no es destaquen. Els de notació, sí.
     const [obre, tanca] = E.meitats(escriu(n, E, nousComptadors(), true)), seus = dest && !embolcallat;
-    return [{ a, b: a + 1, s: obre, dest: seus }].concat(t, { a: b - 1, b, s: tanca, dest: seus });
+    const caixa = seus ? n.id : undefined;
+    return [{ a, b: a + 1, s: obre, dest: seus, caixa, par: true }].concat(t, { a: b - 1, b, s: tanca, dest: seus, caixa, par: true });
   }
 
   /** La resolució en disposició «centrat»: tex, un array de LaTeX (o uns quants,
-      un sota l'altre: blocs); html, una taula; files, les cel·les de cada línia
+      un sota l'altre: blocs); html, una taula; files, els trossos de cada línia
       ({tex, html}). Amb op.dest, el que es calcula a la línia següent surt dins
-      d'una caixa (\boxed) del color de la línia, i el resultat, a sota, del
-      mateix color (com a resolucio). */
+      d'una caixa del color de la línia, i el resultat, a sota, del mateix color
+      (com a resolucio). Cada tros es queda a la seva columna, també dins d'una
+      caixa: la caixa és un marc al voltant de les seves columnes. */
   function centrada(arbre, op) {
     op = op || {};
-    const ps = passos(arbre, op), col = { n: 0, span: new Map() };
+    const ps = passos(arbre, op), col = { n: 0, span: new Map() }, dest = !!+op.dest;
     columnes(ps[0].arbre, true, false, col);
     const N = col.n;
-    // «Destaca»: els trossos seguits que es destaquen (el que es calcula a la línia següent) van junts, en una
-    // sola cel·la que ocupa totes les seves columnes, perquè la caixa els envolti tots. El resultat de la línia
-    // següent hi queda centrat a sota.
-    const ajunta = ts => ts.reduce((out, t) => {
-      const u = out[out.length - 1];
-      if (t.dest && u && u.dest) out[out.length - 1] = Object.assign({}, u, { b: t.b, s: u.s + t.s });
-      else out.push(t);
-      return out;
-    }, []);
     const files = ps.map((p, k) => {
-      const d = +op.dest ? { marques: p.marques, resultats: p.resultats, color: colorLinia(k) } : null;
+      const d = dest ? { marques: p.marques, resultats: p.resultats, color: colorLinia(k) } : null;
       const tex = trossos(p.arbre, TEX, true, false, col.span, d), html = trossos(p.arbre, HTML, true, false, col.span, d);
       // Els trossos cobreixen les N columnes, en ordre i sense encavalcar-se
       if (tex.some((t, i) => t.a !== (i ? tex[i - 1].b : 0) || t.b <= t.a) || tex[tex.length - 1].b !== N)
         throw new Error('centrat: les columnes no quadren');
-      return { tex: ajunta(tex), html: ajunta(html) };
+      return { tex, html };
     });
     const ultima = k => k === files.length - 1;
-    // El contingut d'una cel·la de la línia k. \displaystyle, com a la fórmula sencera: fraccions, exponents i
-    // \left( de la mateixa mida. La destacada, dins d'una caixa del color de la línia (\boxed ja és \displaystyle).
-    const dins = ({ s, dest }, k) => (dest ? `\\color{destaca${colorLinia(k)}}\\boxed{${s}}` : /\\frac|\^|\\left/.test(s) ? '\\displaystyle ' + s : s);
-    const cel = (c, k) => (c.b - c.a > 1 ? `\\multicolumn{${c.b - c.a}}{@{}c@{}}{${dins(c, k)}}` : dins(c, k));
+    // El contingut d'un tros. \displaystyle, com a la fórmula sencera: fraccions, exponents i \left( de la mateixa
+    // mida. Amb «destaca», els nombres porten 3 pt d'aire a banda i banda, a totes les línies: el marc d'una caixa
+    // hi passa per dins (a 1,2 pt de la vora del tros) i no toca ni el nombre ni el que hi ha al costat.
+    const dins = ({ s, nombre }) => {
+      const x = /\\frac|\^|\\left/.test(s) ? '\\displaystyle ' + s : s;
+      return dest && nombre ? `\\kern3pt ${x}\\kern3pt` : x;
+    };
+    const multi = (t, s) => (t.b - t.a > 1 ? `\\multicolumn{${t.b - t.a}}{@{}c@{}}{${s}}` : s);
+    // Les caixes d'una línia: cada grup de trossos seguits d'un mateix node marcat, {a, b, caixa, trossos}
+    const grups = ts => ts.reduce((out, t) => {
+      const u = out[out.length - 1];
+      if (t.caixa !== undefined && u && u.caixa === t.caixa) { u.trossos.push(t); u.b = t.b; }
+      else out.push(t.caixa !== undefined ? { a: t.a, b: t.b, caixa: t.caixa, trossos: [t] } : t);
+      return out;
+    }, []);
+    // Els trossos que tenen a les columnes [a, b) totes les línies menys la k, si les omplen (si no, un tros
+    // d'aquella línia les conté), com a files invisibles i sense alçada d'un array, sense repetir-ne cap. I un
+    // array amb les columnes [a, b) i unes files: fa el mateix ample que aquestes columnes a fora.
+    const fantasmes = (a, b, k) => {
+      const out = [];
+      files.forEach((f, j) => {
+        const rang = f.tex.filter(t => t.a >= a && t.b <= b);
+        if (j === k || rang.reduce((x, t) => x + t.b - t.a, 0) !== b - a) return;
+        const fila = rang.map(t => `\\multispan{${t.b - t.a}}$\\hphantom{${sensColors(dins(t))}}$`).join('&') + '\\cr';
+        if (!out.includes(fila)) out.push(fila);
+      });
+      return out.join('');
+    };
+    // (sense els colors de «destaca», {\\color{destacaK}…}, que no canvien l'amplada: així es repeteixen menys files)
+    const sensColors = x => {
+      for (let i; (i = x.indexOf('{\\color{destaca')) >= 0;) {
+        let j = i + 1, d = 1;
+        for (; d && j < x.length; j++) if (x[j] === '{') d++; else if (x[j] === '}') d--;
+        x = x.slice(0, i) + x.slice(i + '{\\color{destaca1}'.length, j - 1) + x.slice(j);
+      }
+      return x;
+    };
+    const columnesDe = (a, b, f) => `\\hbox{\\def\\arraystretch{0}$\\begin{array}[b]{@{}*{${b - a}}{c@{}}}${f}\\end{array}$}`;
+    // El marc al voltant de \box0, del primer tros (l, des de l'esquerra) a l'últim (r, des de la dreta), 1,2 pt
+    // cap endins: 2,5 pt per sobre i per sota del contingut, i el gruix del \boxed (0,4 pt). No ocupa lloc.
+    const marc = (l = '0pt', r = '0pt') => `\\rlap{\\kern\\dimexpr${l}+1.2pt\\relax\\lower\\dimexpr\\dp0+2.5pt\\relax\\vbox{\\hrule height.4pt`
+      + `\\hbox to\\dimexpr\\wd0-${l}-${r}-2.4pt\\relax{\\vrule width.4pt height\\dimexpr\\ht0+2.1pt\\relax depth\\dimexpr\\dp0+2.1pt\\relax`
+      + '\\hfil\\vrule width.4pt}\\hrule height.4pt}}\\box0';
+    // Una caixa de la línia k, en una sola cel·la que ocupa les seves columnes. D'un sol tros, el marc al voltant
+    // del tros. De més d'un, a dins, un array amb les mateixes columnes i, a la vista, els seus trossos, cadascun a
+    // la seva columna; a sobre, invisibles, els de les altres línies: així les columnes de dins fan el mateix ample
+    // que les de fora, i cada tros queda alineat amb els de sobre i de sota. El marc va del principi del primer tros
+    // (centrat a les seves columnes: \box2 i \box4) al final de l'últim (\box6 i \box8).
+    const caixa = (g, k) => {
+      const color = `\\color{destaca${colorLinia(k)}}`, u = g.trossos[0], z = g.trossos[g.trossos.length - 1];
+      if (u === z) return `${color}\\setbox0\\hbox{$${dins(u)}$}${marc()}`;
+      const vista = g.trossos.map(t => multi(t, dins(t))).join('&');
+      return `${color}\\setbox0${columnesDe(g.a, g.b, fantasmes(g.a, g.b, k) + vista)}`
+        + `\\setbox2${columnesDe(u.a, u.b, fantasmes(u.a, u.b, -1))}\\setbox4\\hbox{$${dins(u)}$}`
+        + `\\setbox6${columnesDe(z.a, z.b, fantasmes(z.a, z.b, -1))}\\setbox8\\hbox{$${dins(z)}$}`
+        + marc('(\\wd2-\\wd4)/2', '(\\wd6-\\wd8)/2');
+    };
+    const cel = (g, k) => multi(g, g.trossos ? caixa(g, k) : dins(g));
     // Entre dues línies, un espai fix (\noalign): així una línia amb fraccions no toca mai la del costat
     const fr = k => files[k].tex.some(t => t.s.includes('\\frac'));
     const espai = k => (fr(k) || fr(k + 1) ? 6 : 3);
-    const linia = k => files[k].tex.map(c => cel(c, k)).join(' & ') + (ultima(k) ? '' : ' & {}={}');
+    const linia = k => grups(files[k].tex).map(g => cel(g, k)).join(' & ') + (ultima(k) ? '' : ' & {}={}');
     // Una línia invisible i sense alçada: només hi compta l'amplada de cada cel·la. Amb \multispan (sense la
     // plantilla de l'array, que hi posaria el puntal), la fila no ocupa gens d'alçada.
     const fantasma = k => files[k].tex.concat(ultima(k) ? [] : [{ a: N, b: N + 1, s: '{}={}' }])
-      .map(c => `\\multispan{${c.b - c.a}}$\\hphantom{${dins(c, k)}}$`).join('&') + '\\cr\n';
+      .map(c => `\\multispan{${c.b - c.a}}$\\hphantom{${dins(c)}}$`).join('&') + '\\cr\n';
     // Un array no es parteix entre pàgines, i una resolució llarga de ℚ pot passar d'una pàgina: amb més de 12
     // línies, va en blocs, un array sota l'altre, i la pàgina es pot partir entre dos blocs. Perquè les columnes
     // facin el mateix ample a tots els blocs, cadascun porta, invisibles, les línies dels altres.
@@ -869,10 +919,19 @@ var Motor = (function () {
     }
     // Entre dos blocs, el mateix espai que entre dues línies (menys l'1 pt de \lineskip que hi posa TeX)
     const tex = blocs.map((b, j) => (j ? `$\\\\[${espai(j * mida - 1) - 1}pt]\n$` : '') + b).join('');
-    const td = ({ a, b, s, dest }, k) =>
-      `<td${dest ? ' class="dest"' : ''}${b - a > 1 ? ` colspan="${b - a}"` : ''}>${dest ? `<span class="caixa k${colorLinia(k)}">${s}</span>` : s}</td>`;
+    // A la web, el mateix: cada tros a la seva cel·la; els nombres, amb aire (n), i els parèntesis, amb una mica
+    // (p); les cel·les d'una caixa, amb el marc (marc, del color de la línia; ini, la primera, i fi, l'última)
+    const td = (ts, k) => ts.map((t, i) => {
+      const cl = dest && t.nombre ? ['n'] : dest && t.par ? ['p'] : [];
+      if (t.caixa !== undefined) {
+        cl.push('dest', 'marc', `k${colorLinia(k)}`);
+        if (!i || ts[i - 1].caixa !== t.caixa) cl.push('ini');
+        if (i === ts.length - 1 || ts[i + 1].caixa !== t.caixa) cl.push('fi');
+      }
+      return `<td${cl.length ? ` class="${cl.join(' ')}"` : ''}${t.b - t.a > 1 ? ` colspan="${t.b - t.a}"` : ''}>${t.s}</td>`;
+    }).join('');
     const html = '<table class="centrat">'
-      + files.map((f, k) => `<tr>${f.html.map(c => td(c, k)).join('')}${ultima(k) ? '' : '<td class="igual">=</td>'}</tr>`).join('')
+      + files.map((f, k) => `<tr>${td(f.html, k)}${ultima(k) ? '' : '<td class="igual">=</td>'}</tr>`).join('')
       + '</table>';
     return { tex, html, files, blocs };
   }

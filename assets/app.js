@@ -230,6 +230,30 @@
     $('resum-isol').textContent = S.isol;
   }
 
+  /** «Destaca» amb «centrat»: el marc d'una caixa va del principi del seu primer tros (ini) al final de l'últim
+      (fi), i de dalt a baix del que hi ha a dins, com al .tex. Cada tros és centrat a la seva cel·la: un cop
+      pintada la taula, es mesura on és (style.css: --l, --r, --t, --b). Una taula dins d'un «Veure els passos»
+      tancat no es veu: es mesura quan s'obre. */
+  function ajustaMarcs() {
+    const caixa = r => { const x = document.createRange(); x.selectNodeContents(r); return x.getBoundingClientRect(); };
+    document.querySelectorAll('#full table.centrat tr').forEach(tr => {
+      let grup = [];
+      tr.querySelectorAll('td.marc').forEach(td => {
+        grup.push(td);
+        if (!td.classList.contains('fi')) return;
+        const cs = grup.map(caixa), ts = grup.map(x => x.getBoundingClientRect()), u = grup.length - 1;
+        if (ts[0].width) {
+          const em = parseFloat(getComputedStyle(td).fontSize), aire = .18 * em;     // el marc, una mica fora
+          const dalt = Math.min(...cs.map(c => c.top)) - .1 * em, baix = Math.max(...cs.map(c => c.bottom)) + .1 * em;
+          grup.forEach((x, i) => { x.style.setProperty('--t', `${dalt - ts[i].top}px`); x.style.setProperty('--b', `${ts[i].bottom - baix}px`); });
+          grup[0].style.setProperty('--l', `${cs[0].left - ts[0].left - aire}px`);
+          grup[u].style.setProperty('--r', `${ts[u].right - cs[u].right - aire}px`);
+        }
+        grup = [];
+      });
+    });
+  }
+
   /** Quins passos del panell són oberts: es desen al navegador (com els controls). */
   const PASSOS = 'combinades-passos';
   function obrePassos() {
@@ -294,6 +318,7 @@
       }
       full.innerHTML = h;
       full.style.setProperty('--sop', Motor.SIMBOLS[S.sim].css);
+      ajustaMarcs();
       // Els colors de «destaca» (style.css: .k1, .k2), i més clars per al fons fosc
       ['c1', 'c2'].forEach((c, i) => {
         const hex = Motor.COLORS[S[c]].hex;
@@ -373,6 +398,11 @@
   // no es recarrega: sense això, s'hi quedava el full d'abans (i el següent
   // clic sobreescrivia l'enllaç).
   window.addEventListener('hashchange', () => { llegeix(); pinta(); });
+  // Els marcs de «centrat» es tornen a mesurar si canvia la mida de la lletra o de la finestra, o si s'obre un
+  // «Veure els passos» (toggle no puja: es capta en baixar)
+  window.addEventListener('resize', ajustaMarcs);
+  document.addEventListener('toggle', e => { if (e.target.closest('#full')) ajustaMarcs(); }, true);
+  if (document.fonts) document.fonts.ready.then(ajustaMarcs);
 
   // La paleta dels colors de «destaca»: els de Motor.COLORS
   $('paleta').innerHTML = Object.entries(Motor.COLORS)

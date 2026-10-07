@@ -93,9 +93,13 @@ columna, cada resultat va centrat sota el que substitueix i el «=» és al fina
 ```
 
 Es veu igual a la web (una taula) i al `.tex`, on cada resolució és un `array` (LaTeX estàndard): una columna
-per a cada nombre, operador i parèntesi de l'enunciat, i `\multicolumn` per als resultats. Amb *destaca*, el que
-es calcula va dins d'una caixa (`\boxed`) del color de la línia, que ocupa totes les seves columnes: el resultat de
-la línia següent, del mateix color, hi va centrat a sota.
+per a cada nombre, operador i parèntesi de l'enunciat, i `\multicolumn` per als resultats. Amb *destaca*, cada
+nombre i cada signe es queden a la seva columna, també dins d'una caixa: la caixa és un marc del color de la línia,
+que va del primer tros del que es calcula a l'últim, i el resultat de la línia següent, del mateix color, va centrat
+sota el que substitueix. Perquè el marc no toqui res, amb *destaca* els nombres porten una mica d'aire a banda i
+banda (a totes les línies). Al `.tex`, cada caixa és una cel·la que ocupa les seves columnes, amb un `array` a dins
+que té les mateixes columnes (i, invisibles, els trossos de les altres línies, perquè facin el mateix ample) i el
+marc dibuixat al voltant; a la web, cada tros és a la seva cel·la, i el marc, a les cel·les de la caixa.
 
 Un `array` no es parteix entre pàgines, i una resolució llarga de ℚ pot fer més d'una pàgina. Per això, una
 resolució de més de 12 línies va en blocs (un `array` sota l'altre, amb les mateixes columnes) i la pàgina es
