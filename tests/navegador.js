@@ -180,6 +180,14 @@ const llegeixBaixada = async (pag, selector) => {
   const nomes = await pag.evaluate(() => [...document.querySelectorAll('#full .carta')].map(c => c.querySelectorAll('.passos').length + ':' + (c.querySelector('.math').textContent.includes('=') ? 1 : 0)).join());
   comprova('«només els resultats»: una línia per exercici, al .tex i a la web («enunciat = resultat»)',
     !(await pag.textContent('#codi-sol')).includes('flalign') && nomes === '0:1,0:1,0:1,0:1,0:1', nomes);
+  // Amb «destaca» marcat d'abans (amb «només el resultat», la casella no hi és): ni caixes ni colors
+  await pag.uncheck('#nomes');
+  await pag.check('#dest');
+  await pag.check('#nomes');
+  comprova('«només els resultats», amb «destaca»: sense caixes ni colors (a la web i al .tex)',
+    await pag.locator('#full .k1, #full .k2').count() === 0 && !(await pag.textContent('#codi-sol')).includes('destaca'));
+  await pag.uncheck('#nomes');
+  await pag.uncheck('#dest');
   await pag.uncheck('#nomes');
 
   console.log('Centrat');
@@ -197,31 +205,65 @@ const llegeixBaixada = async (pag, selector) => {
     JSON.stringify(cz).slice(0, 300));
   comprova('centrat: el .tex porta un array per exercici resolt, i l\'adreça ho recorda',
     (e.codi.match(/^\\item \$\\begin\{array\}\[t\]/gm) || []).length === 2 && !e.codi.includes('flalign') && /&cen=1(&|$)/.test(e.hash), e.hash);
-  // «Destaca la següent operació», també amb «centrat»: en blau fosc i dins d'una caixa, al .tex (\boxed) i a la web
+  // «Destaca la següent operació», també amb «centrat»: dins d'una caixa, al .tex (\boxed) i a la web, dels dos colors
+  // (per defecte, blau fosc i vermell) alternats; el resultat, a la línia següent, del color de la seva caixa
   await pag.check('#dest');
   e = await estat();
-  // Les caixes: el color del text i les quatre vores, del mateix color que el text
+  const BLAU = 'rgb(0, 0, 139)', VERMELL = 'rgb(211, 47, 47)', VERD = 'rgb(46, 125, 50)';
+  // Les caixes: la classe (k1, k2), el color del text i les quatre vores, del mateix color que el text
   const caixes = (sel) => pag.evaluate((s) => [...document.querySelectorAll(s)].map((el) => {
     const c = getComputedStyle(el);
-    return `${c.color}|${[c.borderTopStyle, c.borderRightStyle, c.borderBottomStyle, c.borderLeftStyle].join(',')}|${c.borderTopColor === c.color}`;
+    return `${el.classList.contains('k1') ? 'k1' : el.classList.contains('k2') ? 'k2' : '?'}|${c.color}|${[c.borderTopStyle, c.borderRightStyle, c.borderBottomStyle, c.borderLeftStyle].join(',')}|${c.borderTopColor === c.color}`;
   }), sel);
-  const czd = await taules(), blau = await caixes('#full td.dest > .caixa');
-  comprova('centrat i destaca: les taules del motor, amb el que es calcula en una caixa blau fosc (una cel·la per operació)',
+  const colorDe = { k1: BLAU, k2: VERMELL }, bona = x => { const [k, c, v, igual] = x.split('|'); return c === colorDe[k] && v === 'solid,solid,solid,solid' && igual === 'true'; };
+  // Els resultats, a la web: del color de la seva classe
+  const resultats = () => pag.evaluate(() => [...document.querySelectorAll('#full .carta.resolt span.k1:not(.caixa), #full .carta.resolt span.k2:not(.caixa)')]
+    .map(el => `${el.classList[0]}|${getComputedStyle(el).color}`));
+  const czd = await taules(), cc = await caixes('#full td.dest > .caixa'), rc = await resultats();
+  comprova('centrat i destaca: les taules del motor, amb el que es calcula en una caixa de blau fosc o de vermell (una cel·la per operació), i els resultats del seu color',
     czd.every(([m, t], i) => t === Motor.centrada(exz[i].arbre, { gra: 'prio', simp: 1, dest: 1 }).html) &&
-    blau.length > 0 && blau.every(x => x === 'rgb(0, 0, 139)|solid,solid,solid,solid|true'), blau.slice(0, 3).join(' '));
-  comprova('centrat i destaca: el .tex defineix el blau i fa les caixes amb \\boxed (cap subratllat)',
-    e.codi.includes('\\providecolor{darkblue}{RGB}{0,0,139}') && e.codi.includes('\\color{darkblue}\\boxed{') && !e.codi.includes('\\leaders') && !e.codi.includes('\\underline'), e.codi.slice(0, 400));
+    cc.length > 0 && cc.every(bona) && cc.some(x => x.startsWith('k1')) && cc.some(x => x.startsWith('k2')) &&
+    rc.length > 0 && rc.every(x => x.split('|')[1] === colorDe[x.split('|')[0]]), cc.slice(0, 3).join(' ') + ' / ' + rc.slice(0, 3).join(' '));
+  comprova('centrat i destaca: el .tex defineix els dos colors i fa les caixes amb \\boxed (cap subratllat)',
+    e.codi.includes('\\definecolor{destaca1}{HTML}{00008B}\\definecolor{destaca2}{HTML}{D32F2F}% «destaca»') && e.codi.includes('\\color{destaca1}\\boxed{') &&
+    e.codi.includes('\\color{destaca2}\\boxed{') && !e.codi.includes('\\leaders') && !e.codi.includes('\\underline'), e.codi.slice(0, 400));
   await pag.uncheck('#cen');
   const linia = await caixes('#full .carta.resolt .dest.caixa');
   e = await estat();
-  comprova('destaca, sense centrat: en blau fosc i dins d\'una caixa, a la web i al .tex ({\\color{darkblue}\\boxed{…}})',
-    linia.length > 0 && linia.every(x => x === 'rgb(0, 0, 139)|solid,solid,solid,solid|true') && e.codi.includes('{\\color{darkblue}\\boxed{') &&
+  comprova('destaca, sense centrat: dins d\'una caixa dels dos colors, a la web i al .tex ({\\color{destaca1}\\boxed{…}})',
+    linia.length > 0 && linia.every(bona) && e.codi.includes('{\\color{destaca1}\\boxed{') && e.codi.includes('{\\color{destaca2}\\boxed{') &&
     !e.codi.includes('\\underline') && e.codi.includes('flalign'),
     linia.slice(0, 3).join(' '));
+  // Els colors es trien: un botó per a cadascun obre la paleta (16 colors), i el triat va al full, a l'adreça i al .tex
+  const vis2 = id => pag.evaluate(i => getComputedStyle(document.getElementById(i)).display !== 'none', id);
+  await obreTot(pag);
+  const tancada = !(await vis2('paleta')) && await vis2('colors');
+  await pag.click('[data-tria="2"]');
+  const paleta = await pag.evaluate(() => ({
+    mostres: document.querySelectorAll('#paleta [data-color]').length,
+    triat: [...document.querySelectorAll('#paleta [aria-pressed=true]')].map(b => b.dataset.color).join(),
+    oberta: document.querySelector('[data-tria="2"]').getAttribute('aria-expanded')
+  }));
+  comprova('colors: el 2n color obre la paleta de 16, amb el vermell triat', tancada && await vis2('paleta') && paleta.mostres === 16 && paleta.triat === 'vermell' && paleta.oberta === 'true', JSON.stringify(paleta));
+  await pag.click('#paleta [data-color="verd"]');
+  e = await estat();
+  const verds = (await caixes('#full .carta.resolt .dest.caixa.k2')).map(x => x.split('|')[1]);
+  comprova('colors: triar el verd tanca la paleta i el 2n color passa a ser verd (al full, a l\'adreça i al .tex)',
+    !(await vis2('paleta')) && verds.length > 0 && verds.every(c => c === VERD) && /&c2=verd(&|$)/.test(e.hash) &&
+    e.codi.includes('\\definecolor{destaca1}{HTML}{00008B}\\definecolor{destaca2}{HTML}{2E7D32}'), `${verds.slice(0, 2)} ${e.hash}`);
+  await pag.reload();
+  comprova('colors: l\'enllaç (i recarregar la pàgina) els recorda', (await estat()).codi.includes('{HTML}{2E7D32}'));
+  await pag.goto(EINA + '#n=5&set=Z&div=1&opo=1&pot=1&par=1&seed=sol1&g=2&sol=guiades&res=0,1&dest=1&c1=constructor&c2=toString');
+  e = await estat();
+  comprova('colors: un enllaç sense colors, o amb uns que no són de la paleta, fa servir els de per defecte',
+    e.codi.includes('\\definecolor{destaca1}{HTML}{00008B}\\definecolor{destaca2}{HTML}{D32F2F}') && /&c1=blaufosc&c2=vermell(&|$)/.test(e.hash), e.hash);
+  await pag.uncheck('#dest');
+  comprova('colors: sense «destaca», ni els colors ni cap color al full', !(await vis2('colors')) &&
+    await pag.locator('#full .k1, #full .k2').count() === 0 && !(await estat()).codi.includes('destaca'));
   const fosc = await nova({ viewport: { width: 1280, height: 900 }, colorScheme: 'dark' });
   await fosc.goto(EINA + '#n=5&set=Z&div=1&opo=1&pot=1&par=1&seed=sol1&g=2&sol=guiades&res=0,1&dest=1');
-  const blauFosc = await fosc.evaluate(() => getComputedStyle(document.querySelector('#full .dest.caixa')).color);
-  comprova('destaca, amb el fons fosc: un blau clar, que es llegeix', blauFosc === 'rgb(147, 197, 253)', blauFosc);
+  const blauFosc = await fosc.evaluate(() => getComputedStyle(document.querySelector('#full .dest.caixa.k1')).color);
+  comprova('destaca, amb el fons fosc: el color, més clar (es llegeix)', blauFosc === 'rgb(140, 140, 203)', blauFosc);
   await fosc.close();
   // Al solucionari, amb «centrat», cada exercici és una taula a la web
   await pag.goto(EINA + '#n=10&esp=petit&sim=gran&set=Q&div=1&opo=1&pot=1&par=1&seed=ample0&g=2&sol=solucionari&cen=1&dest=1');
@@ -318,11 +360,11 @@ const llegeixBaixada = async (pag, selector) => {
   comprova('panell: amb ℤ, «on hi pot haver nombres negatius» (i el resum ho diu)', /negatius/.test(pl.onviuen) && !pl.simp && pl.resums[0].includes('ℤ'), JSON.stringify(pl));
   await pn.click('[data-set="Q"]');
   pl = await panell();
-  comprova('panell: amb ℚ, fraccions i «simplifica les fraccions»', /fraccions/.test(pl.onviuen) && pl.simp, JSON.stringify(pl));
+  comprova('panell: amb ℚ, fraccions i «simplifica fraccions a banda»', /fraccions/.test(pl.onviuen) && pl.simp, JSON.stringify(pl));
   await pn.click('#pas-sol > summary');
   await pn.click('[data-sol="guiades"]');
   pl = await panell();
-  comprova('panell: «Exemples resolts» en resol el primer, i en surt quants', pl.primers && pl.k === '1' && pl.resolts === 1 && pl.opsol && pl.resums[2].startsWith('1 exemple resolt'), JSON.stringify(pl));
+  comprova('panell: «Ajuda parcial» en resol el primer, i en surt quants', pl.primers && pl.k === '1' && pl.resolts === 1 && pl.opsol && pl.resums[2].startsWith('ajuda parcial: 1 resolt'), JSON.stringify(pl));
   await pn.click('[data-sol="solucionari"]');
   await pn.check('#nomes');
   pl = await panell();
@@ -331,12 +373,35 @@ const llegeixBaixada = async (pag, selector) => {
   pl = await panell();
   comprova('panell: recorda quins passos tens oberts', pl.oberts === 'pas-ex:1,pas-asp:0,pas-sol:1,entorn:0', pl.oberts);
   comprova('panell: «↻ Full nou», al costat del títol del full', await pn.evaluate(() => !!document.querySelector('section .cap-full #tot')));
+  // Els textos, curts (com els va demanar el professor)
+  const textos = await pn.evaluate(() => ({
+    nombres: [...document.querySelectorAll('[data-set]')].map(b => b.textContent).join(' '),
+    sol: [...document.querySelectorAll('[data-sol]')].map(b => b.textContent).join(' | '),
+    isol: [...document.querySelectorAll('[data-isol]')].map(b => b.textContent).join(' | '),
+    caselles: ['cen', 'dest', 'simp'].map(id => document.getElementById(id).parentNode.textContent.trim()).join(' | '),
+    entorn: document.querySelector('#entorn > summary').textContent,
+    titols: [...document.querySelectorAll('aside h3')].map(h => h.textContent),
+    sempre: document.querySelector('aside').textContent.includes('Sempre hi ha')
+  }));
+  comprova('panell: ℕ ℤ ℚ, només el símbol; «Cap», «Ajuda parcial» i «Solucionari», sense descripció; «Entorn», sol',
+    textos.nombres === 'ℕ ℤ ℚ' && textos.sol === 'Cap | Ajuda parcial | Solucionari' && textos.isol === 'Cap | Solucionari' && textos.entorn === 'Entorn', JSON.stringify(textos));
+  comprova('panell: «centrat seguint els símbols matemàtics», «destaca l\'operació següent» i «simplifica fraccions a banda»',
+    textos.caselles === 'centrat seguint els símbols matemàtics | destaca l\'operació següent | simplifica fraccions a banda', textos.caselles);
+  comprova('panell: ni «Sempre hi ha +, − i ·» ni el títol «Operacions»', !textos.sempre && !textos.titols.includes('Operacions'), textos.titols.join());
+  // Entre els passos, plegats, hi ha espai
+  await pn.evaluate(() => document.querySelectorAll('aside details').forEach(d => { d.open = false; }));
+  const separacio = await pn.evaluate(() => {
+    const s = ['pas-ex', 'pas-asp', 'pas-sol', 'entorn'].map(id => document.querySelector(`#${id} > summary`).getBoundingClientRect());
+    return s.slice(1).map((x, i) => Math.round(x.top - s[i].bottom));
+  });
+  comprova('panell: entre dos passos hi ha espai (com a mínim 24 px)', separacio.every(x => x >= 24), separacio.join());
   // Cap opció perduda: hi són tots els controls d'abans
   const controls = ['#n', '#int', '#fin', '#forca', '#div', '#opo', '#pot', '#par', '#vs', '#cen', '#simp', '#dest', '#nomes', '#in', '#ipar', '#ipot', '#iarr', '#idiv', '#tot',
     ...['petit', 'mitja', 'gran'].flatMap(v => [`[data-esp="${v}"]`, `[data-sim="${v}"]`, `[data-iesp="${v}"]`]), ...['N', 'Z', 'Q'].map(v => `[data-set="${v}"]`),
     '[data-grad="0"]', '[data-grad="1"]', ...['cap', 'guiades', 'solucionari'].map(v => `[data-sol="${v}"]`), '[data-k="1"]', '[data-k="2"]', '[data-k="3"]',
     '[data-gra="prio"]', '[data-gra="op"]', '[data-inom="3"]', '[data-inom="4"]', '[data-isol="cap"]', '[data-isol="solucionari"]',
-    '[data-entorn="main"]', '[data-entorn="headers"]', '[data-entorn="defs"]'];
+    '[data-entorn="main"]', '[data-entorn="headers"]', '[data-entorn="defs"]',
+    '[data-tria="1"]', '[data-tria="2"]', ...Object.keys(Motor.COLORS).map(c => `[data-color="${c}"]`)];
   const falten = await pn.evaluate(cs => cs.filter(c => !document.querySelector(c)), controls);
   comprova(`panell: hi són tots els controls d'abans (${controls.length})`, !falten.length, falten.join(' '));
   await pn.close();

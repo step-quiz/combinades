@@ -206,39 +206,78 @@ function esperat(T, unaOp) {
   const s = F.find((n) => n.t === 'bin' && v(n.l) && v(n.r));
   return { tipus: s.l.d !== s.r.d ? 'mcm' : 'suma', nodes: [s] };
 }
-/** «Destaca la següent operació»: {\color{darkblue}\boxed{…}} al TeX (i <span class="dest caixa">…</span> a l'HTML).
-    Torna el text sense les marques i, per ordre, el que hi havia destacat. */
-const DEST = '{\\color{darkblue}\\boxed{';
+/** «Destaca la següent operació»: a la línia k de la resolució (0, l'enunciat), el que es calcula a la següent va
+    dins d'una caixa del color k % 2 + 1, {\color{destacaK}\boxed{…}}; i el que surt de les caixes de la línia
+    d'abans, del color d'aquelles, {\color{destacaK}…}. Torna el text sense les marques i, per ordre, les caixes i
+    els resultats: [{s, k}], el text (sense marques) i el color; i marques, tots dos per ordre ('c1', 'r2'…). */
 function destacats(tex) {
-  const grups = [];
-  for (let i; (i = tex.indexOf(DEST)) >= 0;) {
-    let j = i + DEST.length, d = 1;
-    for (; d && j < tex.length; j++) { if (tex[j] === '{') d++; else if (tex[j] === '}') d--; }
-    if (tex[j] !== '}') throw new Error('destacat mal tancat');
-    grups.push(tex.slice(i + DEST.length, j - 1));
-    tex = tex.slice(0, i) + tex.slice(i + DEST.length, j - 1) + tex.slice(j + 1);
-  }
-  return { net: tex, grups };
+  const caixes = [], res = [], marques = [];
+  const desfa = (t) => {
+    let out = '';
+    for (let i = 0; i < t.length;) {
+      const m = /^\{\\color\{destaca([12])\}(\\boxed\{)?/.exec(t.slice(i));
+      if (!m) { out += t[i++]; continue; }
+      let j = i + m[0].length, d = m[2] ? 2 : 1;
+      const ini = j;
+      for (; d && j < t.length; j++) { if (t[j] === '{') d++; else if (t[j] === '}') d--; }
+      if (d) throw new Error('destacat mal tancat');
+      if (m[2] && t[j - 2] !== '}') throw new Error('caixa mal tancada');
+      const x = { k: +m[1] };
+      (m[2] ? caixes : res).push(x);
+      marques.push((m[2] ? 'c' : 'r') + m[1]);
+      x.s = desfa(t.slice(ini, j - (m[2] ? 2 : 1)));
+      out += x.s;
+      i = j;
+    }
+    return out;
+  };
+  return { net: desfa(tex), caixes, res, marques };
 }
 const sensDestacats = (tex) => destacats(tex).net;
-/** L'HTML sense les caixes de «destaca» (<span class="dest caixa">…</span>, que poden tenir altres span a dins). */
+/** L'HTML sense les marques de «destaca»: les caixes (<span class="dest caixa kK">…</span>; a «centrat», <span
+    class="caixa kK">) i els resultats (<span class="kK">…</span>), que poden tenir altres span a dins. */
 function sensCaixesHtml(html) {
-  const OBRE = '<span class="dest caixa">';
-  for (let i; (i = html.indexOf(OBRE)) >= 0;) {
-    let j = i + OBRE.length, d = 1;
+  const OBRE = /<span class="(?:dest )?(?:caixa )?k[12]">/;
+  for (let m; (m = OBRE.exec(html));) {
+    const i = m.index;
+    let j = i + m[0].length, d = 1;
     while (d) {
       const o = html.indexOf('<span', j), c = html.indexOf('</span>', j);
       if (c < 0) throw new Error('caixa mal tancada');
       if (o >= 0 && o < c) { d++; j = o + 5; } else { d--; j = c + 7; }
     }
-    html = html.slice(0, i) + html.slice(i + OBRE.length, j - 7) + html.slice(j);
+    html = html.slice(0, i) + html.slice(i + m[0].length, j - 7) + html.slice(j);
   }
   return html;
 }
+/** Els colors de les marques d'una línia HTML, per ordre: caixes (c) i resultats (r). */
+const colorsHtml = (html) => [...html.matchAll(/<span class="(dest caixa |caixa )?k([12])">/g)].map(([, cx, k]) => (cx ? 'c' : 'r') + k).join(' ');
+/** Els valors d'un tros de TeX (el contingut d'una caixa o un resultat), en valor absolut: −(2·3) dona −6, i la
+    regla dels signes, 5 − (−3) → 5 + 3, canvia el signe del que hi havia a la caixa. */
+const absolut = (tex) => {
+  const [n, d] = llegeix(tex.replace(/-(?=\\left\()/g, '-\\mathopen{}')).valor;   // −{…\left(…} ja no el necessita
+  return `${n < 0n ? -n : n}/${d}`;
+};
+/** «Destaca», línia a línia (tex, de resolucio amb dest): les caixes de la línia k, del color k % 2 + 1 (totes les
+    línies en tenen, menys l'última); els resultats, del de la línia d'abans: un per caixa, i amb el seu valor. */
+function revisaColors(nom, tex) {
+  const ls = tex.map(destacats);
+  ls.forEach((l, k) => {
+    const ultima = k === ls.length - 1, abans = k ? ls[k - 1] : null;
+    if (ultima === !!l.caixes.length) falla(`${nom}: la línia ${k} ${ultima ? 'és l\'última i té' : 'no té'} res destacat`);
+    if (l.caixes.some((x) => x.k !== k % 2 + 1)) falla(`${nom}: a la línia ${k}, una caixa que no és del color ${k % 2 + 1}: ${tex[k]}`);
+    if (l.res.some((x) => x.k !== (k + 1) % 2 + 1)) falla(`${nom}: a la línia ${k}, un resultat que no és del color de la línia d'abans: ${tex[k]}`);
+    if (!abans) { if (l.res.length) falla(`${nom}: un resultat a l'enunciat`); return; }
+    let parells;
+    try { parells = l.res.map((x, i) => [absolut(x.s), abans.caixes[i] && absolut(abans.caixes[i].s)]); } catch (x) { falla(`${nom}: ${x.message} a «${tex[k]}»`); return; }
+    if (l.res.length !== abans.caixes.length || parells.some(([a, b]) => a !== b))
+      falla(`${nom}: a la línia ${k}, els resultats no són els de les caixes d'abans: «${tex[k - 1]}» → «${tex[k]}»`);
+  });
+}
 /* «Centrat»: l'array del .tex i la taula de l'HTML, llegits pel seu compte.
-   Cada fila: [{a, b, s, blau}], el text s a les columnes [a, b) (blau: és
-   destacat, en una caixa); l'última cel·la de cada fila menys de l'última és
-   el «=». */
+   Cada fila: [{a, b, s, caixa}], el text s a les columnes [a, b) (caixa: és
+   destacat, dins d'una caixa d'aquest color, 1 o 2; si no, 0); l'última cel·la
+   de cada fila menys de l'última és el «=». */
 function treuVphantoms(s) {                         // \vphantom{…}, amb claus dins
   for (let i; (i = s.indexOf('\\vphantom{')) >= 0;) {
     let j = i + 10, d = 1;
@@ -268,7 +307,8 @@ function llegeixBloc(tex) {
       files.push(l.replace(/ \\\\(\\noalign\{\\vskip \d+pt\})?$/, '').split(' & ').map((c) => {
         const mc = /^\\multicolumn\{(\d+)\}\{@\{\}c@\{\}\}\{([\s\S]*)\}$/.exec(c), k = mc ? +mc[1] : 1;
         const cel = { a, b: a + k, s: mc ? mc[2] : c };
-        cel.blau = cel.s.startsWith('\\color{darkblue}');
+        const mk = /^\\color\{destaca([12])\}\\boxed\{/.exec(cel.s);
+        cel.caixa = mk ? +mk[1] : 0;                               // una cel·la destacada: el color de la caixa
         a += k;
         return cel;
       }));
@@ -303,7 +343,8 @@ function llegeixTaula(html) {
 /** El text lineal d'una cel·la del .tex: sense \displaystyle, ni el color i la caixa de «destaca», ni els {} dels
     operadors, ni el \vphantom d'una meitat de parèntesi. */
 const desfaCaixa = (s) => (s.startsWith('\\boxed{') && s.endsWith('}') ? s.slice(7, -1) : s);
-const celTex = (s) => treuVphantoms(desfaCaixa(s.replace(/^\\displaystyle /, '').replace(/^\\color\{darkblue\}/, '')).replace(/(?<!\\mathopen)\{\}/g, ''))
+const celTex = (s) => treuVphantoms(sensDestacats(desfaCaixa(s.replace(/^\\displaystyle /, '').replace(/^\\color\{destaca[12]\}(?=\\boxed\{)/, '')))
+  .replace(/(?<!\\mathopen)\{\}/g, ''))
   .replace(/\\right\.\\kern-\\nulldelimiterspace|\\kern-\\nulldelimiterspace\\left\./g, '');
 /** I el d'una cel·la de l'HTML: les dues meitats d'un parèntesi gran, com si fossin un sol grup. */
 const celHtml = (s) => s.replace(/^<span class="pg">(<span class="pb"[^>]*>\(<\/span>)<\/span>/, '<span class="pg">$1')
@@ -335,11 +376,12 @@ function revisaCentrat(nom, e, gra, r) {
   });
 }
 
-/* «Destaca» amb «centrat»: el que es calcula a la línia següent va en una sola cel·la per a cada operació, en blau
-   i dins d'una caixa (\boxed) que n'envolta tot el text; és just el que es destaca a la línia normal, en el mateix
-   ordre (els parèntesis que li posa el pare, fora). Les cel·les són les de sense destacar, amb les que tapa cada
-   caixa ajuntades; la base d'una potència que es simplifica, (−4/4)², es destaca dins de la seva cel·la, com a la
-   línia normal. I a l'HTML, les mateixes cel·les i les mateixes caixes. d: la resolució normal amb «destaca». */
+/* «Destaca» amb «centrat»: el que es calcula a la línia següent va en una sola cel·la per a cada operació, dins
+   d'una caixa (\boxed) del color de la fila que n'envolta tot el text; és just el que es destaca a la línia normal,
+   en el mateix ordre (els parèntesis que li posa el pare, fora). Les cel·les són les de sense destacar, amb les que
+   tapa cada caixa ajuntades; la base d'una potència que es simplifica, (−4/4)², es destaca dins de la seva cel·la,
+   com a la línia normal. Els resultats (també dins d'una caixa), els de la línia normal i del mateix color. I a
+   l'HTML, les mateixes cel·les, les mateixes caixes i els mateixos colors. d: la resolució normal amb «destaca». */
 function revisaCentratDest(nom, e, d) {
   let t0, t, h0, h;
   try {
@@ -350,9 +392,9 @@ function revisaCentratDest(nom, e, d) {
   const text = (x) => linealTex(celTex(sensDestacats(x.s)));
   const clau = (f) => f.map((x) => `${x.a}:${x.b}:${x.t === undefined ? text(x) : x.t}`).join('|');
   t.files.forEach((f, k) => {
-    const caixes = f.filter((x) => x.blau);
-    if (caixes.some((x) => !/^\\color\{darkblue\}\\boxed\{[\s\S]*\}$/.test(x.s)))
-      falla(`${nom} centrat destacat: a la fila ${k}, una cel·la blava sense la caixa al voltant de tot`);
+    const caixes = f.filter((x) => x.caixa), color = k % 2 + 1;
+    if (caixes.some((x) => !/^\\color\{destaca[12]\}\\boxed\{[\s\S]*\}$/.test(x.s) || x.caixa !== color))
+      falla(`${nom} centrat destacat: a la fila ${k}, una caixa que no ho envolta tot o que no és del color ${color}`);
     // Sense destacar, les mateixes cel·les, amb les que tapa cada caixa ajuntades en una
     const junta = [];
     t0.files[k].forEach((x) => {
@@ -361,18 +403,25 @@ function revisaCentratDest(nom, e, d) {
     });
     if (clau(f) !== clau(junta)) falla(`${nom} centrat destacat: la fila ${k} no és la de sense destacar (${clau(f)} / ${clau(junta)})`);
     // El destacat, per ordre: les caixes i, dins d'una cel·la que no ho és (una potència), la base que es simplifica
-    const tot = [];
-    f.forEach((x) => { if (x.blau) tot.push(celTex(x.s)); else destacats(x.s).grups.forEach((g) => tot.push(g)); });
-    const grups = destacats(d.tex[k]).grups;
-    if (tot.map(linealTex).join('|') !== grups.map(linealTex).join('|'))
-      falla(`${nom} centrat destacat: a la fila ${k}, destacat «${tot.join('|')}» i a la línia «${grups.join('|')}»`);
-    // L'HTML: les mateixes cel·les destacades, cadascuna amb la seva caixa, i el mateix text que sense destacar
-    const hd = h[k].filter((x) => x.dest);
-    if (hd.map((x) => x.a + ':' + x.b).join() !== caixes.map((x) => x.a + ':' + x.b).join() || hd.some((x) => !/^<span class="caixa">[\s\S]*<\/span>$/.test(x.s)))
+    const tot = [], linia = destacats(d.tex[k]);
+    f.forEach((x) => { if (x.caixa) tot.push(celTex(x.s)); else destacats(x.s).caixes.forEach((g) => tot.push(g.s)); });
+    if (tot.map(linealTex).join('|') !== linia.caixes.map((g) => linealTex(g.s)).join('|'))
+      falla(`${nom} centrat destacat: a la fila ${k}, destacat «${tot.join('|')}» i a la línia «${linia.caixes.map((g) => g.s).join('|')}»`);
+    // Els resultats (un de dues fraccions passades a comú denominador va en tres cel·les): els de la línia normal, i
+    // del color de la línia d'abans
+    const res = f.flatMap((x) => destacats(x.s).res);
+    if (res.some((x) => x.k !== (k + 1) % 2 + 1) || linealTex(celTex(res.map((x) => x.s).join(''))) !== linealTex(linia.res.map((x) => x.s).join('')))
+      falla(`${nom} centrat destacat: a la fila ${k}, els resultats no són els de la línia normal`);
+    // L'HTML: les mateixes cel·les destacades, cadascuna amb la seva caixa, el mateix text que sense destacar i les
+    // mateixes marques (caixes i resultats) dels mateixos colors
+    const hd = h[k].filter((x) => x.dest), obre = `<span class="caixa k${color}">`;
+    if (hd.map((x) => x.a + ':' + x.b).join() !== caixes.map((x) => x.a + ':' + x.b).join() || hd.some((x) => !x.s.startsWith(obre) || !x.s.endsWith('</span>')))
       falla(`${nom} centrat destacat: a la fila ${k}, l'HTML no destaca les mateixes cel·les`);
-    const fora = (x) => (x.dest ? x.s.slice('<span class="caixa">'.length, -'</span>'.length) : x.s);
+    const fora = (x) => (x.dest ? x.s.slice(obre.length, -'</span>'.length) : x.s);
     if (sensCaixesHtml(h[k].map(fora).join('')) !== h0[k].map((x) => x.s).join(''))
       falla(`${nom} centrat destacat: a la fila ${k}, l'HTML no diu el mateix que sense destacar`);
+    const marques = f.flatMap((x) => (x.caixa ? ['c' + x.caixa] : []).concat(destacats(x.s).marques)).join(' ');
+    if (colorsHtml(h[k].map((x) => x.s).join('')) !== marques) falla(`${nom} centrat destacat: a la fila ${k}, l'HTML no té les marques del TeX`);
     if ((k === t.files.length - 1) === !!tot.length) falla(`${nom} centrat destacat: la fila ${k} ${tot.length ? 'és l\'última i té' : 'no té'} res destacat`);
   });
 }
@@ -400,16 +449,15 @@ function revisaResolucio(etq, p, e) {
     }
     if (r.tex.length > 4 * totsNodes(e.arbre).length) falla(`${nom}: massa línies (${r.tex.length})`);
     revisaCentrat(nom, e, gra, r);
-    if (gra === 'prio') {                                  // «destaca l'operació»: les mateixes línies, amb marques
-      const d = Motor.resolucio(e.arbre, { gra, dest: 1 });
-      // (\mathopen{} només canvia l'espai: amb una part destacada, també va darrere d'un −)
-      // (\mathopen{} només és espai: davant d'una part destacada, entre claus, ja no cal)
-      const net = (t) => t.replace(/\\mathopen\{\}/g, '');
-      const tex = d.tex.map((t) => net(sensDestacats(t))), html = d.html.map(sensCaixesHtml);
-      if (tex.join('|') !== r.tex.map(net).join('|') || html.join('|') !== r.html.join('|')) falla(`${nom}: destacar canvia les línies`);
-      if (d.tex.some((t, k) => (k < d.tex.length - 1) !== t.includes(DEST))) falla(`${nom}: una línia sense destacar o l'última destacada`);
-      revisaCentratDest(nom, e, d);
-    }
+    // «Destaca l'operació»: les mateixes línies, amb les caixes i els resultats dels dos colors, alternats
+    const d = Motor.resolucio(e.arbre, { gra, dest: 1 });
+    // (\mathopen{} només és espai: davant d'una part destacada, entre claus, ja no cal)
+    const net = (t) => t.replace(/\\mathopen\{\}/g, '');
+    const tex = d.tex.map((t) => net(sensDestacats(t))), html = d.html.map(sensCaixesHtml);
+    if (tex.join('|') !== r.tex.map(net).join('|') || html.join('|') !== r.html.join('|')) falla(`${nom}: destacar canvia les línies`);
+    revisaColors(nom, d.tex);
+    if (d.html.some((x, k) => colorsHtml(x) !== destacats(d.tex[k]).marques.join(' '))) falla(`${nom}: l'HTML no té les marques del TeX`);
+    if (gra === 'prio') revisaCentratDest(nom, e, d);
   }
   if (linies.op < linies.prio) falla(`${etq}: «una operació» té menys línies que «per prioritat»`);
 }
@@ -785,21 +833,31 @@ if (!Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 1 }).ok) fal
   if (!s.startsWith(`% ex${m.num}-sol.tex — solucionari de ex${m.num}.tex`) || !s.includes('\\textbf{Solucions}') ||
       compta(s, /\\item /g) !== p.n || compta(s, /\\begin\{flalign\*\}/g) !== p.n) falla('solucionari: format');
   const r = Motor.fitxerSolucionari(ex, p, m, { nomes: 1, dest: 1 });
-  if (compta(r, /\\item /g) !== p.n || r.includes('flalign') || r.includes('darkblue') ||
+  if (compta(r, /\\item /g) !== p.n || r.includes('flalign') || r.includes('destaca') ||
       !ex.every((e) => r.includes(`\\item $\\displaystyle ${e.tex}=`))) falla('solucionari: només resultats');
-  // «Centrat»: cada exercici resolt és un array, amb l'enunciat a la primera fila; «destaca», en blau
+  // «Centrat»: cada exercici resolt és un array, amb l'enunciat a la primera fila; «destaca», amb els dos colors
   const enunciats = (t) => t.match(/^\\item \$\\displaystyle .*\$$/gm) || [];
   const gc = Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [2, 0], cen: 1, dest: 1 });
   if (compta(gc, /^\\item \$\\begin\{array\}\[t\]/gm) !== 2 || compta(gc, /^\\end\{array\}\$$/gm) !== 2 || compta(gc, /\\item /g) !== p.n ||
-      gc.includes('flalign') || !gc.includes(' · resolts: 1, 3\n') || !gc.includes('\\color{darkblue}\\boxed{') || gc.includes('\\leaders') || gc.includes('\\underline')) falla('guiades centrat: resolucions');
+      gc.includes('flalign') || !gc.includes(' · resolts: 1, 3\n') || !gc.includes('\\color{destaca1}\\boxed{') || !gc.includes('\\color{destaca2}\\boxed{') || gc.includes('\\leaders') || gc.includes('\\underline')) falla('guiades centrat: resolucions');
   if (enunciats(gc).join('\n') !== enunciats(Motor.fitxerTex(ex, p, m)).filter((x, i) => i !== 0 && i !== 2).join('\n')) falla('guiades centrat: els altres enunciats');
   const sc = Motor.fitxerSolucionari(ex, p, m, { cen: 1, dest: 1, gra: 'op' });
-  if (compta(sc, /^\\item \$\\begin\{array\}\[t\]/gm) !== p.n || sc.includes('flalign') || !sc.includes('\\color{darkblue}')) falla('solucionari centrat');
-  // El color de «destaca» el defineix el fitxer mateix (cal xcolor, que carrega headers.tex), i només quan cal
-  const blau = (t) => compta(t, /^\\providecolor\{darkblue\}\{RGB\}\{0,0,139\}/gm);
-  if (blau(gc) !== 1 || blau(sc) !== 1 || blau(Motor.fitxerSolucionari(ex, p, m, { dest: 1 })) !== 1) falla('«destaca»: el fitxer no defineix el color');
-  if (blau(Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [0] })) || blau(r) || blau(Motor.fitxerTex(ex, p, m, { mode: 'cap', dest: 1 })) ||
-      blau(Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [], dest: 1 }))) falla('«destaca»: el color, en un fitxer que no destaca res');
+  if (compta(sc, /^\\item \$\\begin\{array\}\[t\]/gm) !== p.n || sc.includes('flalign') || !sc.includes('\\color{destaca2}')) falla('solucionari centrat');
+  // Els colors de «destaca» els defineix el fitxer mateix (cal xcolor, que carrega headers.tex), i només quan cal: els
+  // triats (c1, c2) o, si no n'hi ha o no són de la paleta, els de per defecte (blau fosc i vermell)
+  const colors = (t) => (t.match(/^\\definecolor\{destaca1\}\{HTML\}\{([0-9A-F]{6})\}\\definecolor\{destaca2\}\{HTML\}\{([0-9A-F]{6})\}% «destaca»/gm) || [])
+    .map((l) => l.replace(/^.*\{([0-9A-F]{6})\}.*\{([0-9A-F]{6})\}.*$/, '$1 $2'));
+  if (colors(gc).join() !== '00008B D32F2F' || colors(sc).join() !== '00008B D32F2F' || colors(Motor.fitxerSolucionari(ex, p, m, { dest: 1 })).join() !== '00008B D32F2F')
+    falla(`«destaca»: el fitxer no defineix els colors (${colors(gc)})`);
+  if (colors(Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [0] })).length || colors(r).length || colors(Motor.fitxerTex(ex, p, m, { mode: 'cap', dest: 1 })).length ||
+      colors(Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [], dest: 1 })).length) falla('«destaca»: els colors, en un fitxer que no destaca res');
+  const triats = (c1, c2) => colors(Motor.fitxerTex(ex, p, m, { mode: 'guiades', resolts: [0], dest: 1, c1, c2 })).join();
+  if (triats('verd', 'taronja') !== '2E7D32 E65100' || triats('negre', 'blaufosc') !== '000000 00008B' || triats('constructor', 'xyz') !== '00008B D32F2F' ||
+      triats('__proto__', 'toString') !== '00008B D32F2F') falla(`«destaca»: els colors triats (${triats('verd', 'taronja')} / ${triats('constructor', 'xyz')})`);
+  // La paleta: 16 colors diferents, en hexadecimal, amb un nom; la clau, en minúscules (va a l'adreça)
+  const paleta = Object.entries(Motor.COLORS);
+  if (paleta.length !== 16 || new Set(paleta.map(([, c]) => c.hex)).size !== 16 || paleta.some(([k, c]) => !/^[a-z]+$/.test(k) || !/^[0-9A-F]{6}$/.test(c.hex) || !c.nom) ||
+      !Motor.COLORS_PER_DEFECTE.every((k) => paleta.some(([q]) => q === k))) falla('«destaca»: la paleta de colors');
 }
 
 /* ── 12. «Centrat», exemple a exemple: cada signe es queda a la seva columna i
@@ -832,12 +890,26 @@ if (!Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 1 }).ok) fal
     const files = llegeixArray(Motor.centrada(arbre, op).tex).files.map((f) => f.map(curt).join(' ')).join(' | ');
     if (files !== esperades) falla(`centrat ${JSON.stringify(op)}: ${files}  (esperat: ${esperades})`);
   }
-  // «Destaca»: el que es calcula a la línia següent, en una sola cel·la blava amb una caixa (les columnes que ocupa).
-  // El 5 − 2, sense els parèntesis, com a la línia normal.
+  // «Destaca»: el que es calcula a la línia següent, en una sola cel·la amb una caixa (les columnes que ocupa), del
+  // color de la fila (1, 2, 1…). El 5 − 2, sense els parèntesis, com a la línia normal. I el resultat de cada caixa,
+  // a la fila següent, del color de la caixa.
   const cd = llegeixArray(Motor.centrada(casos[0][0], { dest: 1 }).tex);
-  const blaus = cd.files.map((f) => f.filter((x) => x.blau).map((x) => `${x.a}-${x.b}:${celTex(x.s)}`).join(','));
-  const esperat = ['5-8:5-2', '4-9:3^{2}', '2-9:3\\cdot 9', '0-9:2+27', '0-11:29+8', ''];
-  if (blaus.join(' | ') !== esperat.join(' | ')) falla(`centrat destacat: ${blaus.join(' | ')}  (esperat: ${esperat.join(' | ')})`);
+  const caixes = cd.files.map((f) => f.filter((x) => x.caixa).map((x) => `${x.a}-${x.b}:${x.caixa}:${celTex(x.s)}`).join(','));
+  const esperat = ['5-8:1:5-2', '4-9:2:3^{2}', '2-9:1:3\\cdot 9', '0-9:2:2+27', '0-11:1:29+8', ''];
+  if (caixes.join(' | ') !== esperat.join(' | ')) falla(`centrat destacat: ${caixes.join(' | ')}  (esperat: ${esperat.join(' | ')})`);
+  const resultats = cd.files.map((f) => f.flatMap((x) => destacats(x.s).res.map((r) => `${r.k}:${r.s}`)).join(','));
+  if (resultats.join(' | ') !== ' | 1:3 | 2:9 | 1:27 | 2:29 | 1:37') falla(`centrat destacat, els resultats: ${resultats.join(' | ')}`);
+  // L'exemple del professor, 4·3·3: la caixa de 4·3 del color 1 i la de 12·3 del 2; el 12, de l'1, i el 36, del 2
+  const P433 = B('*', B('*', N(4), N(3)), N(3)), r433 = Motor.resolucio(P433, { dest: 1 });
+  if (r433.tex.join(' | ') !== '{\\color{destaca1}\\boxed{4\\cdot 3}}\\cdot 3 | {\\color{destaca2}\\boxed{{\\color{destaca1}12}\\cdot 3}} | {\\color{destaca2}36}' ||
+      r433.html.join(' | ') !== '<span class="dest caixa k1">4<span class="op">·</span>3</span><span class="op">·</span>3 | ' +
+        '<span class="dest caixa k2"><span class="k1">12</span><span class="op">·</span>3</span> | <span class="k2">36</span>') falla(`4·3·3 destacat: ${r433.tex.join(' | ')}`);
+  const c433 = Motor.centrada(P433, { dest: 1 });
+  if (!c433.tex.includes('\\multicolumn{3}{@{}c@{}}{\\color{destaca1}\\boxed{4{}\\cdot {}3}}') || !c433.tex.includes('{\\color{destaca2}\\boxed{{\\color{destaca1}12}{}\\cdot {}3}}') ||
+      !c433.tex.includes('{{\\color{destaca2}36}}') || !c433.html.includes('<td class="dest" colspan="5"><span class="caixa k2"><span class="k1">12</span>')) falla(`4·3·3 centrat destacat: ${c433.tex}`);
+  // Sense «destaca», cap color
+  if (/destaca|k[12]/.test(Motor.resolucio(P433, {}).tex.join() + Motor.resolucio(P433, {}).html.join() + Motor.centrada(P433, {}).tex + Motor.centrada(P433, {}).html))
+    falla('sense «destaca», hi ha colors');
 }
 
 /* ── 13. «Completa la igualtat» ─────────────────────────────────────────────
@@ -905,6 +977,16 @@ if (!Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 1 }).ok) fal
     if (!sol.startsWith('% ex4-sol.tex — solucionari de ex4.tex — «Completa la igualtat»') || !f.items.every((x) => sol.includes(`$${x.solucio.tex}=${x.t}$`)))
       falla('igualtats: el solucionari');
   }
+}
+
+/* ── 14. index.html: cada fitxer de assets/, amb la versió (?v=0.9 a la v0.9). Amb una versió nova, el navegador
+   els baixa de nou: si no, podia barrejar la pàgina nova amb l'estil o el JavaScript d'abans, que tenia desats. ── */
+{
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const refs = [...html.matchAll(/(?:href|src)="(assets\/[^"]*)"/g)].map((m) => m[1]);
+  const fitxers = fs.readdirSync(path.join(__dirname, '..', 'assets')).filter((f) => /\.(js|css)$/.test(f));
+  if (refs.length !== fitxers.length || !fitxers.every((f) => refs.includes(`assets/${f}?v=${Motor.VERSIO.slice(1)}`)))
+    falla(`index.html: els fitxers de assets/ han de portar ?v=${Motor.VERSIO.slice(1)} (${refs.join(', ')})`);
 }
 
 console.log(`${combos} combinacions (i ${combosTotes} amb força i gradual), ${combosIgualtats} de «Completa la igualtat», ${total} exercicis, ${errors} errors`);

@@ -7,7 +7,8 @@
    controls), més la llavor del full (seed), la versió del generador amb què
    s'ha fet (g; ig a «Completa la igualtat»), quants cops s'ha premut ↻ a cada
    exercici (R; RI a «Completa la igualtat») i, en mode «guiades», quins
-   exercicis surten resolts (RES).
+   exercicis surten resolts (RES). Amb «destaca», els dos colors que s'alternen
+   (c1 i c2, claus de Motor.COLORS).
    Tot plegat va a l'adreça (#n=5&…&seed=…&g=2&r=0,1,0&res=0): l'enllaç desat
    torna a donar el mateix full, i el .tex el porta escrit al principi. Els
    controls (sense la llavor) es desen també al navegador: la pròxima vegada
@@ -20,6 +21,7 @@
     act: 'comb',                                                            // l'activitat
     n: 5, esp: 'mitja', sim: 'petit', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1, fit: 1, vs: 0, grad: 0,
     sol: 'cap', gra: 'prio', simp: 1, dest: 0, nomes: 0, cen: 0,            // les solucions
+    c1: Motor.COLORS_PER_DEFECTE[0], c2: Motor.COLORS_PER_DEFECTE[1],      // els colors de «destaca»
     in: 9, inom: 3, ipar: 1, ipot: 1, iarr: 1, idiv: 1, iesp: 'mitja', isol: 'cap'   // «Completa la igualtat»
   };
   const CASELLES = ['int', 'fin', 'div', 'opo', 'pot', 'par', 'forca', 'vs', 'simp', 'dest', 'nomes', 'cen', 'ipar', 'ipot', 'iarr', 'idiv'];
@@ -56,6 +58,8 @@
     S.grad = +q.grad ? 1 : 0;
     S.sol = llista(q.sol, ['cap', 'guiades', 'solucionari']);
     S.gra = llista(q.gra, ['prio', 'op']);
+    S.c1 = teClau(Motor.COLORS, q.c1) ? q.c1 : PER_DEFECTE.c1;
+    S.c2 = teClau(Motor.COLORS, q.c2) ? q.c2 : PER_DEFECTE.c2;
     S.act = llista(q.act, ['comb', 'igu']);
     S.in = enter(q.in, 3, 15, PER_DEFECTE.in);
     S.inom = enter(q.inom, 3, 4, PER_DEFECTE.inom);
@@ -110,7 +114,7 @@
   const mostra = (id, si) => { $(id).style.display = si ? '' : 'none'; };
 
   /** Les opcions de les solucions, per al motor. */
-  const solucions = () => ({ mode: S.sol, resolts: RES, gra: S.gra, simp: S.simp, dest: S.dest, nomes: S.nomes, cen: S.cen });
+  const solucions = () => ({ mode: S.sol, resolts: RES, gra: S.gra, simp: S.simp, dest: S.dest, nomes: S.nomes, cen: S.cen, c1: S.c1, c2: S.c2 });
 
   /** Les línies «= …» d'una resolució (sense l'enunciat). */
   const linies = r => r.html.slice(1).map(l => `<div class="linia">= ${l}</div>`).join('');
@@ -128,7 +132,8 @@
       + (guiades ? `<label class="res"><input type="checkbox" data-res="${i}"${triat ? ' checked' : ''}> resolt</label>` : '')
       + `<small>${seed}:${i}:${R[i]}</small></div>`;
     if (e.error) return h + `<p class="err">${e.error}</p></div>`;
-    const op = solucions(), r = Motor.resolucio(e.arbre, op);
+    // «Només el resultat»: sense colors, com a exN-sol.tex
+    const op = solucions(), r = Motor.resolucio(e.arbre, solucionari && S.nomes ? Object.assign({}, op, { dest: 0 }) : op);
     // «Centrat»: una taula que ja comença amb l'enunciat. Si no, l'enunciat i, a sota, les línies «= …».
     const passos = S.cen ? `<div class="taula">${Motor.centrada(e.arbre, op).html}</div>` : linies(r);
     h += '<div class="cos">';
@@ -174,6 +179,10 @@
   const ESPAI = { petit: 'petit', mitja: 'mitjà', gran: 'gran' };
   /** Quants exercicis del principi hi ha resolts (RES = 0…k−1), o −1 si és una altra tria. */
   const primers = () => (RES.length && RES.every((x, i) => x === i) ? RES.length : -1);
+  /** Quin dels dos colors de «destaca» es tria a la paleta (1 o 2), o 0 si és plegada. */
+  let tria = 0;
+  /** A la pantalla amb el fons fosc, el color barrejat amb blanc: els colors foscos del paper no s'hi llegirien. */
+  const clar = hex => '#' + [0, 2, 4].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * .45 + 255 * .55).toString(16).padStart(2, '0')).join('');
 
   function pintaPanell() {
     // 1 · Exercicis
@@ -196,11 +205,23 @@
     mostra('nomes-l', S.sol === 'solucionari');
     mostra('opsol', S.sol !== 'cap' && !(S.sol === 'solucionari' && S.nomes));
     mostra('simp-l', S.set === 'Q');
+    // Els colors de «destaca»: un botó per a cadascun i, sota, la paleta del que es tria
+    if (!S.dest) tria = 0;
+    mostra('colors', S.dest);
+    mostra('paleta', tria);
+    document.querySelectorAll('[data-tria]').forEach(b => {
+      const k = +b.dataset.tria, c = Motor.COLORS[S['c' + k]];
+      b.firstChild.style.background = '#' + c.hex;
+      b.title = `${k === 1 ? '1r' : '2n'} color: ${c.nom}`;
+      b.setAttribute('aria-label', b.title);
+      b.setAttribute('aria-expanded', String(k === tria));
+    });
+    marca('color', tria ? S['c' + tria] : '');
     $('gra-que').innerHTML = S.gra === 'op'
       ? 'Ex.: 2·3 + 4·5 = 6 + 4·5 = 6 + 20 = 26'
       : 'Ex.: 2·3 + 4·5 = 6 + 20 = 26';
     const com = S.sol === 'cap' || (S.sol === 'solucionari' && S.nomes) ? [] : [S.gra === 'op' ? 'una per línia' : '', S.cen ? 'en columna' : '', S.dest ? 'destacada' : ''];
-    const que = { cap: 'cap', guiades: `${RES.length} ${RES.length === 1 ? 'exemple resolt' : 'exemples resolts'}`, solucionari: S.nomes ? 'solucionari, només resultats' : 'solucionari' }[S.sol];
+    const que = { cap: 'cap', guiades: `ajuda parcial: ${RES.length} ${RES.length === 1 ? 'resolt' : 'resolts'}`, solucionari: S.nomes ? 'solucionari, només resultats' : 'solucionari' }[S.sol];
     $('resum-sol').textContent = [que, ...com].filter(Boolean).join(' · ');
     // «Completa la igualtat»
     const simbols = [S.ipar && '( )', S.ipot && '²', S.iarr && '√', S.idiv && ':'].filter(Boolean).join(' ');
@@ -273,6 +294,12 @@
       }
       full.innerHTML = h;
       full.style.setProperty('--sop', Motor.SIMBOLS[S.sim].css);
+      // Els colors de «destaca» (style.css: .k1, .k2), i més clars per al fons fosc
+      ['c1', 'c2'].forEach((c, i) => {
+        const hex = Motor.COLORS[S[c]].hex;
+        full.style.setProperty(`--k${i + 1}`, '#' + hex);
+        full.style.setProperty(`--k${i + 1}c`, clar(hex));
+      });
       ok = v.ok && EX.length === S.n;
       solucionari = S.sol === 'solucionari';
       $('codi').textContent = ok ? Motor.fitxerTex(EX, P, { num: S.fit, seed, adreca: adreca() }, solucions()) : '';
@@ -305,10 +332,12 @@
     else if (b.dataset.grad !== undefined) S.grad = +b.dataset.grad;
     else if (b.dataset.sol) {
       S.sol = b.dataset.sol;
-      // «Exemples resolts» sense cap exercici triat no canviaria res: en resol el primer
+      // «Ajuda parcial» sense cap exercici triat no canviaria res: en resol el primer
       if (S.sol === 'guiades' && !RES.length) RES = [0];
     }
     else if (b.dataset.gra) S.gra = b.dataset.gra;
+    else if (b.dataset.tria) tria = tria === +b.dataset.tria ? 0 : +b.dataset.tria;   // obre (o plega) la paleta
+    else if (b.dataset.color) { if (tria) S['c' + tria] = b.dataset.color; tria = 0; }
     else if (b.dataset.k !== undefined) RES = Array.from({ length: +b.dataset.k }, (_, i) => i);
     else if (b.dataset.r !== undefined) R[+b.dataset.r]++;
     else if (b.id === 'tot') { seed = novaLlavor(); g = Motor.GENERADOR; ig = Igualtats.GENERADOR; R = []; RI = []; }
@@ -345,6 +374,9 @@
   // clic sobreescrivia l'enllaç).
   window.addEventListener('hashchange', () => { llegeix(); pinta(); });
 
+  // La paleta dels colors de «destaca»: els de Motor.COLORS
+  $('paleta').innerHTML = Object.entries(Motor.COLORS)
+    .map(([k, c]) => `<button data-color="${k}" title="${c.nom}" aria-label="${c.nom}" style="--c:#${c.hex}"></button>`).join('');
   obrePassos();
   llegeix();
   pinta();

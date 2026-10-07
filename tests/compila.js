@@ -7,7 +7,8 @@
    ample), fa 40 exercicis, els compila amb tex/main.tex com ho faria el
    professor (el full normal, un full amb exercicis resolts com a model, el
    solucionari amb l'operació destacada, el de «només resultats» i, amb la
-   disposició «centrat», el full destacat i el solucionari) i comprova:
+   disposició «centrat», el full destacat i el solucionari; els destacats, amb
+   colors diferents, i un full amb els 16 colors de la paleta) i comprova:
      - compila sense cap error ni cap «Overfull \hbox» o «\vbox»;
      - cap fórmula, ni cap línia d'una resolució, és més ampla que la línia
        del full (LaTeX la partiria en dues o sortiria del marge);
@@ -37,8 +38,10 @@ function comprova(nom, cond, extra) {
   else { ko++; console.log('  FALLA ' + nom + (extra !== undefined ? '  ' + extra : '')); }
 }
 
-/* El principi de l'enumerate d'un exN.tex (amb l'espai entre símbols del full), i el color de «destaca». */
-const principiDeLlista = p => '\\providecolor{darkblue}{RGB}{0,0,139}\n'
+/* Els dos colors de «destaca» (els de per defecte), com els defineix un exN.tex. */
+const colorsDestaca = Motor.COLORS_PER_DEFECTE.map((c, i) => `\\definecolor{destaca${i + 1}}{HTML}{${Motor.COLORS[c].hex}}`).join('') + '\n';
+/* El principi de l'enumerate d'un exN.tex (amb l'espai entre símbols del full), i els colors de «destaca». */
+const principiDeLlista = p => colorsDestaca
   + Motor.fitxerTex([], p, { num: 1, seed: '' }).split('\n').filter(l => !l.startsWith('%') && !l.startsWith('\\end')).join('\n') + '\n';
 
 /* Compila ex1.tex amb el main.tex del projecte i torna el .log. */
@@ -64,9 +67,10 @@ try {
     const q = { ...p, n: exs.length }, m0 = { num: 1, seed: 'compila', adreca: '#prova' };
     const fitxers = {
       'el full': tex,
-      'el full amb resolts (guiades)': Motor.fitxerTex(exs, q, m0, { mode: 'guiades', resolts: [0, 1, 2, 3, 4], dest: 1 }),
+      'el full amb resolts (ajuda parcial, destacat en verd i taronja)': Motor.fitxerTex(exs, q, m0, { mode: 'guiades', resolts: [0, 1, 2, 3, 4], dest: 1, c1: 'verd', c2: 'taronja' }),
       'el full amb resolts, centrat i destacat': Motor.fitxerTex(exs, q, m0, { mode: 'guiades', resolts: [0, 1, 2, 3, 4], cen: 1, dest: 1 }),
       'el solucionari (destacat)': Motor.fitxerSolucionari(exs, q, m0, { dest: 1 }),
+      'el solucionari centrat (destacat, una operació per pas, en negre i granat)': Motor.fitxerSolucionari(exs, q, m0, { cen: 1, dest: 1, gra: 'op', c1: 'negre', c2: 'granat' }),
       'el solucionari (una operació per pas)': Motor.fitxerSolucionari(exs, q, m0, { gra: 'op' }),
       'el solucionari centrat (una operació per pas)': Motor.fitxerSolucionari(exs, q, m0, { cen: 1, gra: 'op' }),
       'el solucionari (només resultats)': Motor.fitxerSolucionari(exs, q, m0, { nomes: 1 })
@@ -118,6 +122,17 @@ try {
     comprova('els blocs d\'una resolució llarga fan el mateix ample (les columnes, alineades)',
       Object.values(amplesBlocs).every(w => Math.max(...w) - Math.min(...w) < .01), JSON.stringify(Object.entries(amplesBlocs).filter(([, w]) => w.length > 1)));
     console.log(`        la més ampla fa el ${Math.round(100 * maxim(0))} % de la línia; el bloc més alt, el ${Math.round(100 * maxim(1))} % de la pàgina`);
+  }
+  // Els 16 colors de la paleta de «destaca»: cada exercici del full, destacat amb un parell de colors diferent
+  {
+    const claus = Object.keys(Motor.COLORS), p = { n: 8, g: Motor.GENERADOR, esp: 'petit', sim: 'petit', set: 'Z', int: 1, fin: 1, div: 1, opo: 1, pot: 1, par: 1, forca: 1, vs: 0, grad: 0 };
+    const ant = new Set(), exs = [];
+    for (let i = 0; i < p.n; i++) { const e = Motor.exercici(p, 'paleta', i, 0, ant); ant.add(e.tex); exs.push(e); }
+    const cos = claus.filter((c, i) => i % 2 === 0).map((c, i) => Motor.fitxerTex([exs[i]], { ...p, n: 1 }, { num: 1, seed: 'paleta' },
+      { mode: 'guiades', resolts: [0], dest: 1, c1: c, c2: claus[2 * i + 1] })).join('');
+    const r = compila(carpeta, cos);
+    comprova(`la paleta de «destaca» (${claus.length} colors): compila sense errors ni «Overfull»`, r.estat === 0 && !/Overfull \\[hv]box/.test(r.log),
+      (r.log.match(/^!.*$/m) || r.log.match(/Overfull \\[hv]box.*/) || [''])[0]);
   }
   console.log('Completa la igualtat');
   const Igualtats = require('../assets/igualtats.js');

@@ -8,16 +8,18 @@ Web estàtica (HTML + CSS + JS, sense dependències ni build) que genera fulls d
 Obre `index.html` amb doble clic. A dalt del panell tries l'activitat. La configuració va en tres passos, en
 l'ordre en què es fa un full; cadascun es plega i, plegat, en diu el resum (el navegador recorda quins tens oberts):
 
-1. **Exercicis:** quantes operacions (1–10), els nombres (ℕ naturals, ℤ enters, ℚ fraccions; amb ℤ i ℚ, on hi pot
-   haver negatius o fraccions i si n'hi ha d'haver sempre), les operacions que hi surten a més de + − ·
-   (divisions, parèntesis, potències, oposats) i la dificultat: *totes iguals* o *de fàcil a difícil*.
+1. **Exercicis:** quantes operacions (1–10), els nombres (ℕ, ℤ o ℚ; amb ℤ i ℚ, on hi pot haver negatius o
+   fraccions i si n'hi ha d'haver sempre), les operacions que hi surten a més de + − · (divisions, parèntesis,
+   potències, oposats) i la dificultat: *totes iguals* o *de fàcil a difícil*.
 2. **Aspecte del full:** l'espai per resoldre cada operació, l'espai entre els signes i si l'espai es manté a dalt
    d'una pàgina (`\vspace*`).
-3. **Solucions:** cap, *exemples resolts* dins del mateix full o un *solucionari* a part (vegeu més avall).
+3. **Solucions:** *cap*, *ajuda parcial* (alguns exercicis resolts dins del mateix full) o un *solucionari* a part
+   (vegeu més avall).
 
 Les opcions que depenen d'una altra només surten quan serveixen: «on hi pot haver negatius», amb ℤ o ℚ;
-«simplifica les fraccions», amb ℚ; com es veu la resolució, només si n'hi ha. «Entorn» (els fitxers de la
-carpeta) va plegat a baix: es baixa un sol cop.
+«simplifica fraccions a banda», amb ℚ; com es veu la resolució, només si n'hi ha; els colors, només amb «destaca».
+«Entorn» (els fitxers de la carpeta) va plegat a baix: es baixa un sol cop. Els botons diuen només el nom curt
+(ℕ, *Ajuda parcial*…); en passar-hi el ratolí, surt què fan.
 Cada ↻ regenera un exercici; **↻ Full nou**, al costat del títol del full, el fa tot de nou.
 
 **L'adreça (`#…`) guarda el full.** Desa l'enllaç i tornaràs a tenir els mateixos exercicis, també si l'obres
@@ -43,8 +45,8 @@ donen exactament el mateix full que quan els vas desar.
 Al panell, el pas **Solucions** té tres opcions (a l'adreça, `sol=cap|guiades|solucionari`):
 
 - **Cap**: el full de sempre.
-- **Exemples resolts** (`guiades`): alguns exercicis del full surten resolts pas a pas, com a model. Per defecte,
-  el primer; es trien amb «Quants? Els primers 1, 2, 3» o amb la casella «resolt» de cada targeta. A la web i a
+- **Ajuda parcial** (`guiades`): alguns exercicis del full surten resolts pas a pas, com a model. Per defecte,
+  el primer; es trien amb «Resolts: els primers 1, 2, 3» o amb la casella «resolt» de cada targeta. A la web i a
   l'`exN.tex`, els resolts porten la resolució a sota (i poc espai); la resta, com sempre.
 - **Solucionari**: l'`exN.tex` no canvia, i a la barra de baix apareix **Baixa exN-sol.tex** (tots els
   exercicis resolts, amb la mateixa numeració; al `main.tex`, `\input{exN-sol.tex}`). A la web, cada exercici
@@ -59,15 +61,27 @@ La resolució segueix l'ordre de l'aula:
 
 Opcions: a cada línia, *totes les del mateix nivell* (`gra=prio`: totes les potències, o totes les · i : que es
 poden fer, en una línia; `2·3 + 4·5 = 6 + 20 = 26`) o *una sola operació* (`gra=op`: `= 6 + 4·5 = 6 + 20 = 26`);
-*simplifica les fraccions en una línia a part*; **destaca la següent operació**: a cada línia, el que es calcula
-a la següent surt en blau fosc i dins d'una caixa (a la web i al `.tex`, `{\color{darkblue}\boxed{…}}`); i, al
-solucionari, *només els resultats*. Els exercicis que no surten resolts tenen **Veure els passos**.
+*simplifica fraccions a banda* (un resultat que es pot simplificar, se simplifica a la línia següent); **destaca
+l'operació següent**; i, al solucionari, *només el resultat de cada exercici*. Els exercicis que no surten resolts
+tenen **Veure els passos**.
 
-El blau, el `.tex` mateix el defineix (`\providecolor{darkblue}{RGB}{0,0,139}`): només cal el paquet `xcolor`,
-que ja carrega el `headers.tex` de l'Entorn. Amb el fons fosc de la pantalla, a la web és un blau clar.
+**Destaca l'operació següent:** a cada línia, el que es calcula a la següent va dins d'una caixa, i el resultat,
+a la línia següent, és del color de la seva caixa. Hi ha dos colors, que s'alternen línia a línia:
 
-**centrat: els signes en columna** canvia la disposició: els signes d'operació queden alineats en columna,
-cada resultat va centrat sota el que substitueix i el «=» és al final de cada línia (menys de l'última):
+```
+[4 · 3] · 3        la caixa, del 1r color
+[12 · 3]           la caixa, del 2n color; el 12 (el resultat de 4 · 3), del 1r
+36                 del 2n (el resultat de 12 · 3)
+```
+
+Els dos colors es trien sota la casella (**Colors**: un botó per a cadascun obre una paleta de 16); per defecte,
+blau fosc i vermell. Van a l'adreça (`c1=blaufosc&c2=vermell`). Al `.tex`, la caixa és
+`{\color{destaca1}\boxed{…}}` i el resultat, `{\color{destaca1}…}`; el fitxer mateix defineix els dos colors al
+principi (`\definecolor{destaca1}{HTML}{00008B}\definecolor{destaca2}{HTML}{D32F2F}`): només cal el paquet
+`xcolor`, que ja carrega el `headers.tex` de l'Entorn. Amb el fons fosc de la pantalla, a la web són més clars.
+
+**Centrat seguint els símbols matemàtics** canvia la disposició: els signes d'operació queden alineats en
+columna, cada resultat va centrat sota el que substitueix i el «=» és al final de cada línia (menys de l'última):
 
 ```
 2 + 3 · (5 − 2)² + 8 =
@@ -80,8 +94,8 @@ cada resultat va centrat sota el que substitueix i el «=» és al final de cada
 
 Es veu igual a la web (una taula) i al `.tex`, on cada resolució és un `array` (LaTeX estàndard): una columna
 per a cada nombre, operador i parèntesi de l'enunciat, i `\multicolumn` per als resultats. Amb *destaca*, el que
-es calcula surt en blau i dins d'una caixa (`\boxed`) que ocupa totes les seves columnes: el resultat de la línia
-següent hi va centrat a sota.
+es calcula va dins d'una caixa (`\boxed`) del color de la línia, que ocupa totes les seves columnes: el resultat de
+la línia següent, del mateix color, hi va centrat a sota.
 
 Un `array` no es parteix entre pàgines, i una resolució llarga de ℚ pot fer més d'una pàgina. Per això, una
 resolució de més de 12 línies va en blocs (un `array` sota l'altre, amb les mateixes columnes) i la pàgina es
@@ -140,7 +154,7 @@ La web no fa PDF: el PDF és sempre el de LaTeX, compilant el `.tex` amb el teu 
 ## Proves
 
 ```
-node tests/prova.js       # la lògica i el solucionari: uns 24.000 exercicis, cap dependència (uns 40 s)
+node tests/prova.js       # la lògica i el solucionari: uns 25.000 exercicis, cap dependència (uns 2 min)
 node tests/compila.js     # compila fulls de debò amb el main.tex (cal pdflatex)
 node tests/navegador.js   # l'eina en un navegador de debò (cal Playwright)
 ```
@@ -153,6 +167,8 @@ Comprova els conjunts (ℕ/ℤ/ℚ, intermedis i resultat), «força que aparegu
 que els que té a dins. Ho fa per a totes les combinacions d'opcions possibles, també les graduals. De cada
 resolució, comprova que cada línia valgui el mateix que l'enunciat, que l'ordre dels passos sigui el de l'aula
 (escrit a la prova pel seu compte) i que l'`exN.tex` normal no canviï ni un byte (`tests/referencia-cap.tex`).
+Amb «destaca», que les caixes de cada línia siguin del seu color i que cada resultat sigui el de la seva caixa, del
+mateix color.
 
 **Empremtes.** `tests/empremtes.json` fixa quins exercicis surten per a cada combinació d'opcions i cada generador.
 Si un canvi al codi canvia els exercicis, els fulls desats a l'adreça ja no tornarien a sortir iguals, i la prova ho
@@ -190,3 +206,8 @@ tests/compila.js     compilació de debò (pdflatex)
 tests/navegador.js   proves amb navegador (Playwright)
 todo.md              estat, revisió i feina pendent
 ```
+
+**Versió.** `VERSIO`, a `assets/motor.js` (surt a dalt a la dreta de l'eina i al principi de cada `.tex`), i el
+`?v=` de cada fitxer de `assets/` a `index.html` han de dir el mateix: `tests/prova.js` ho comprova. Així, quan es
+publica una versió nova, el navegador baixa de nou l'estil i el JavaScript, i no fa servir els d'abans, que tenia
+desats (amb els d'abans, la pàgina nova es veia sense format i alguns botons no anaven).

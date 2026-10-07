@@ -2,13 +2,11 @@
 :root {
   --bg: #f8fafc; --sf: #fff; --bd: #cbd5e1; --tx: #1e293b; --mu: #64748b;
   --ac: #7c3aed; --on: #fff; --er: #b45309;
-  --dest: #00008b;                     /* «destaca»: el darkblue del .tex */
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0f172a; --sf: #1e293b; --bd: #334155; --tx: #e2e8f0; --mu: #94a3b8;
     --ac: #a78bfa; --on: #1e1b4b; --er: #fbbf24;
-    --dest: #93c5fd;                   /* sobre fons fosc, el blau fosc no es llegiria */
   }
 }
 * { box-sizing: border-box; }
@@ -41,11 +39,12 @@ aside label { display: block; margin: 6px 0; }
 .fila { display: flex; gap: 8px; align-items: center; }
 /* ── El panell: tres passos (Exercicis, Aspecte del full, Solucions), cadascun un <details>.
    Plegat, el pas en diu el resum; obert, les seves opcions. ── */
-details.pas { border-top: 1px solid var(--bd); padding: 4px 0 10px; }
-details.pas > summary { display: block; padding: 8px 0 4px; cursor: pointer; list-style: none; }
+details.pas { border-top: 1px solid var(--bd); padding: 6px 0 14px; }
+details.pas + details.pas { margin-top: 10px; }
+details.pas > summary { display: block; padding: 10px 0 6px; cursor: pointer; list-style: none; }
 details.pas > summary::-webkit-details-marker { display: none; }
-details.pas > summary::before { content: '▸'; display: inline-block; width: 1.1em; color: var(--ac); transition: transform .15s; }
-details.pas[open] > summary::before { transform: rotate(90deg); }
+details.pas > summary::before { content: '▸'; display: inline-block; width: 1.1em; color: var(--ac); }
+details.pas[open] > summary::before { content: '▾'; }
 details.pas > summary b { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; }
 details.pas > summary:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
 .resum { display: block; margin: 2px 0 0 1.1em; font: .7rem/1.4 monospace; color: var(--mu); overflow-wrap: anywhere; }
@@ -56,11 +55,19 @@ details.pas h3:first-of-type { margin-top: 8px; }
 .ajuda.exemple { font-variant-numeric: lining-nums; }
 .sub { margin: 4px 0 8px; padding-left: 12px; border-left: 2px solid var(--bd); }
 .sub label { margin: 4px 0; }
-/* Les solucions: tres opcions grans, cadascuna amb el que fa */
-.opcions { display: grid; gap: 6px; margin: 6px 0 8px; }
-.opcions button { display: grid; gap: 2px; text-align: left; padding: 7px 10px; }
-.opcions button b { font: 600 .78rem monospace; }
-.opcions button small { font: .78rem/1.3 'Latin Modern Roman', 'CMU Serif', 'STIX Two Text', 'Cambria', 'Times New Roman', serif; opacity: .9; }
+/* Les caselles de les operacions, separades dels nombres */
+.extres { margin-top: 12px; }
+#sol, #isol { margin: 6px 0 8px; }
+#sol { grid-template-columns: 3fr 4fr 4fr; }          /* «Cap» és curt: més lloc per a «Ajuda parcial» i «Solucionari» */
+#set button { font: 1.15rem 'STIX Two Math', 'Cambria Math', 'Latin Modern Math', serif; }   /* només el símbol: ℕ ℤ ℚ */
+/* Els dos colors de «destaca»: un botó amb la mostra de cadascun i, sota, la paleta del que es tria */
+#colors .fila { gap: 6px; font-size: .9rem; }
+.mostra { min-height: 30px; width: 44px; padding: 4px; }
+.mostra span { display: block; height: 20px; border-radius: 3px; }
+.mostra[aria-expanded=true] { outline: 2px solid var(--ac); outline-offset: 2px; }
+.paleta { display: grid; grid-template-columns: repeat(8, 22px); gap: 6px; margin: 10px 0 4px; }
+.paleta button, .paleta button[aria-pressed=true] { width: 22px; height: 22px; min-height: 0; padding: 0; border: 1px solid var(--bd); border-radius: 4px; background: var(--c); }
+.paleta button[aria-pressed=true] { outline: 2px solid var(--tx); outline-offset: 2px; }
 /* El títol del full, amb el botó de fer-lo tot de nou */
 .cap-full { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 input[type=number] { width: 4rem; padding: 6px; border: 1px solid var(--bd); border-radius: 6px; background: var(--sf); color: var(--tx); }
@@ -125,10 +132,17 @@ table.centrat td { padding: 0; text-align: center; vertical-align: baseline; whi
 table.centrat td.igual { padding: 0 var(--sop, .22em); }
 /* Un parèntesi gran sol a la seva cel·la: la caixa ha de contenir tot el traç */
 table.centrat .pb { line-height: 1; }
-/* «Destaca la següent operació»: el que es calcula a la línia següent, en blau fosc i dins d'una caixa (com el
-   \boxed del .tex). inline-block: la caixa envolta també les fraccions senceres. A la taula de «centrat», les
-   cel·les seguides que es destaquen són una de sola, i la caixa és a dins. */
-.dest { color: var(--dest); }
+/* «Destaca la següent operació»: el que es calcula a la línia següent, dins d'una caixa (com el \boxed del .tex)
+   d'un dels dos colors triats, que s'alternen línia a línia (k1, k2); el resultat, a la línia següent, del color de
+   la seva caixa. app.js posa els colors a #full: --k1 i --k2 i, per al fons fosc, uns de més clars (--k1c, --k2c).
+   inline-block: la caixa envolta també les fraccions senceres. A la taula de «centrat», les cel·les seguides que es
+   destaquen són una de sola, i la caixa és a dins. */
+.k1 { color: var(--k1, #00008b); }
+.k2 { color: var(--k2, #d32f2f); }
+@media (prefers-color-scheme: dark) {
+  .k1 { color: var(--k1c, #8c8ccb); }
+  .k2 { color: var(--k2c, #eba1a1); }
+}
 .caixa { display: inline-block; line-height: 1.2; border: .07em solid currentColor; padding: .08em .2em; }
 .caixa .fr { line-height: 1.9; }      /* les fraccions, com a fora */
 #act { margin-bottom: 10px; }

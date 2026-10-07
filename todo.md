@@ -8,7 +8,8 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.8: el panell de configuració en tres passos (§8). Sobre la v0.7 («destaca» amb una caixa, `\boxed`,
+**Versió:** v0.9: «destaca» amb dos colors que s'alternen, a triar, i el panell amb els textos més curts (§9). Sobre
+la v0.8 (el panell de configuració en tres passos, §8), la v0.7 («destaca» amb una caixa, `\boxed`,
 §2.9, i «Completa la igualtat» en 2 columnes, separades per una línia discontínua, §7), la v0.6 (una activitat nova, «Completa la igualtat», §7),
 la v0.5 («destaca la següent operació» en blau fosc, les solucions a la web i fora el PDF del navegador, §2.9), la v0.4 (la disposició
 «centrat», §2.8), la v0.3 (el solucionari pas a pas, §2) i la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
@@ -23,18 +24,23 @@ escrites a la prova pel seu compte; HTML = TeX), els exemples de les decisions d
 byte a byte que abans (`tests/referencia-cap.tex`). «Centrat»: de cada resolució, l'array i la taula es tornen a
 llegir (cada fila diu el mateix que la línia, cap signe no canvia de columna, cap resultat no ocupa una columna
 nova; els blocs d'una resolució llarga porten, invisibles, les línies dels altres) i l'exemple del professor,
-columna a columna. «Destaca» amb «centrat»: en blau, just el que es destaca a la línia normal, i la ratlla a sota.
+columna a columna. «Destaca» (§9), amb les dues granularitats: les caixes de cada línia, del seu color (1, 2, 1…);
+els resultats, un per caixa de la línia d'abans, amb el seu valor i del seu color; amb «centrat», just el que es
+destaca a la línia normal, en una caixa del color de la fila, i els mateixos resultats; HTML = TeX, també els colors.
+`index.html`: cada fitxer de `assets/` amb `?v=` igual a la versió (§9).
 «Completa la igualtat» (§7): 32 combinacions (3 i 4 nombres, cada combinació de símbols) amb empremta, i 160 fulls
 revisats sencers: cada solució es torna a llegir amb un lector propi (regles i símbols permesos), i què necessita
 cada igualtat es torna a buscar provant totes les cadenes possibles; el pla de cada full; determinisme i ↻.
 **LaTeX:** `node tests/compila.js` compila 40 exercicis de ℕ, de ℤ i de ℚ amb totes les opcions i símbols «gran»,
 en full normal, guiades, solucionari (destacat i «una operació»), «només resultats» i «centrat» (guiades destacat
-i solucionari): sense errors ni «Overfull». La fórmula més ampla fa el 54 % de la línia; la línia de resolució més
+i solucionari; destacats amb colors diferents, i els 16 colors de la paleta): sense errors ni «Overfull». La
+fórmula més ampla fa el 54 % de la línia; la línia de resolució més
 ampla, el 59 %; la resolució «centrat» més ampla, el 63 %, i el bloc més alt, el 65 % de la pàgina; els blocs d'una
 resolució llarga fan el mateix ample. «Completa la igualtat»: el full i el solucionari, amb 3 i 4 nombres i cada
 espai, sense «Overfull» (cada igualtat cap a la seva columna). (També compilat pel professor amb el seu `capsalera.tex`.)
-**Interfície:** `node tests/navegador.js` (Chromium, 48 comprovacions: adreça i generador, ↻, baixades, mòbil,
-guiades, solucionari, «centrat» i «destaca», també amb el fons fosc, i «Completa la igualtat»).
+**Interfície:** `node tests/navegador.js` (Chromium, 68 comprovacions: adreça i generador, ↻, baixades, mòbil,
+guiades, solucionari, «centrat» i «destaca» amb els colors i la paleta, també amb el fons fosc, «Completa la
+igualtat» i el panell: textos, espai entre els passos i els 66 controls).
 Falta mirar-la a Firefox, a Safari i en un mòbil de debò.
 
 Fet:
@@ -56,7 +62,8 @@ Fet:
 - Solucionari pas a pas (§2): modes cap · guiades · solucionari, `exN-sol.tex`, «Veure els passos»; al solucionari,
   totes les resolucions a la web.
 - Disposició «centrat» (§2.8): signes alineats en columna i cada resultat centrat sota el que substitueix.
-- «Destaca la següent operació» (§2.9): en blau fosc i dins d'una caixa (`\boxed`), també amb «centrat».
+- «Destaca la següent operació» (§2.9, §9): dins d'una caixa (`\boxed`), de dos colors que s'alternen línia a línia
+  (a triar); el resultat, a la línia següent, del color de la seva caixa. També amb «centrat».
 - Activitat «Completa la igualtat» (§7).
 
 ---
@@ -70,8 +77,9 @@ Fet:
   parèntesi i la potència en una sola línia; amb l'ordre estricte, són dues: `= 3·3+4²:8 = 3·3+16:8`.
 - Les línies van en un **`flalign*`** (amsmath) i no en un `align*`: `align*` les centrava al mig del full, lluny de
   l'enunciat; així comencen just a sota.
-- «Destaca l'operació»: a la v0.3, `{\underbrace{…}_{}}`; a la v0.5 i la v0.6, en blau fosc i subratllat; des de la
-  v0.7, en blau fosc i dins d'una caixa, `\boxed` (§2.9). Sempre
+- «Destaca l'operació»: a la v0.3, `{\underbrace{…}_{}}`; a la v0.5 i la v0.6, en blau fosc i subratllat; a la
+  v0.7 i la v0.8, en blau fosc i dins d'una caixa, `\boxed` (§2.9); des de la v0.9, la caixa de dos colors que
+  s'alternen, i el resultat del color de la seva caixa (§9). Sempre
   entre claus: si no, TeX tractava el destacat com un operador i el − o el + que el seguia es componia com un
   signe («−6» en lloc de «− 6»).
 - Codi: `passos()`, `resolucio()` i `fitxerSolucionari()` a `motor.js` (secció «el solucionari»); la interfície, a
@@ -226,7 +234,8 @@ centrat sota la part que substitueix i el «=» al final de cada línia, menys d
 - **Web:** una taula amb `colspan`, que es desplaça sola si no hi cap (mòbil). En una targeta resolta, la taula
   substitueix l'enunciat (n'és la primera fila).
 - **Destaca** (§2.9): des de la v0.7, el que es calcula va en una sola cel·la (`\multicolumn`) que ocupa totes les
-  seves columnes, en blau i dins d'una caixa (`\boxed`): el resultat de la línia següent hi queda centrat a sota. Les
+  seves columnes, dins d'una caixa (`\boxed`; des de la v0.9, del color de la fila, §9): el resultat de la línia
+  següent hi queda centrat a sota, del mateix color. Les
   línies invisibles dels blocs (vegeu més avall) porten la mateixa caixa, perquè les columnes facin el mateix ample.
   (A la v0.5 i la v0.6, cada cel·la en blau i, a sota, una fila amb una ratlla blava, com un `\cline` de color.)
 - **Blocs:** un `array` no es parteix entre pàgines, i amb «destaca» una resolució de ℚ de 16 línies va fer un 104 %
@@ -241,10 +250,10 @@ centrat sota la part que substitueix i el «=» al final de cada línia, menys d
 Ho va demanar el professor:
 - **Fora «Copia el TeX», «PDF» i «PDF solucions»**, que no farà servir mai. També tot el que només hi servia: el CSS
   d'impressió i l'encongiment de les fórmules que no cabien al paper.
-- **«Destaca la següent operació»**: en blau fosc (`darkblue`, #00008B) i dins d'una caixa (des de la v0.7; abans,
-  subratllat: el professor va preferir la caixa). Al `.tex`, `{\color{darkblue}\boxed{…}}` (`\boxed` és d'amsmath,
-  i el marc també surt blau); el fitxer defineix el color (`\providecolor`, cal `xcolor`, que carrega
-  `headers.tex`), només si destaca res. A la web, el mateix blau (amb el fons fosc, un blau clar, `#93c5fd`).
+- **«Destaca la següent operació»**: dins d'una caixa (des de la v0.7; abans, subratllat: el professor va preferir
+  la caixa), en blau fosc (`darkblue`, #00008B) fins a la v0.8; des de la v0.9, de dos colors que s'alternen (§9).
+  `\boxed` és d'amsmath, i el marc surt del color; el fitxer defineix els colors (cal `xcolor`, que carrega
+  `headers.tex`), només si destaca res. A la web, els mateixos colors (amb el fons fosc, més clars).
   Ara també funciona amb «centrat» (§2.8). Un cas especial: si el que es simplifica és la base d'una potència,
   `(−4/4)²`, la cel·la és tota la potència i la base es destaca a dins, com a la línia normal.
 - **«Centrat» a la web**: al solucionari, cada exercici surt resolt a la pàgina (abans només es veia al «PDF
@@ -281,7 +290,7 @@ Ho va demanar el professor:
   nou (§6.3). `--actualitza-empremtes` no deixa tocar les d'un generador antic, i les de l'últim només es poden refer
   mentre encara no s'ha publicat (fusionat a `main`).
 - `exN.tex` i `exN-sol.tex` només depenen de LaTeX estàndard + `amsmath`; l'única excepció és «destaca», que
-  necessita `xcolor` (el carrega `headers.tex`) i defineix el color al fitxer mateix. En mode «Cap», `exN.tex` no
+  necessita `xcolor` (el carrega `headers.tex`) i defineix els colors al fitxer mateix. En mode «Cap», `exN.tex` no
   canvia (`tests/referencia-cap.tex`, menys el número de versió).
 - `tex/*.tex` és la font única de l'entorn; `assets/entorn.js` és generat (`python3 eines/entorn.py`).
 - Cap canvi es dona per bo sense `node tests/prova.js` amb 0 errors (i, si toca la interfície o el TeX,
@@ -292,8 +301,10 @@ Ho va demanar el professor:
 
 - **Sense PDF del navegador** (octubre de 2026): el professor no el fa servir, ni «Copia el TeX». El PDF és el de
   LaTeX. (Fins a la v0.4, la web tenia «PDF» i «PDF solucions», d'impressió del navegador: vegeu l'historial.)
-- **«Destaca la següent operació»** (octubre de 2026): en blau fosc (`darkblue`) i dins d'una caixa (`\boxed`), també
-  amb «centrat». Primer va ser subratllat; el professor va demanar la caixa.
+- **«Destaca la següent operació»** (octubre de 2026): dins d'una caixa (`\boxed`), també amb «centrat». Primer va
+  ser subratllat; el professor va demanar la caixa. Des de la v0.9, la caixa de cada línia d'un dels dos colors que
+  tria el professor, alternats (no més de dos: ell ho va dir), i el resultat de cada caixa, a la línia següent, del
+  seu color (§9).
 - **«Completa la igualtat»** (octubre de 2026): les respostes del professor, a §7.
 - Carpeta d'extracció: `_uploads` (amb «s»), com el workflow d'`exam2bat`.
 - **Parèntesis (generador 2, octubre de 2026).** Com a màxim 3 per exercici, i el 3 improbable. Compten tots els que
@@ -437,3 +448,52 @@ tot») és al costat del títol del full; «Entorn», plegat a baix. El navegado
 **No canvia res més:** els mateixos controls (els mateixos `id` i `data-…`), la mateixa adreça (`#…`) i els
 mateixos fulls. `tests/navegador.js` ho comprova («Panell»: els 48 controls d'abans hi són tots).
 
+A la v0.9 (§9), els noms, més curts: ℕ ℤ ℚ sense el nom (surt en passar-hi el ratolí), *Ajuda parcial* (abans
+*Exemples resolts*), «Resolts: els primers 1, 2, 3», *centrat seguint els símbols matemàtics*, *destaca l'operació
+següent* i *simplifica fraccions a banda*; les solucions, tres botons en una fila, sense descripció.
+
+---
+
+## 9. «Destaca» amb dos colors i el panell més net (fet, v0.9)
+
+Ho va demanar el professor:
+
+**1. El panell.** Més espai entre els passos (entre dos passos plegats, de 15 a 31 px). Fora: «Sempre hi ha +, − i
+·. A més:» (a totes dues activitats), el títol «Operacions», les paraules de ℕ ℤ ℚ (només el símbol, més gran), les
+descripcions de les solucions (*Cap*, *Ajuda parcial*, *Solucionari*; a «Completa la igualtat», *Cap* i
+*Solucionari*: botons en una fila; el que fan, en passar-hi el ratolí) i la de l'Entorn. Textos nous: *Ajuda
+parcial* (abans *Exemples resolts*), *centrat seguint els símbols matemàtics*, *destaca l'operació següent* i
+*simplifica fraccions a banda*.
+
+**2. «Destaca» amb dos colors.** Abans, totes les caixes eren blau fosc. Ara, a la línia k de la resolució (0,
+l'enunciat), les caixes són del color k % 2 + 1 (`colorLinia()`), i el que surt de cada caixa, a la línia següent,
+és del color de la seva caixa (l'exemple del professor):
+
+```
+[4 · 3] · 3        caixa del color 1
+[12 · 3]           caixa del color 2; el 12, del color 1
+36                 del color 2
+```
+
+- Només els resultats de la línia d'abans porten color (si no, a la línia següent ja no es veuria què és nou). Dins
+  d'una caixa, el que no és un resultat agafa el color de la caixa.
+- **Motor:** `transforma()` torna, a més de les marques, els `resultats`: els nodes de la còpia amb l'id d'un node
+  marcat (o el valor negatiu en què es converteix l'oposat d'un d'ells: `−(2·3)` → `−6`). `passos()` els desa a cada
+  pas; `escriu()` els pinta (`E.resultat`) i posa les caixes (`E.destaca`) amb el color de la línia (`c.color`).
+  Amb «centrat», `trossos()` fa el mateix, i un resultat de més d'una cel·la (dues fraccions passades a comú
+  denominador) porta el color a cada tros. La base d'una potència, `3²`, ara també passa per `escriu()`.
+- **TeX:** `{\color{destaca1}\boxed{…}}` i `{\color{destaca1}…}`; el fitxer defineix `destaca1` i `destaca2` al
+  principi (`colorsTex()`, amb `\definecolor` i no `\providecolor`: cada fitxer pot portar uns altres colors).
+  **Web:** `<span class="dest caixa k1">` i `<span class="k1">`; els colors, a `#full` (`--k1`, `--k2`; amb el fons
+  fosc, barrejats amb blanc: `--k1c`, `--k2c`).
+- **Els colors**, de la paleta `Motor.COLORS` (16, que es llegeixen bé sobre paper blanc); per defecte, blau fosc i
+  vermell. A l'adreça, `c1=…&c2=…` (una clau que no és de la paleta, la de per defecte). Al panell, sota «destaca»:
+  un botó amb la mostra de cada color, que obre la paleta; en triar-ne un, es tanca.
+- Amb «només el resultat», ni caixes ni colors (tampoc a la web).
+
+**3. La memòria cau del navegador.** El professor va veure la v0.8 sense format (els triangles negres del
+navegador, «CapAl full…» enganxat, botons que no cabien) i sense l'ajuda que escriu `app.js`: el seu navegador hi
+barrejava la pàgina nova amb el `style.css` i l'`app.js` d'abans, que tenia desats. Ara `index.html` demana cada
+fitxer amb la versió (`assets/style.css?v=0.9`): amb una versió nova, l'adreça és una altra i el navegador el torna
+a baixar. `tests/prova.js` (§14) comprova que el `?v=` de tots els fitxers és el de `VERSIO`: **en canviar de versió,
+cal canviar-los tots dos.**
