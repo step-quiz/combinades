@@ -8,8 +8,8 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.11: torna el PDF, ara amb fulls A4 ben paginats, com *inaba*, només per a les operacions combinades
-(§11). Sobre la v0.10 (amb «centrat», les caixes de «destaca» ja no desalineen res, §10), la v0.9 («destaca» amb dos
+**Versió:** v0.12: «Crea el PDF» també per a «Completa la igualtat» (§11). Sobre la v0.11 (torna el PDF, amb fulls A4
+ben paginats, com *inaba*, §11), la v0.10 (amb «centrat», les caixes de «destaca» ja no desalineen res, §10), la v0.9 («destaca» amb dos
 colors que s'alternen, a triar, i el panell amb els textos més curts, §9), la v0.8 (el panell de configuració en tres
 passos, §8), la v0.7 («destaca» amb una caixa, `\boxed`,
 §2.9, i «Completa la igualtat» en 2 columnes, separades per una línia discontínua, §7), la v0.6 (una activitat nova, «Completa la igualtat», §7),
@@ -302,7 +302,7 @@ Ho va demanar el professor:
 ## 5. Decisions ja preses (no canviar sense preguntar)
 
 - **PDF del navegador** (octubre de 2026): a la v0.5 es va treure («PDF» i «PDF solucions»), però el professor l'ha
-  demanat de nou, ben paginat com *inaba* i **només per a les operacions combinades** (v0.11, §11), amb una capçalera
+  demanat de nou, ben paginat com *inaba* (v0.11, §11; a la v0.12, també per a «Completa la igualtat»), amb una capçalera
   mínima `Nom … Curs … Data …`. «Copia el TeX» continua fora.
 - **«Destaca la següent operació»** (octubre de 2026): dins d'una caixa (`\boxed`), també amb «centrat». Primer va
   ser subratllat; el professor va demanar la caixa. Des de la v0.9, la caixa de cada línia d'un dels dos colors que
@@ -558,3 +558,7 @@ les operacions combinades.
 - **Pendent (poc probable):** un exercici més alt que un full sencer (un solucionari «centrat» molt llarg) es
   retallaria. Mesurat: amb 10 operacions de ℤ i ℚ, totes les opcions, solucionari i «centrat», el més alt fa un
   29 % del full.
+- **v0.12: també «Completa la igualtat».** Al primer full, la capçalera, l'enunciat i l'exemple; després les
+  igualtats de dues en dues (una fila, `.fila-ig`, que no es parteix mai), separades per una línia discontínua, amb
+  l'alçada de fila del `.tex` (`Igualtats.ESPAIS[esp].fila`). Amb solucionari, «Solucions» en un full a part.
+  Proves: les igualtats del PDF són les del motor; A4, sense vessar, pàgines = fulls.

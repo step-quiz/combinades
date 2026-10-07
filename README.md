@@ -2,8 +2,8 @@
 
 Web estàtica (HTML + CSS + JS, sense dependències ni build) que genera fulls de dues activitats,
 **Operacions combinades** i **Completa la igualtat**, i els lliura com a `exN.tex` (només el cos: el teu
-`main.tex` fa `\input{ex1.tex}`). El PDF, el fas tu compilant-lo amb LaTeX; per a les operacions combinades,
-també el pots treure directament del navegador amb **Crea el PDF** (vegeu més avall).
+`main.tex` fa `\input{ex1.tex}`). El PDF, el fas tu compilant-lo amb LaTeX, o el
+treus directament del navegador amb **Crea el PDF** (vegeu més avall).
 
 ## Ús
 Obre `index.html` amb doble clic. A dalt del panell tries l'activitat. La configuració va en tres passos, en
@@ -154,7 +154,7 @@ node tests/prova.js
 
 La prova falla si `entorn.js` no coincideix amb els `.tex`.
 
-## Crea el PDF (només operacions combinades)
+## Crea el PDF
 
 El botó **Crea el PDF**, a la barra de baix, obre una pestanya nova (`imprimir.html`, amb la mateixa adreça `#…`)
 amb el mateix full en fulls A4, com fa *inaba*:
@@ -164,11 +164,13 @@ amb el mateix full en fulls A4, com fa *inaba*:
   gran 5 cm); un exercici no es parteix mai entre dos fulls: si no hi cap, passa al següent;
 - amb *ajuda parcial*, els exercicis resolts surten resolts; amb *solucionari*, les solucions van després, en fulls
   a part que comencen amb «Solucions»;
+- a **Completa la igualtat**: l'enunciat, l'exemple i les igualtats en dues columnes, separades per una línia
+  discontínua (amb l'alçada de fila del `.tex`); amb *solucionari*, les solucions en un full a part;
 - cada full porta el número de pàgina («1 / 3»).
 
 A la pestanya nova, prem **Imprimeix o desa com a PDF** i, al diàleg del navegador: *Destinació* → **Desa com a
 PDF**, i desmarca **Capçaleres i peus de pàgina** (si no, el navegador hi afegeix la data i l'adreça). Els marges ja
-són els del full: no cal tocar-los. Per a «Completa la igualtat», el PDF és el de LaTeX.
+són els del full: no cal tocar-los.
 
 ## Proves
 

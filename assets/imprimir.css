@@ -41,3 +41,10 @@ body.imprimir .barra .ajuda { color: #cbd5e1; flex: 1 1 320px; }
   .full { margin: 0; box-shadow: none; }
   .full:last-child { break-after: auto; page-break-after: auto; }
 }
+
+/* «Completa la igualtat»: dues columnes, separades per una línia discontínua, com el .tex */
+.fila-ig { display: grid; grid-template-columns: 1fr 1fr; background: repeating-linear-gradient(to bottom, #000 0 3px, transparent 3px 6px) center / .5px 100% no-repeat; }
+.fila-ig .ig { display: flex; align-items: flex-start; padding: 2mm 4mm 0 0; font-size: 14pt; }
+.fila-ig .ig:nth-child(2) { padding-left: 4mm; }
+.fila-ig .num { width: 8mm; flex: none; font-weight: bold; font-size: 11pt; padding-top: .25em; }
+.full .enunciat, .full .exemple { font-size: 12pt; }
