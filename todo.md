@@ -8,8 +8,9 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.9: «destaca» amb dos colors que s'alternen, a triar, i el panell amb els textos més curts (§9). Sobre
-la v0.8 (el panell de configuració en tres passos, §8), la v0.7 («destaca» amb una caixa, `\boxed`,
+**Versió:** v0.10: amb «centrat», les caixes de «destaca» ja no desalineen res (§10). Sobre la v0.9 («destaca» amb dos
+colors que s'alternen, a triar, i el panell amb els textos més curts, §9), la v0.8 (el panell de configuració en tres
+passos, §8), la v0.7 («destaca» amb una caixa, `\boxed`,
 §2.9, i «Completa la igualtat» en 2 columnes, separades per una línia discontínua, §7), la v0.6 (una activitat nova, «Completa la igualtat», §7),
 la v0.5 («destaca la següent operació» en blau fosc, les solucions a la web i fora el PDF del navegador, §2.9), la v0.4 (la disposició
 «centrat», §2.8), la v0.3 (el solucionari pas a pas, §2) i la v0.2 (revisió d'octubre de 2026: vegeu la secció 6).
@@ -38,9 +39,10 @@ fórmula més ampla fa el 54 % de la línia; la línia de resolució més
 ampla, el 59 %; la resolució «centrat» més ampla, el 63 %, i el bloc més alt, el 65 % de la pàgina; els blocs d'una
 resolució llarga fan el mateix ample. «Completa la igualtat»: el full i el solucionari, amb 3 i 4 nombres i cada
 espai, sense «Overfull» (cada igualtat cap a la seva columna). (També compilat pel professor amb el seu `capsalera.tex`.)
-**Interfície:** `node tests/navegador.js` (Chromium, 68 comprovacions: adreça i generador, ↻, baixades, mòbil,
-guiades, solucionari, «centrat» i «destaca» amb els colors i la paleta, també amb el fons fosc, «Completa la
-igualtat» i el panell: textos, espai entre els passos i els 66 controls).
+**Interfície:** `node tests/navegador.js` (Chromium, 69 comprovacions: adreça i generador, ↻, baixades, mòbil,
+guiades, solucionari, «centrat» i «destaca» amb els colors i la paleta (els marcs, on han d'anar, i l'exemple del
+professor, alineat), també amb el fons fosc, «Completa la igualtat» i el panell: textos, espai entre els passos i
+els 66 controls).
 Falta mirar-la a Firefox, a Safari i en un mòbil de debò.
 
 Fet:
@@ -233,11 +235,10 @@ centrat sota la part que substitueix i el «=» al final de cada línia, menys d
   (3 pt; 6 pt al costat d'una línia amb fraccions): així dues línies amb fraccions no es toquen mai.
 - **Web:** una taula amb `colspan`, que es desplaça sola si no hi cap (mòbil). En una targeta resolta, la taula
   substitueix l'enunciat (n'és la primera fila).
-- **Destaca** (§2.9): des de la v0.7, el que es calcula va en una sola cel·la (`\multicolumn`) que ocupa totes les
-  seves columnes, dins d'una caixa (`\boxed`; des de la v0.9, del color de la fila, §9): el resultat de la línia
-  següent hi queda centrat a sota, del mateix color. Les
-  línies invisibles dels blocs (vegeu més avall) porten la mateixa caixa, perquè les columnes facin el mateix ample.
-  (A la v0.5 i la v0.6, cada cel·la en blau i, a sota, una fila amb una ratlla blava, com un `\cline` de color.)
+- **Destaca** (§2.9): des de la v0.10 (§10), cada tros es queda a la seva columna, també dins d'una caixa, i la
+  caixa és un marc, del color de la fila, del primer tros al darrer. (A la v0.7–v0.9, el que es calcula anava en una
+  sola cel·la amb un `\boxed`, i els signes de dins no quedaven alineats amb els de sobre i de sota; a la v0.5 i la
+  v0.6, cada cel·la en blau i, a sota, una fila amb una ratlla blava, com un `\cline` de color.)
 - **Blocs:** un `array` no es parteix entre pàgines, i amb «destaca» una resolució de ℚ de 16 línies va fer un 104 %
   de la pàgina (1 de 12.000). Una resolució de més de 12 línies va en blocs, un `array` sota l'altre, i la pàgina es
   pot partir entre dos blocs. Perquè les columnes facin el mateix ample a tots els blocs, cadascun porta les línies
@@ -497,3 +498,36 @@ barrejava la pàgina nova amb el `style.css` i l'`app.js` d'abans, que tenia des
 fitxer amb la versió (`assets/style.css?v=0.9`): amb una versió nova, l'adreça és una altra i el navegador el torna
 a baixar. `tests/prova.js` (§14) comprova que el `?v=` de tots els fitxers és el de `VERSIO`: **en canviar de versió,
 cal canviar-los tots dos.**
+
+---
+
+## 10. «Centrat» amb «destaca»: les caixes, sense desalinear (fet, v0.10)
+
+El professor ho va veure a la web: amb «destaca», el que es calcula anava en una sola cel·la amb un `\boxed` a dins,
+escrit seguit, i els signes de dins de la caixa ja no quedaven sota els de la línia de sobre. A l'última línia de
+`3 + (4²·3:4 − 6)`, el 3 de «3 + 6» no era sota el 3 de «3 + (12 − 6)».
+
+Ara cada tros es queda a la seva columna, com sense destacar, i la caixa és un marc al voltant del que es calcula:
+
+- **TeX** (`centrada()`, `caixa()`): una caixa d'un sol tros és el tros amb el marc al voltant. Una de més d'un tros
+  és una cel·la (`\multicolumn`) que ocupa les seves columnes, amb un `array` a dins que té les mateixes columnes:
+  a la vista, els seus trossos, cadascun a la seva columna, i, a sobre, invisibles i sense alçada (`\multispan` i
+  `\hphantom`, amb `\arraystretch` 0), els trossos que hi tenen totes les altres línies. Com que les columnes de
+  dins tenen els mateixos trossos que les de fora, fan el mateix ample, i cada tros queda alineat. (Els trossos de
+  les altres línies, o són dins de la caixa, o la contenen sencera, o en són fora: mai no la tallen. I un resultat
+  sempre és més estret que el que substitueix, o sigui que el que la conté no la fa més ampla.)
+- **El marc** (`marc()`): no ocupa lloc (`\rlap`), i va del principi del primer tros al final de l'últim, 1,2 pt
+  cap endins, i de 2,5 pt per sobre a 2,5 pt per sota del contingut, amb el gruix del `\boxed` (0,4 pt). On és
+  el primer tros dins de les seves columnes es mesura amb un altre `array` de les seves columnes (`\box2`) i el
+  tros sol (`\box4`): és a (\wd2 − \wd4)/2, perquè és centrat; l'últim, igual (`\box6`, `\box8`).
+- **L'aire:** amb «destaca», els nombres porten 3 pt a banda i banda (`\kern3pt`), a totes les línies: el marc hi
+  passa per dins i no toca ni el nombre ni el parèntesi o el signe del costat. Sense «destaca», res no canvia.
+- **Web:** cada tros, a la seva cel·la (`td`); les cel·les d'una caixa porten la classe `marc` (i `ini`, la
+  primera, i `fi`, l'última), i el marc és el `::before` de cada cel·la. `ajustaMarcs()` (app.js) mesura on comença
+  el primer tros i on acaba l'últim, i de dalt a baix del que hi ha a dins (`--l`, `--r`, `--t`, `--b`): en pintar
+  el full, si canvia la mida de la finestra i en obrir un «Veure els passos». Els nombres porten aire (`n`), i els
+  parèntesis, una mica (`p`).
+- **Proves:** `tests/prova.js` llegeix cada caixa pel seu compte: la fila, desplegada, ha de tenir les mateixes
+  cel·les que sense destacar; les files invisibles i les mesures, les de les altres línies; i a l'HTML, les mateixes
+  cel·les, amb els marcs on hi ha les caixes del `.tex`. `tests/navegador.js` comprova on van els marcs i
+  l'exemple del professor (el 3 i el + de «3 + 6», sota els de «3 + (12 − 6)»).

@@ -145,6 +145,19 @@ table.centrat .pb { line-height: 1; }
 }
 .caixa { display: inline-block; line-height: 1.2; border: .07em solid currentColor; padding: .08em .2em; }
 .caixa .fr { line-height: 1.9; }      /* les fraccions, com a fora */
+/* «Destaca» amb «centrat»: cada tros, a la seva cel·la (com sense destacar), i el marc al voltant de les cel·les de
+   la caixa (marc), del principi del primer tros (ini) al final de l'últim (fi), i de dalt a baix del que hi ha a
+   dins: app.js ho mesura (--l, --r, --t, --b). Els nombres porten aire a banda i banda (n), a totes les línies,
+   perquè el marc no els toqui. */
+table.centrat td.n { padding: 0 .22em; }
+table.centrat td.p { padding: 0 .06em; }              /* (i els parèntesis, una mica) */
+table.centrat td.marc { position: relative; }
+table.centrat td.marc::before {
+  content: ''; position: absolute; top: var(--t, .22em); bottom: var(--b, .3em); left: 0; right: 0; pointer-events: none;
+  border-top: .07em solid currentColor; border-bottom: .07em solid currentColor;
+}
+table.centrat td.marc.ini::before { left: var(--l, .06em); border-left: .07em solid currentColor; }
+table.centrat td.marc.fi::before { right: var(--r, .06em); border-right: .07em solid currentColor; }
 #act { margin-bottom: 10px; }
 #act button { flex: 1 1 auto; }
 
