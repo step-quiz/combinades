@@ -1071,14 +1071,19 @@ if (!Motor.valida({ ...base, set: 'Q', int: 0, fin: 1, div: 1, par: 1 }).ok) fal
   }
 }
 
-/* ── 14. index.html: cada fitxer de assets/, amb la versió (?v=0.9 a la v0.9). Amb una versió nova, el navegador
+/* ── 14. index.html i imprimir.html: cada fitxer de assets/, amb la versió (?v=0.9 a la v0.9). Amb una versió nova, el navegador
    els baixa de nou: si no, podia barrejar la pàgina nova amb l'estil o el JavaScript d'abans, que tenia desats. ── */
 {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-  const refs = [...html.matchAll(/(?:href|src)="(assets\/[^"]*)"/g)].map((m) => m[1]);
+  const v = `?v=${Motor.VERSIO.slice(1)}`, refs = new Set();
+  for (const pagina of ['index.html', 'imprimir.html']) {
+    const html = fs.readFileSync(path.join(__dirname, '..', pagina), 'utf8');
+    const seves = [...html.matchAll(/(?:href|src)="(assets\/[^"]*)"/g)].map((m) => m[1]);
+    if (!seves.length || seves.some((r) => !r.endsWith(v))) falla(`${pagina}: els fitxers de assets/ han de portar ${v} (${seves.join(', ')})`);
+    seves.forEach((r) => refs.add(r.replace(/\?.*/, '')));
+  }
   const fitxers = fs.readdirSync(path.join(__dirname, '..', 'assets')).filter((f) => /\.(js|css)$/.test(f));
-  if (refs.length !== fitxers.length || !fitxers.every((f) => refs.includes(`assets/${f}?v=${Motor.VERSIO.slice(1)}`)))
-    falla(`index.html: els fitxers de assets/ han de portar ?v=${Motor.VERSIO.slice(1)} (${refs.join(', ')})`);
+  if (refs.size !== fitxers.length || !fitxers.every((f) => refs.has(`assets/${f}`)))
+    falla(`index.html i imprimir.html: entre les dues, hi han de ser tots els fitxers de assets/ (${[...refs].join(', ')})`);
 }
 
 console.log(`${combos} combinacions (i ${combosTotes} amb força i gradual), ${combosIgualtats} de «Completa la igualtat», ${total} exercicis, ${errors} errors`);

@@ -8,7 +8,8 @@ Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla).
 
 ## 1. Estat actual
 
-**Versió:** v0.10: amb «centrat», les caixes de «destaca» ja no desalineen res (§10). Sobre la v0.9 («destaca» amb dos
+**Versió:** v0.11: torna el PDF, ara amb fulls A4 ben paginats, com *inaba*, només per a les operacions combinades
+(§11). Sobre la v0.10 (amb «centrat», les caixes de «destaca» ja no desalineen res, §10), la v0.9 («destaca» amb dos
 colors que s'alternen, a triar, i el panell amb els textos més curts, §9), la v0.8 (el panell de configuració en tres
 passos, §8), la v0.7 («destaca» amb una caixa, `\boxed`,
 §2.9, i «Completa la igualtat» en 2 columnes, separades per una línia discontínua, §7), la v0.6 (una activitat nova, «Completa la igualtat», §7),
@@ -51,8 +52,8 @@ Fet:
   progressió dels extres **immediata/gradual**; `\vspace*` opcional.
 - Generació determinista amb llavors; ↻ per exercici (no canvia el nivell en mode gradual); «Genera-ho tot»;
   estat a l'adreça (`#…`) + `localStorage`.
-- Sortida `exN.tex` (només el cos: LaTeX estàndard + `amsmath`), amb el codi visible a la pàgina. Sense PDF del
-  navegador ni «Copia el TeX» (v0.5): el PDF és el de LaTeX.
+- Sortida `exN.tex` (només el cos: LaTeX estàndard + `amsmath`), amb el codi visible a la pàgina. Sense «Copia el
+  TeX» (v0.5). Per a les operacions combinades, també «Crea el PDF» (v0.11, §11): fulls A4 per imprimir.
 - Entorn: `tex/main.tex`, `tex/headers.tex`, `tex/defs.tex` (font única) → `assets/entorn.js` (generat amb
   `python3 eines/entorn.py`; la prova en comprova la paritat). `headers.tex` carrega `array`, `tabularx`,
   `xcolor[table]` i `graphicx` perquè ho necessita el `capsalera.tex` del professor (el d'`exam2bat`).
@@ -300,8 +301,9 @@ Ho va demanar el professor:
 
 ## 5. Decisions ja preses (no canviar sense preguntar)
 
-- **Sense PDF del navegador** (octubre de 2026): el professor no el fa servir, ni «Copia el TeX». El PDF és el de
-  LaTeX. (Fins a la v0.4, la web tenia «PDF» i «PDF solucions», d'impressió del navegador: vegeu l'historial.)
+- **PDF del navegador** (octubre de 2026): a la v0.5 es va treure («PDF» i «PDF solucions»), però el professor l'ha
+  demanat de nou, ben paginat com *inaba* i **només per a les operacions combinades** (v0.11, §11), amb una capçalera
+  mínima `Nom … Curs … Data …`. «Copia el TeX» continua fora.
 - **«Destaca la següent operació»** (octubre de 2026): dins d'una caixa (`\boxed`), també amb «centrat». Primer va
   ser subratllat; el professor va demanar la caixa. Des de la v0.9, la caixa de cada línia d'un dels dos colors que
   tria el professor, alternats (no més de dos: ell ho va dir), i el resultat de cada caixa, a la línia següent, del
@@ -531,3 +533,28 @@ Ara cada tros es queda a la seva columna, com sense destacar, i la caixa és un 
   cel·les que sense destacar; les files invisibles i les mesures, les de les altres línies; i a l'HTML, les mateixes
   cel·les, amb els marcs on hi ha les caixes del `.tex`. `tests/navegador.js` comprova on van els marcs i
   l'exemple del professor (el 3 i el + de «3 + 6», sota els de «3 + (12 − 6)»).
+
+## 11. «Crea el PDF»: fulls A4 ben paginats (fet, v0.11)
+
+El professor va demanar recuperar el PDF, seguint l'estratègia de *inaba* (una pàgina HTML amb fulls A4 exactes, que
+el navegador imprimeix o desa com a PDF), amb una capçalera mínima `Nom: ____ Curs: ____ Data: ____` i només per a
+les operacions combinades.
+
+- **`imprimir.html` + `assets/imprimir.js` + `assets/imprimir.css`:** la pàgina llegeix la mateixa adreça (`#…`) que
+  l'eina i refà el mateix full amb el motor. Cada `.full` fa 210 × 297 mm (`@page{size:A4;margin:0}`, salt de
+  pàgina després de cada full); la barra de dalt («← Torna a l'eina», «Imprimeix o desa com a PDF» i l'ajuda) no
+  s'imprimeix. A diferència de *inaba*, no hi ha cap PDF fet per endavant: el fa el navegador del professor.
+- **Paginació, mesurant:** s'afegeix cada exercici al full; si vessa, passa sencer al full següent (mai no es
+  parteix). A sota, l'espai per resoldre'l (`Motor.ESPAIS`, en cm), retallat al que queda del full. Els exercicis
+  resolts (ajuda parcial) porten l'espai petit. El solucionari comença en un full nou, amb el títol «Solucions»
+  (amb «només el resultat», `enunciat = resultat`). Cada full, «k / N» al peu.
+- **`assets/comu.js`:** el que abans era només d'`app.js` i ara també fa servir `imprimir.js`: llegir i validar
+  l'estat, quins exercicis van resolts, els colors de «destaca» (al paper, sempre els clars) i `ajustaMarcs()`.
+- **Botó «Crea el PDF»** a la barra de baix, només a «Operacions combinades» (desactivat si el full no és vàlid).
+- **Proves** (`tests/navegador.js`): el botó obre `imprimir.html` amb la mateixa adreça; els fulls són A4 exactes i
+  res no vessa; el PDF de Chromium té tantes pàgines com fulls; la capçalera només al primer full; els exercicis
+  numerats; «Solucions» en un full nou; el peu «k / N»; a «Completa la igualtat», ni botó ni fulls. `tests/prova.js`
+  (§14) comprova el `?v=` d'`imprimir.html`.
+- **Pendent (poc probable):** un exercici més alt que un full sencer (un solucionari «centrat» molt llarg) es
+  retallaria. Mesurat: amb 10 operacions de ℤ i ℚ, totes les opcions, solucionari i «centrat», el més alt fa un
+  29 % del full.

@@ -17,19 +17,12 @@
 (function () {
   'use strict';
 
-  const PER_DEFECTE = {
-    act: 'comb',                                                            // l'activitat
-    n: 5, esp: 'mitja', sim: 'petit', set: 'N', int: 1, fin: 1, div: 0, opo: 0, pot: 0, par: 0, forca: 1, fit: 1, vs: 0, grad: 0,
-    sol: 'cap', gra: 'prio', simp: 1, dest: 0, nomes: 0, cen: 0,            // les solucions
-    c1: Motor.COLORS_PER_DEFECTE[0], c2: Motor.COLORS_PER_DEFECTE[1],      // els colors de «destaca»
-    in: 9, inom: 3, ipar: 1, ipot: 1, iarr: 1, idiv: 1, iesp: 'mitja', isol: 'cap'   // «Completa la igualtat»
-  };
-  const CASELLES = ['int', 'fin', 'div', 'opo', 'pot', 'par', 'forca', 'vs', 'simp', 'dest', 'nomes', 'cen', 'ipar', 'ipot', 'iarr', 'idiv'];
+  const PER_DEFECTE = Comu.PER_DEFECTE, CASELLES = Comu.CASELLES;
+  const teClau = (obj, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(obj, k);
   const NOM_EXTRE = { div: '÷', par: '( )', pot: 'xⁿ', opo: '−a' };
   const MEMORIA = 'combinades';                               // la clau de localStorage
   const $ = id => document.getElementById(id);
   const novaLlavor = () => Math.random().toString(36).slice(2, 8);
-  const teClau = (obj, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(obj, k);
 
   let S = Object.assign({}, PER_DEFECTE), seed = novaLlavor(), g = Motor.GENERADOR, R = [], RES = [], EX = [];
   let ig = Igualtats.GENERADOR, RI = [];                       // «Completa la igualtat»
@@ -38,42 +31,15 @@
   let fullBaixat = null;
 
   /* ------------------------------------------------- llegir i desar l'estat
-     Una adreça pot arribar retallada, editada a mà o d'una versió anterior:
-     el que no s'entén es queda amb el valor per defecte. Mai no pot deixar a
-     l'estat un valor que després trenqui el .tex (abans, #esp=constructor
-     escrivia «\vspace{function Object() …}»). */
+     L'adreça (#…) mana; sense, els controls desats al navegador (comu.js). */
   function llegeix() {
     let q = {};
     try { Object.assign(q, JSON.parse(localStorage.getItem(MEMORIA) || '{}')); } catch (e) { /* sense memòria */ }
-    const h = new URLSearchParams(location.hash.slice(1));
-    if (h.toString()) { q = {}; h.forEach((v, k) => { q[k] = v; }); }
-    const enter = (v, a, b, d) => { v = parseInt(v, 10); return v >= a && v <= b ? v : d; };
-    const llista = (v, opcions) => (opcions.includes(v) ? v : opcions[0]);
-    S.n = enter(q.n, 1, 10, PER_DEFECTE.n);
-    S.fit = enter(q.fit, 1, 99, PER_DEFECTE.fit);
-    S.esp = teClau(Motor.ESPAIS, q.esp) ? q.esp : PER_DEFECTE.esp;
-    S.sim = teClau(Motor.SIMBOLS, q.sim) ? q.sim : PER_DEFECTE.sim;
-    S.set = ['N', 'Z', 'Q'].includes(q.set) ? q.set : PER_DEFECTE.set;
-    CASELLES.forEach(k => { S[k] = q[k] === undefined ? PER_DEFECTE[k] : (+q[k] ? 1 : 0); });
-    S.grad = +q.grad ? 1 : 0;
-    S.sol = llista(q.sol, ['cap', 'guiades', 'solucionari']);
-    S.gra = llista(q.gra, ['prio', 'op']);
-    S.c1 = teClau(Motor.COLORS, q.c1) ? q.c1 : PER_DEFECTE.c1;
-    S.c2 = teClau(Motor.COLORS, q.c2) ? q.c2 : PER_DEFECTE.c2;
-    S.act = llista(q.act, ['comb', 'igu']);
-    S.in = enter(q.in, 3, 15, PER_DEFECTE.in);
-    S.inom = enter(q.inom, 3, 4, PER_DEFECTE.inom);
-    S.iesp = teClau(Igualtats.ESPAIS, q.iesp) ? q.iesp : PER_DEFECTE.iesp;
-    S.isol = llista(q.isol, ['cap', 'solucionari']);
-    if (q.seed && /^[a-z0-9]{1,12}$/.test(q.seed)) {
-      seed = q.seed;
-      // Un full desat es refà amb el seu generador. Sense g, és de la v0.1: g=1.
-      g = Math.min(Motor.GENERADOR, enter(q.g, 1, 99, 1));
-      ig = Math.min(Igualtats.GENERADOR, enter(q.ig, 1, 99, 1));
-    }
-    R = (q.r ? String(q.r).split(',') : []).map(x => parseInt(x, 10) || 0);
-    RI = (q.ri ? String(q.ri).split(',') : []).map(x => parseInt(x, 10) || 0);
-    RES = (q.res ? String(q.res).split(',') : []).map(x => parseInt(x, 10)).filter(i => i >= 0 && i < 10);
+    if (location.hash.length > 1) q = Comu.deLAdreca(location.hash);
+    const e = Comu.llegeix(q);
+    S = e.S;
+    if (e.seed) ({ seed, g, ig } = e);
+    ({ R, RI, RES } = e);
   }
 
   /** L'adreça d'aquest full (#…). Les comes de r, ri i res, sense codificar: es llegeix millor. */
@@ -114,7 +80,7 @@
   const mostra = (id, si) => { $(id).style.display = si ? '' : 'none'; };
 
   /** Les opcions de les solucions, per al motor. */
-  const solucions = () => ({ mode: S.sol, resolts: RES, gra: S.gra, simp: S.simp, dest: S.dest, nomes: S.nomes, cen: S.cen, c1: S.c1, c2: S.c2 });
+  const solucions = () => Comu.solucions(S, RES);
 
   /** Les línies «= …» d'una resolució (sense l'enunciat). */
   const linies = r => r.html.slice(1).map(l => `<div class="linia">= ${l}</div>`).join('');
@@ -181,8 +147,6 @@
   const primers = () => (RES.length && RES.every((x, i) => x === i) ? RES.length : -1);
   /** Quin dels dos colors de «destaca» es tria a la paleta (1 o 2), o 0 si és plegada. */
   let tria = 0;
-  /** A la pantalla amb el fons fosc, el color barrejat amb blanc: els colors foscos del paper no s'hi llegirien. */
-  const clar = hex => '#' + [0, 2, 4].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * .45 + 255 * .55).toString(16).padStart(2, '0')).join('');
 
   function pintaPanell() {
     // 1 · Exercicis
@@ -230,29 +194,7 @@
     $('resum-isol').textContent = S.isol;
   }
 
-  /** «Destaca» amb «centrat»: el marc d'una caixa va del principi del seu primer tros (ini) al final de l'últim
-      (fi), i de dalt a baix del que hi ha a dins, com al .tex. Cada tros és centrat a la seva cel·la: un cop
-      pintada la taula, es mesura on és (style.css: --l, --r, --t, --b). Una taula dins d'un «Veure els passos»
-      tancat no es veu: es mesura quan s'obre. */
-  function ajustaMarcs() {
-    const caixa = r => { const x = document.createRange(); x.selectNodeContents(r); return x.getBoundingClientRect(); };
-    document.querySelectorAll('#full table.centrat tr').forEach(tr => {
-      let grup = [];
-      tr.querySelectorAll('td.marc').forEach(td => {
-        grup.push(td);
-        if (!td.classList.contains('fi')) return;
-        const cs = grup.map(caixa), ts = grup.map(x => x.getBoundingClientRect()), u = grup.length - 1;
-        if (ts[0].width) {
-          const em = parseFloat(getComputedStyle(td).fontSize), aire = .18 * em;     // el marc, una mica fora
-          const dalt = Math.min(...cs.map(c => c.top)) - .1 * em, baix = Math.max(...cs.map(c => c.bottom)) + .1 * em;
-          grup.forEach((x, i) => { x.style.setProperty('--t', `${dalt - ts[i].top}px`); x.style.setProperty('--b', `${ts[i].bottom - baix}px`); });
-          grup[0].style.setProperty('--l', `${cs[0].left - ts[0].left - aire}px`);
-          grup[u].style.setProperty('--r', `${ts[u].right - cs[u].right - aire}px`);
-        }
-        grup = [];
-      });
-    });
-  }
+  const ajustaMarcs = () => Comu.ajustaMarcs($('full'));
 
   /** Quins passos del panell són oberts: es desen al navegador (com els controls). */
   const PASSOS = 'combinades-passos';
@@ -319,12 +261,7 @@
       full.innerHTML = h;
       full.style.setProperty('--sop', Motor.SIMBOLS[S.sim].css);
       ajustaMarcs();
-      // Els colors de «destaca» (style.css: .k1, .k2), i més clars per al fons fosc
-      ['c1', 'c2'].forEach((c, i) => {
-        const hex = Motor.COLORS[S[c]].hex;
-        full.style.setProperty(`--k${i + 1}`, '#' + hex);
-        full.style.setProperty(`--k${i + 1}c`, clar(hex));
-      });
+      Comu.posaColors(full, S);       // els colors de «destaca» (i més clars per al fons fosc)
       ok = v.ok && EX.length === S.n;
       solucionari = S.sol === 'solucionari';
       $('codi').textContent = ok ? Motor.fitxerTex(EX, P, { num: S.fit, seed, adreca: adreca() }, solucions()) : '';
@@ -338,6 +275,7 @@
     $('baixa-sol').textContent = `Baixa ex${numSol}-sol.tex`;
     $('baixa').disabled = $('baixa-sol').disabled = !ok;
     mostra('baixa-sol', solucionari); mostra('codi-sol-d', solucionari);
+    mostra('pdf', S.act === 'comb'); $('pdf').disabled = !ok;     // els fulls A4, només de les operacions combinades
     $('segell').textContent = Motor.VERSIO;
     desa();
   }
@@ -372,6 +310,7 @@
       S.fit = Math.min(99, S.fit + 1);
     }
     else if (b.id === 'baixa-sol') { baixa($('baixa-sol').textContent.replace(/^Baixa /, ''), $('codi-sol').textContent); return; }
+    else if (b.id === 'pdf') { window.open('imprimir.html' + adreca(), '_blank'); return; }   // els fulls A4, en una pestanya
     else if (b.dataset.entorn) { baixa(b.dataset.entorn + '.tex', Entorn[b.dataset.entorn]); return; }
     else return;
     pinta();

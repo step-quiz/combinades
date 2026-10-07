@@ -2,7 +2,8 @@
 
 Web estàtica (HTML + CSS + JS, sense dependències ni build) que genera fulls de dues activitats,
 **Operacions combinades** i **Completa la igualtat**, i els lliura com a `exN.tex` (només el cos: el teu
-`main.tex` fa `\input{ex1.tex}`). El PDF, el fas tu compilant-lo amb LaTeX.
+`main.tex` fa `\input{ex1.tex}`). El PDF, el fas tu compilant-lo amb LaTeX; per a les operacions combinades,
+també el pots treure directament del navegador amb **Crea el PDF** (vegeu més avall).
 
 ## Ús
 Obre `index.html` amb doble clic. A dalt del panell tries l'activitat. La configuració va en tres passos, en
@@ -153,7 +154,21 @@ node tests/prova.js
 
 La prova falla si `entorn.js` no coincideix amb els `.tex`.
 
-La web no fa PDF: el PDF és sempre el de LaTeX, compilant el `.tex` amb el teu `main.tex`.
+## Crea el PDF (només operacions combinades)
+
+El botó **Crea el PDF**, a la barra de baix, obre una pestanya nova (`imprimir.html`, amb la mateixa adreça `#…`)
+amb el mateix full en fulls A4, com fa *inaba*:
+
+- al primer full, la capçalera `Nom: ______  Curs: ____  Data: _____`;
+- cada exercici, numerat, amb l'espai per resoldre'l a sota (el mateix que al `.tex`: petit 1,5 cm, mitjà 3 cm,
+  gran 5 cm); un exercici no es parteix mai entre dos fulls: si no hi cap, passa al següent;
+- amb *ajuda parcial*, els exercicis resolts surten resolts; amb *solucionari*, les solucions van després, en fulls
+  a part que comencen amb «Solucions»;
+- cada full porta el número de pàgina («1 / 3»).
+
+A la pestanya nova, prem **Imprimeix o desa com a PDF** i, al diàleg del navegador: *Destinació* → **Desa com a
+PDF**, i desmarca **Capçaleres i peus de pàgina** (si no, el navegador hi afegeix la data i l'adreça). Els marges ja
+són els del full: no cal tocar-los. Per a «Completa la igualtat», el PDF és el de LaTeX.
 
 ## Proves
 
@@ -195,10 +210,14 @@ No deixa cap fitxer a l'arbre.
 
 ## Estructura
 ```
-index.html           pàgina única
+index.html           l'eina
+imprimir.html        els fulls A4 per imprimir o desar com a PDF («Crea el PDF»)
 assets/motor.js      operacions combinades: model, generador, validador, renderitzadors (sense DOM)
 assets/igualtats.js  completa la igualtat: cercador, generador i .tex (sense DOM)
+assets/comu.js       el que comparteixen app.js i imprimir.js (llegir l'adreça, colors, marcs)
 assets/app.js        interfície
+assets/imprimir.js   paginació dels fulls A4 (imprimir.html)
+assets/imprimir.css  estil dels fulls A4
 assets/style.css     estil (clar/fosc)
 assets/entorn.js     GENERAT: main/headers/defs incrustats
 tex/                 main.tex, headers.tex, defs.tex (font única)
@@ -212,6 +231,6 @@ todo.md              estat, revisió i feina pendent
 ```
 
 **Versió.** `VERSIO`, a `assets/motor.js` (surt a dalt a la dreta de l'eina i al principi de cada `.tex`), i el
-`?v=` de cada fitxer de `assets/` a `index.html` han de dir el mateix: `tests/prova.js` ho comprova. Així, quan es
+`?v=` de cada fitxer de `assets/` a `index.html` i a `imprimir.html` han de dir el mateix: `tests/prova.js` ho comprova. Així, quan es
 publica una versió nova, el navegador baixa de nou l'estil i el JavaScript, i no fa servir els d'abans, que tenia
 desats (amb els d'abans, la pàgina nova es veia sense format i alguns botons no anaven).

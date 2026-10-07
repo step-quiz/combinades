@@ -118,7 +118,7 @@ const llegeixBaixada = async (pag, selector) => {
 
   console.log('Barra');
   const botons = await pag.evaluate(() => [...document.querySelectorAll('footer button')].map(b => b.id).join());
-  comprova('a la barra de baix només hi ha «Baixa exN.tex» i «Baixa exN-sol.tex» (ni «Copia el TeX» ni PDF)', botons === 'baixa,baixa-sol', botons);
+  comprova('a la barra de baix hi ha «Baixa exN.tex», «Baixa exN-sol.tex» i «Crea el PDF» (no «Copia el TeX»)', botons === 'baixa,baixa-sol,pdf', botons);
 
   console.log('Mòbil');
   const mob = await nova({ viewport: { width: 390, height: 844 } });
@@ -369,6 +369,8 @@ const llegeixBaixada = async (pag, selector) => {
   comprova('«Completa la igualtat»: 4 nombres i espai gran, en 2 columnes separades per una línia discontínua (a la web i al .tex)',
     cols === 2 && /linear-gradient/.test(ratlla) && e.codi.includes('\\begin{tabular}{@{}p{\\dimexpr(\\linewidth-6mm-.4pt)/2\\relax}@{\\hspace{3mm}\\lower') &&
     e.codi.includes('\\xleaders'), `${cols} ${ratlla}`);
+  comprova('«Completa la igualtat»: sense «Crea el PDF» (només és per a les operacions combinades)',
+    await pag.evaluate(() => getComputedStyle(document.getElementById('pdf')).display === 'none'));
   await pag.click('[data-act="comb"]');
   comprova('tornant a «Operacions combinades», hi ha el seu full, igual que abans', JSON.stringify((await estat()).formules) === JSON.stringify(comb));
   const mi = await nova({ viewport: { width: 390, height: 844 } });
@@ -376,6 +378,56 @@ const llegeixBaixada = async (pag, selector) => {
   const mm = await mi.evaluate(() => ({ ample: document.documentElement.scrollWidth, finestra: document.documentElement.clientWidth }));
   comprova('«Completa la igualtat», al mòbil: la pàgina no es desplaça de costat', mm.ample <= mm.finestra, `${mm.ample} > ${mm.finestra}`);
   await mi.close();
+
+  console.log('PDF');
+  // «Crea el PDF» obre imprimir.html amb el mateix full (la mateixa adreça)
+  await pag.goto(EINA + '#n=8&esp=gran&set=Q&div=1&par=1&pot=1&opo=1&seed=pdf2&g=2&sol=solucionari&cen=1&dest=1');
+  const hashPdf = (await estat()).hash;
+  const [fin] = await Promise.all([pag.waitForEvent('popup'), pag.click('#pdf')]);
+  await fin.waitForSelector('body[data-llest]');
+  comprova('«Crea el PDF» obre imprimir.html en una pestanya nova, amb la mateixa adreça',
+    fin.url() === 'file://' + path.join(arrel, 'imprimir.html') + hashPdf, fin.url());
+  await fin.close();
+  const fulls = async (hash) => {
+    const p = await nova({ viewport: { width: 1000, height: 900 } });
+    await p.goto('file://' + path.join(arrel, 'imprimir.html') + hash);
+    await p.waitForSelector('body[data-llest]');
+    const r = await p.evaluate(() => {
+      const fs = [...document.querySelectorAll('.full')], mm = 96 / 25.4;
+      return {
+        n: fs.length,
+        a4: fs.every(f => Math.abs(f.offsetWidth - 210 * mm) < 1 && Math.abs(f.offsetHeight - 297 * mm) < 1),
+        vessa: fs.filter(f => { const c = f.querySelector('.contingut'); return c.scrollHeight > c.clientHeight + 1 || c.scrollWidth > c.clientWidth + 1; }).length,
+        capcalera: fs.map(f => !!f.querySelector('.capcalera')),
+        text: (document.querySelector('.capcalera') || {}).textContent || '',
+        titols: fs.map(f => (f.querySelector('.titol') || {}).textContent || ''),
+        nums: [...document.querySelectorAll('.exercici > .num')].map(x => x.textContent),
+        primers: fs.map(f => { const x = f.querySelector('.exercici > .num'); return x ? x.textContent : ''; }),
+        peus: fs.map(f => f.querySelector('.peu').textContent),
+        msg: (document.querySelector('.avis') || {}).textContent
+      };
+    });
+    await p.emulateMedia({ media: 'print' });
+    r.barra = await p.evaluate(() => getComputedStyle(document.querySelector('.barra')).display);
+    r.pagines = (String(await p.pdf({ preferCSSPageSize: true })).match(/\/Type\s*\/Page[^s]/g) || []).length;
+    await p.close();
+    return r;
+  };
+  let f = await fulls(hashPdf);
+  const nEx = f.nums.indexOf('1)', 1) < 0 ? f.nums.length : f.nums.indexOf('1)', 1);
+  const iSol = f.titols.indexOf('Solucions');
+  comprova('PDF: fulls A4 exactes (210 × 297 mm), sense res que vessi', f.n > 1 && f.a4 && f.vessa === 0, JSON.stringify(f).slice(0, 300));
+  comprova('PDF: tantes pàgines com fulls, i la barra de dalt no s\'imprimeix', f.pagines === f.n && f.barra === 'none', `${f.pagines} pàgines, ${f.n} fulls, barra ${f.barra}`);
+  comprova('PDF: la capçalera «Nom … Curs … Data …», només al primer full',
+    f.capcalera[0] && f.capcalera.slice(1).every(x => !x) && /^Nom:\s*Curs:\s*Data:\s*$/.test(f.text), JSON.stringify(f.text));
+  comprova('PDF: els 8 exercicis, numerats, i «Solucions» comença en un full nou (amb l\'1)',
+    nEx === 8 && f.nums.slice(0, 8).join() === '1),2),3),4),5),6),7),8)' && iSol > 0 && f.primers[iSol] === '1)' && f.nums.length === 16, f.nums.join() + ' / ' + f.titols.join('|'));
+  comprova('PDF: els fulls numerats «k / N»', f.peus.every((x, i) => x === `${i + 1} / ${f.n}`), f.peus.join());
+  f = await fulls('#n=10&esp=mitja&set=N&div=1&par=1&pot=1&seed=pdf1&g=2');
+  comprova('PDF sense solucions: 10 exercicis, sense «Solucions», A4 i sense vessar',
+    f.nums.length === 10 && !f.titols.includes('Solucions') && f.a4 && f.vessa === 0 && f.pagines === f.n, JSON.stringify(f).slice(0, 300));
+  f = await fulls('#act=igu&seed=igu1');
+  comprova('PDF: per a «Completa la igualtat», no hi ha fulls (ho diu)', f.n === 0 && /Crea el PDF/.test(f.msg || ''), JSON.stringify(f).slice(0, 200));
 
   console.log('Panell');
   // Una pestanya nova (sense res desat): tres passos; plegats, en diuen el resum
