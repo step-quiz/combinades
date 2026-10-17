@@ -1,7 +1,7 @@
 # todo.md — estat i feina pendent
 
-Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla). Especificació original:
-`instruccions-operacions-combinades-1eso.md`. Aquest fitxer és el punt de partida per a qui continuï la feina
+Projecte: generador d'operacions combinades de 1r d'ESO (web estàtica vanilla). L'especificació original
+(`instruccions-operacions-combinades-1eso.md`) no és al repositori. Aquest fitxer és el punt de partida per a qui continuï la feina
 (persona o IA): **llegeix-lo sencer abans de tocar res**, i respecta les regles de la secció 4.
 
 ---
