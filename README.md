@@ -236,3 +236,12 @@ todo.md              estat, revisió i feina pendent
 `?v=` de cada fitxer de `assets/` a `index.html` i a `imprimir.html` han de dir el mateix: `tests/prova.js` ho comprova. Així, quan es
 publica una versió nova, el navegador baixa de nou l'estil i el JavaScript, i no fa servir els d'abans, que tenia
 desats (amb els d'abans, la pàgina nova es veia sense format i alguns botons no anaven).
+
+<!-- atribucio-centre:inici -->
+
+---
+
+Material desenvolupat per **David Arso Civil** per al Departament de Matemàtiques de l'INS Miquel Tarradell.
+Contingut sota CC BY-NC-SA 4.0, codi sota llicència MIT. Vegeu [`LLICENCIA.md`](LLICENCIA.md).
+
+<!-- atribucio-centre:final -->
