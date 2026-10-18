@@ -19,20 +19,20 @@ permissions:
 jobs:
   logica:
     name: Lògica (tests/prova.js)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: node tests/prova.js
 
   latex:
     name: Compilació amb LaTeX (tests/compila.js)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Instal·la el TeX Live mínim (amb el català de babel)
@@ -43,10 +43,10 @@ jobs:
 
   navegador:
     name: Navegador (tests/navegador.js)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: npm install --no-save playwright
