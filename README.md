@@ -205,7 +205,7 @@ No deixa cap fitxer a l'arbre.
   repositori (cap commit), o sigui que no afecta Cloudflare Pages. Es veu a la pestanya **Actions**: verd, tot bé;
   vermell, clica-hi i surt quina comprovació ha fallat.
 - **`.github/workflows/unzip-upload.yml`**: un ZIP pujat a `_uploads/` (sense carpeta contenidora) es descomprimeix
-  a l'arrel, s'esborra i se'n fa un commit; després es passa `tests/prova.js`. El commit **no** porta «[skip ci]»,
+  a l'arrel, s'esborra i se'n fa un commit; després es llança `proves.yml` (totes les proves). El commit **no** porta «[skip ci]»,
   perquè Cloudflare no el publicaria.
 - Els fitxers de `.github/workflows/` no poden arribar dins d'un ZIP: el bot no hi té permís. Es creen i s'editen
   des de la web de GitHub.

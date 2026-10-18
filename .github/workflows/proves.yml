@@ -3,12 +3,15 @@
 # Actions: verd, tot bé; vermell, clica-hi i surt quina comprovació falla.
 name: Proves
 
-# A main, a cada push (també els commits dels ZIP); a les altres branques,
-# només a través del pull request (així no es passen dues vegades).
+# A main, a cada push; a les altres branques, només a través del pull request
+# (així no es passen dues vegades). Els commits del bot dels ZIP no disparen
+# cap workflow per si sols: per això unzip-upload.yml llança aquest a mà
+# (workflow_dispatch).
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
